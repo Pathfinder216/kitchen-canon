@@ -1,0 +1,101 @@
+export interface Ingredient {
+  id: string;
+  recipeId: string;
+  name: string;
+  originalName: string | null;
+  amount: number | null;
+  unit: string | null;
+  isOptional: boolean;
+  orderIndex: number;
+  internalId: string;
+}
+
+export interface Step {
+  id: string;
+  recipeId: string;
+  orderIndex: number;
+  instruction: string;
+  timeMinutes: number | null;
+  isActiveTime: boolean;
+}
+
+export interface Recipe {
+  id: string;
+  title: string;
+  servings: number;
+  totalTime: number | null;
+  activeTime: number | null;
+  source: string | null;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+  parentId: string | null;
+  isLatest: boolean;
+  authorNotes: string | null;
+  personalNotes: string | null;
+  ingredients: Ingredient[];
+  steps: Step[];
+}
+
+export interface PaginatedResponse<T> {
+  recipes: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface CreateRecipeInput {
+  title: string;
+  servings?: number;
+  totalTime?: number;
+  activeTime?: number;
+  source?: string;
+  authorNotes?: string;
+  personalNotes?: string;
+  ingredients?: IngredientInput[];
+  steps?: StepInput[];
+}
+
+export interface IngredientInput {
+  name: string;
+  originalName?: string;
+  amount?: number;
+  unit?: string;
+  isOptional?: boolean;
+  orderIndex: number;
+  internalId: string;
+}
+
+export interface StepInput {
+  orderIndex: number;
+  instruction: string;
+  timeMinutes?: number;
+  isActiveTime?: boolean;
+}
+
+export interface UpdateRecipeInput {
+  title?: string;
+  servings?: number;
+  totalTime?: number | null;
+  activeTime?: number | null;
+  source?: string | null;
+  authorNotes?: string | null;
+  personalNotes?: string | null;
+  ingredients?: IngredientInput[];
+  steps?: StepInput[];
+}
+
+export interface RecipeListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  archived?: boolean;
+  includeIngredients?: string;
+  excludeIngredients?: string;
+  labels?: string;
+  categories?: string;
+}

@@ -1,9 +1,10 @@
 import { Link, useParams } from 'react-router-dom';
 import { useRecipe, useArchiveRecipe } from '../hooks/useRecipes';
 import { IngredientList } from '../components/IngredientList';
-import { StepList } from '../components/StepList';
 import { useScaling, formatScaledAmount } from '../hooks/useScaling';
 import { SubstitutionList } from '../components/SubstitutionList';
+import { RecipeMedia } from '../components/RecipeMedia';
+import { StepMedia } from '../components/StepMedia';
 import type { Recipe } from '../types/recipe';
 
 function handleExport(id: string, format: 'json' | 'text') {
@@ -68,6 +69,9 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
         </div>
       )}
 
+      {/* Cover photo */}
+      <RecipeMedia recipeId={id!} readOnly />
+
       {/* Source */}
       {recipe.source && (
         <p className="text-sm text-gray-500 mb-4">
@@ -127,7 +131,28 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
       {/* Steps */}
       <div className="mb-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-3">Steps</h2>
-        <StepList steps={recipe.steps} />
+        {recipe.steps.length === 0 ? (
+          <p className="text-gray-500 text-sm">No steps listed.</p>
+        ) : (
+          <ol className="space-y-4">
+            {recipe.steps.map((step, index) => (
+              <li key={step.id} className="flex gap-3">
+                <span className="flex-shrink-0 w-7 h-7 bg-orange-100 text-orange-700 rounded-full flex items-center justify-center text-sm font-semibold">
+                  {index + 1}
+                </span>
+                <div className="flex-1 pt-0.5">
+                  <p className="text-gray-900 text-sm">{step.instruction}</p>
+                  {step.timeMinutes && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {step.timeMinutes} min ({step.isActiveTime ? 'active' : 'inactive'})
+                    </p>
+                  )}
+                  <StepMedia stepId={step.id} readOnly />
+                </div>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
 
       {/* Author Notes — shown after ingredients and steps */}

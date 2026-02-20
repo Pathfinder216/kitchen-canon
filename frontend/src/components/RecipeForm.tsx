@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { CreateRecipeInput, IngredientInput, StepInput, Recipe } from '../types/recipe';
 import type { ParsedRecipe } from '../api/import';
+import { StepMedia } from './StepMedia';
 
 interface RecipeFormProps {
   initialData?: Recipe;
@@ -61,6 +62,8 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
 
   const [steps, setSteps] = useState<StepInput[]>(
     seed?.steps.map((step) => ({
+      // Preserve DB id only when coming from initialData (not importData)
+      existingId: initialData ? (step as { id?: string }).id : undefined,
       orderIndex: step.orderIndex,
       instruction: step.instruction,
       timeMinutes: step.timeMinutes ?? undefined,
@@ -135,7 +138,8 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
       authorNotes: authorNotes || undefined,
       personalNotes: personalNotes || undefined,
       ingredients,
-      steps,
+      // Strip existingId before sending to backend
+      steps: steps.map(({ existingId: _id, ...rest }) => rest),
     });
   }
 
@@ -312,6 +316,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
                     Active time
                   </label>
                 </div>
+                {step.existingId && <StepMedia stepId={step.existingId} />}
               </div>
               <button type="button" onClick={() => removeStep(index)} className="text-red-400 hover:text-red-600 shrink-0 mt-2" aria-label="Remove step">
                 <TrashIcon />
@@ -336,7 +341,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
       </div>
 
       {/* Submit */}
-      <div className="flex items-center gap-4">
+      <div className="sticky bottom-0 bg-white border-t border-gray-100 -mx-4 px-4 pt-3 pb-4 flex items-center gap-4">
         <button type="submit" disabled={isSubmitting || !title.trim()} className="bg-orange-600 text-white px-6 py-2 rounded-md text-sm font-medium hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
           {isSubmitting ? 'Saving...' : initialData ? 'Save Changes' : 'Create Recipe'}
         </button>

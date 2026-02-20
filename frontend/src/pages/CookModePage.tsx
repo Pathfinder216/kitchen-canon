@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useRecipe } from '../hooks/useRecipes';
+import { StepMedia } from '../components/StepMedia';
 import type { Step } from '../types/recipe';
 
 // ---------------------------------------------------------------------------
@@ -389,6 +390,7 @@ export function CookModePage() {
                 )}
               </div>
               <p className="text-gray-800 text-lg leading-relaxed">{step.instruction}</p>
+              <StepMedia stepId={step.id} readOnly />
               {!step.isActiveTime && (
                 <StepTimerCard
                   step={step}

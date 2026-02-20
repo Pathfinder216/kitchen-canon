@@ -9,13 +9,14 @@ interface MediaItem {
   orderIndex: number | null;
 }
 
-async function fetchMedia(recipeId: string): Promise<MediaItem[]> {
+async function fetchCoverPhoto(recipeId: string): Promise<MediaItem | null> {
   const res = await fetch(`/api/recipes/${recipeId}/media`);
   if (!res.ok) throw new ApiError(res.status, 'Failed to load media');
-  return res.json();
+  const items: MediaItem[] = await res.json();
+  return items.find((m) => m.type === 'image') ?? null;
 }
 
-async function uploadMedia(recipeId: string, file: File): Promise<MediaItem> {
+async function uploadCoverPhoto(recipeId: string, file: File): Promise<MediaItem> {
   const form = new FormData();
   form.append('file', file);
   const res = await fetch(`/api/recipes/${recipeId}/media`, { method: 'POST', body: form });
@@ -26,29 +27,34 @@ async function uploadMedia(recipeId: string, file: File): Promise<MediaItem> {
   return res.json();
 }
 
-async function deleteMedia(recipeId: string, mediaId: string): Promise<void> {
+async function deleteCoverPhoto(recipeId: string, mediaId: string): Promise<void> {
   const res = await fetch(`/api/recipes/${recipeId}/media/${mediaId}`, { method: 'DELETE' });
   if (!res.ok) throw new ApiError(res.status, 'Delete failed');
 }
 
 interface RecipeMediaProps {
   recipeId: string;
+  /** Read-only display mode (no upload/delete controls) */
+  readOnly?: boolean;
 }
 
-export function RecipeMedia({ recipeId }: RecipeMediaProps) {
+export function RecipeMedia({ recipeId, readOnly = false }: RecipeMediaProps) {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState('');
 
-  const { data: media = [] } = useQuery({
-    queryKey: ['media', recipeId],
-    queryFn: () => fetchMedia(recipeId),
+  const { data: cover = null } = useQuery({
+    queryKey: ['cover-photo', recipeId],
+    queryFn: () => fetchCoverPhoto(recipeId),
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => uploadMedia(recipeId, file),
+    mutationFn: async (file: File) => {
+      if (cover) await deleteCoverPhoto(recipeId, cover.id);
+      return uploadCoverPhoto(recipeId, file);
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['media', recipeId] });
+      queryClient.invalidateQueries({ queryKey: ['cover-photo', recipeId] });
       setUploadError('');
       if (fileRef.current) fileRef.current.value = '';
     },
@@ -58,10 +64,8 @@ export function RecipeMedia({ recipeId }: RecipeMediaProps) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (mediaId: string) => deleteMedia(recipeId, mediaId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['media', recipeId] });
-    },
+    mutationFn: (mediaId: string) => deleteCoverPhoto(recipeId, mediaId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cover-photo', recipeId] }),
   });
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -69,48 +73,60 @@ export function RecipeMedia({ recipeId }: RecipeMediaProps) {
     if (file) uploadMutation.mutate(file);
   }
 
-  const images = media.filter((m) => m.type === 'image');
+  // ── Read-only (detail page) ──────────────────────────────────────────────
+  if (readOnly) {
+    if (!cover) return null;
+    return (
+      <div className="w-full aspect-video rounded-xl overflow-hidden border border-gray-200 mb-6">
+        <img src={cover.path} alt="" className="w-full h-full object-cover" />
+      </div>
+    );
+  }
 
+  // ── Edit mode — compact horizontal row ───────────────────────────────────
   return (
-    <div className="mt-4">
-      {/* Gallery */}
-      {images.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          {images.map((m) => (
-            <div key={m.id} className="relative group w-32 h-32">
-              <img
-                src={m.path}
-                alt=""
-                className="w-full h-full object-cover rounded-lg border border-gray-200"
+    <div className="flex items-center gap-3">
+      {cover ? (
+        <>
+          <div className="relative group w-16 h-16 shrink-0 rounded-lg overflow-hidden border border-gray-200">
+            <img src={cover.path} alt="" className="w-full h-full object-cover" />
+          </div>
+          <div className="flex gap-2">
+            <label className="cursor-pointer text-xs text-gray-600 hover:text-gray-900 border border-gray-300 px-2.5 py-1 rounded-lg hover:bg-gray-50 transition-colors">
+              {uploadMutation.isPending ? 'Uploading…' : 'Change'}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={handleFileChange}
+                disabled={uploadMutation.isPending}
               />
-              <button
-                onClick={() => deleteMutation.mutate(m.id)}
-                className="absolute top-1 right-1 bg-black/60 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                aria-label="Delete image"
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
+            </label>
+            <button
+              onClick={() => deleteMutation.mutate(cover.id)}
+              disabled={deleteMutation.isPending}
+              className="text-xs text-red-500 hover:text-red-700 border border-gray-300 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              Remove
+            </button>
+          </div>
+        </>
+      ) : (
+        <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-400 hover:text-gray-600 border border-dashed border-gray-200 hover:border-gray-300 rounded-lg px-3 py-2 transition-colors">
+          <span className="text-lg leading-none">🖼</span>
+          <span>{uploadMutation.isPending ? 'Uploading…' : '+ Add cover photo'}</span>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={handleFileChange}
+            disabled={uploadMutation.isPending}
+          />
+        </label>
       )}
-
-      {/* Upload */}
-      <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-gray-600 hover:text-gray-800">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          onChange={handleFileChange}
-          disabled={uploadMutation.isPending}
-        />
-        <span className="border border-gray-300 px-3 py-1 rounded-lg hover:bg-gray-50 transition-colors">
-          {uploadMutation.isPending ? 'Uploading...' : images.length > 0 ? '+ Add photo' : '+ Add photo'}
-        </span>
-      </label>
-
-      {uploadError && <p className="text-xs text-red-600 mt-1">{uploadError}</p>}
+      {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
     </div>
   );
 }

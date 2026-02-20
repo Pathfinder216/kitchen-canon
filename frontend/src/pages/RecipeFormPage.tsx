@@ -43,18 +43,18 @@ export function RecipeFormPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         {isEditing ? 'Edit Recipe' : 'New Recipe'}
       </h1>
+      {isEditing && id && (
+        <div className="mb-6">
+          <h2 className="text-sm font-medium text-gray-700 mb-2">Cover photo</h2>
+          <RecipeMedia recipeId={id} />
+        </div>
+      )}
       <RecipeForm
         initialData={recipe}
         importData={importData}
         onSubmit={handleSubmit}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
       />
-      {isEditing && id && (
-        <div className="mt-8 border-t border-gray-200 pt-6">
-          <h2 className="text-sm font-medium text-gray-700 mb-3">Photos</h2>
-          <RecipeMedia recipeId={id} />
-        </div>
-      )}
     </div>
   );
 }

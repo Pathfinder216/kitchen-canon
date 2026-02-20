@@ -103,4 +103,75 @@ router.delete(
   }),
 );
 
+// ---------------------------------------------------------------------------
+// Step-level media routes
+// ---------------------------------------------------------------------------
+
+// POST /api/steps/:stepId/media — upload image or video for a step
+router.post(
+  '/steps/:stepId/media',
+  upload.single('file'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) {
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
+    }
+
+    const step = await prisma.step.findUnique({ where: { id: req.params.stepId } });
+    if (!step) {
+      fs.unlinkSync(req.file.path);
+      throw new AppError(404, 'Step not found');
+    }
+
+    // Replace any existing media for this step (one slot per step)
+    const existing = await prisma.media.findFirst({ where: { stepId: req.params.stepId } });
+    if (existing) {
+      const oldPath = path.join(config.MEDIA_STORAGE_PATH, path.basename(existing.path));
+      try { fs.unlinkSync(oldPath); } catch { /* ignore */ }
+      await prisma.media.delete({ where: { id: existing.id } });
+    }
+
+    const type = req.file.mimetype.startsWith('image/') ? 'image' : 'video';
+    const media = await prisma.media.create({
+      data: {
+        type,
+        path: `/media/${req.file.filename}`,
+        stepId: req.params.stepId,
+        orderIndex: 0,
+      },
+    });
+
+    res.status(201).json(media);
+  }),
+);
+
+// GET /api/steps/:stepId/media — get the single media item for a step
+router.get(
+  '/steps/:stepId/media',
+  asyncHandler(async (req, res) => {
+    const step = await prisma.step.findUnique({ where: { id: req.params.stepId } });
+    if (!step) throw new AppError(404, 'Step not found');
+
+    const media = await prisma.media.findFirst({ where: { stepId: req.params.stepId } });
+    res.json(media ?? null);
+  }),
+);
+
+// DELETE /api/steps/:stepId/media/:mediaId — delete step media
+router.delete(
+  '/steps/:stepId/media/:mediaId',
+  asyncHandler(async (req, res) => {
+    const media = await prisma.media.findFirst({
+      where: { id: req.params.mediaId, stepId: req.params.stepId },
+    });
+    if (!media) throw new AppError(404, 'Media not found');
+
+    const filePath = path.join(config.MEDIA_STORAGE_PATH, path.basename(media.path));
+    try { fs.unlinkSync(filePath); } catch { /* file may not exist */ }
+
+    await prisma.media.delete({ where: { id: media.id } });
+    res.status(204).send();
+  }),
+);
+
 export default router;

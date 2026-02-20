@@ -148,7 +148,7 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
     });
 
     // Create new version
-    return tx.recipe.create({
+    const created = await tx.recipe.create({
       data: {
         title: recipeData.title ?? existing.title,
         servings: recipeData.servings ?? existing.servings,
@@ -170,6 +170,40 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
       },
       include: recipeInclude,
     });
+
+    // ── Migrate media from old version to new version ─────────────────────
+    // Recipe-level media (not tied to a step)
+    const recipeLevelMedia = await tx.media.findMany({
+      where: { recipeId: id, stepId: null },
+    });
+    for (const m of recipeLevelMedia) {
+      await tx.media.create({
+        data: { type: m.type, path: m.path, orderIndex: m.orderIndex, recipeId: created.id },
+      });
+    }
+
+    // Step-level media — match old steps to new steps by orderIndex
+    const oldStepIds = existing.steps.map((s) => s.id);
+    if (oldStepIds.length > 0) {
+      const stepMedia = await tx.media.findMany({
+        where: { stepId: { in: oldStepIds } },
+      });
+      if (stepMedia.length > 0) {
+        const oldOrderByStepId = new Map(existing.steps.map((s) => [s.id, s.orderIndex]));
+        const newStepIdByOrder = new Map(created.steps.map((s) => [s.orderIndex, s.id]));
+        for (const m of stepMedia) {
+          const orderIdx = oldOrderByStepId.get(m.stepId!);
+          if (orderIdx === undefined) continue;
+          const newStepId = newStepIdByOrder.get(orderIdx);
+          if (!newStepId) continue;
+          await tx.media.create({
+            data: { type: m.type, path: m.path, orderIndex: m.orderIndex, stepId: newStepId },
+          });
+        }
+      }
+    }
+
+    return created;
   });
 
   return newRecipe;

@@ -72,6 +72,7 @@ export interface IngredientInput {
 
 export interface StepInput {
   orderIndex: number;
+  existingId?: string; // DB step ID when editing — used for per-step media uploads
   instruction: string;
   timeMinutes?: number;
   isActiveTime?: boolean;

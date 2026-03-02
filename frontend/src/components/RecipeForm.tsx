@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
 import type { CreateRecipeInput, IngredientInput, StepInput, Recipe } from '../types/recipe';
 import type { ParsedRecipe } from '../api/import';
@@ -37,6 +37,8 @@ function noScroll(e: React.WheelEvent<HTMLInputElement>) {
   (e.currentTarget as HTMLInputElement).blur();
 }
 
+const FLIP_TRANSITION = 'transform 320ms cubic-bezier(0.33, 1, 0.68, 1)';
+
 export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: RecipeFormProps) {
   const seed = initialData ?? importData;
 
@@ -60,8 +62,11 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
     })) ?? [],
   );
 
-  const [steps, setSteps] = useState<StepInput[]>(
-    seed?.steps.map((step) => ({
+  type StepFormItem = StepInput & { internalId: string };
+
+  const [steps, setSteps] = useState<StepFormItem[]>(
+    seed?.steps.map((step, i) => ({
+      internalId: `step_${i}_${Date.now()}`,
       // Preserve DB id only when coming from initialData (not importData)
       existingId: initialData ? (step as { id?: string }).id : undefined,
       orderIndex: step.orderIndex,
@@ -71,13 +76,29 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
     })) ?? [],
   );
 
-  // Drag-and-drop state
-  const ingDragIdx = useRef<number | null>(null);
-  const stepDragIdx = useRef<number | null>(null);
-  const [ingDropTarget, setIngDropTarget] = useState<number | null>(null);
-  const [stepDropTarget, setStepDropTarget] = useState<number | null>(null);
+  // ── Ingredient drag state ────────────────────────────────────────────────────
+  // ingDragId: ref for sync access in document listeners; ingDraggingId: state for rendering
+  const ingDragId = useRef<string | null>(null);
+  const [ingDraggingId, setIngDraggingId] = useState<string | null>(null);
+  // ingEls: outer wrapper divs — hit-testing only, never transformed (layout position is always accurate)
+  // ingContentEls: inner row divs — FLIP animation only
+  const ingEls = useRef<Map<string, HTMLDivElement>>(new Map());
+  const ingContentEls = useRef<Map<string, HTMLDivElement>>(new Map());
+  const ingBeforePositions = useRef<Map<string, number>>(new Map());
+  const ingPendingFlip = useRef(false);
 
-  // ── Ingredient helpers ──────────────────────────────────────────────────────
+  // ── Step drag state ──────────────────────────────────────────────────────────
+  // stepDragId: ref for sync access; draggingStepId: state for rendering
+  const stepDragId = useRef<string | null>(null);
+  const [draggingStepId, setDraggingStepId] = useState<string | null>(null);
+  // stepEls: outer row divs (hit-testing only, never transformed)
+  // stepContentEls: inner content divs (FLIP animation only, step numbers excluded)
+  const stepEls = useRef<Map<string, HTMLDivElement>>(new Map());
+  const stepContentEls = useRef<Map<string, HTMLDivElement>>(new Map());
+  const stepBeforePositions = useRef<Map<string, number>>(new Map());
+  const stepPendingFlip = useRef(false);
+
+  // ── Ingredient helpers ───────────────────────────────────────────────────────
   function addIngredient() {
     setIngredients((prev) => [
       ...prev,
@@ -93,20 +114,11 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
     setIngredients((prev) => prev.map((ing, i) => (i === index ? { ...ing, [field]: value } : ing)));
   }
 
-  function reorderIngredients(from: number, to: number) {
-    setIngredients((prev) => {
-      const arr = [...prev];
-      const [item] = arr.splice(from, 1);
-      arr.splice(to, 0, item);
-      return arr.map((ing, i) => ({ ...ing, orderIndex: i }));
-    });
-  }
-
-  // ── Step helpers ────────────────────────────────────────────────────────────
+  // ── Step helpers ─────────────────────────────────────────────────────────────
   function addStep() {
     setSteps((prev) => [
       ...prev,
-      { orderIndex: prev.length, instruction: '', isActiveTime: true },
+      { internalId: `step_${Date.now()}`, orderIndex: prev.length, instruction: '', isActiveTime: true },
     ]);
   }
 
@@ -118,14 +130,143 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
     setSteps((prev) => prev.map((step, i) => (i === index ? { ...step, [field]: value } : step)));
   }
 
-  function reorderSteps(from: number, to: number) {
-    setSteps((prev) => {
-      const arr = [...prev];
-      const [item] = arr.splice(from, 1);
-      arr.splice(to, 0, item);
-      return arr.map((step, i) => ({ ...step, orderIndex: i }));
+  // ── Ingredient drag: document-level pointer listeners ────────────────────────
+  // Using document listeners (not setPointerCapture) because pointer capture is lost
+  // when React moves the captured DOM node during a live reorder.
+  useEffect(() => {
+    if (!ingDraggingId) return;
+
+    function handleMove(e: PointerEvent) {
+      const draggedId = ingDragId.current;
+      if (!draggedId) return;
+      for (const [id, el] of ingEls.current) {
+        if (id === draggedId) continue;
+        const rect = el.getBoundingClientRect();
+        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          if (e.clientY < rect.top + rect.height / 2) {
+            const bef = new Map<string, number>();
+            ingContentEls.current.forEach((ingEl, ingId) => { bef.set(ingId, ingEl.getBoundingClientRect().top); });
+            ingBeforePositions.current = bef;
+            ingPendingFlip.current = true;
+            setIngredients(prev => {
+              const fromIdx = prev.findIndex(s => s.internalId === draggedId);
+              const toIdx = prev.findIndex(s => s.internalId === id);
+              if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return prev;
+              const arr = [...prev];
+              const [item] = arr.splice(fromIdx, 1);
+              arr.splice(toIdx, 0, item);
+              return arr.map((ing, i) => ({ ...ing, orderIndex: i }));
+            });
+          }
+          break;
+        }
+      }
+    }
+
+    function handleUp() {
+      ingDragId.current = null;
+      setIngDraggingId(null);
+      document.documentElement.classList.remove('dragging-step');
+      ingContentEls.current.forEach(el => { el.style.transition = ''; el.style.transform = ''; });
+    }
+
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleUp);
+    document.addEventListener('pointercancel', handleUp);
+    return () => {
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
+      document.removeEventListener('pointercancel', handleUp);
+    };
+  }, [ingDraggingId]);
+
+  // FLIP animation for ingredients — only inner content divs, outer wrappers are never transformed
+  useLayoutEffect(() => {
+    if (!ingPendingFlip.current) return;
+    ingPendingFlip.current = false;
+    const dragging = ingDragId.current;
+    ingContentEls.current.forEach((el, id) => {
+      if (id === dragging) return;
+      const prev = ingBeforePositions.current.get(id);
+      if (prev === undefined) return;
+      const after = el.getBoundingClientRect().top;
+      const delta = prev - after;
+      if (Math.abs(delta) < 1) return;
+      el.style.transition = 'none';
+      el.style.transform = `translateY(${delta}px)`;
+      el.getBoundingClientRect(); // force reflow
+      el.style.transition = FLIP_TRANSITION;
+      el.style.transform = '';
     });
-  }
+  }, [ingredients]);
+
+  // ── Step drag: document-level pointer listeners ──────────────────────────────
+  useEffect(() => {
+    if (!draggingStepId) return;
+
+    function handleMove(e: PointerEvent) {
+      const draggedId = stepDragId.current;
+      if (!draggedId) return;
+      for (const [id, el] of stepEls.current) {
+        if (id === draggedId) continue;
+        const rect = el.getBoundingClientRect();
+        if (e.clientY >= rect.top && e.clientY <= rect.bottom) {
+          if (e.clientY < rect.top + rect.height / 2) {
+            const bef = new Map<string, number>();
+            stepContentEls.current.forEach((stepEl, stepId) => { bef.set(stepId, stepEl.getBoundingClientRect().top); });
+            stepBeforePositions.current = bef;
+            stepPendingFlip.current = true;
+            setSteps(prev => {
+              const fromIdx = prev.findIndex(s => s.internalId === draggedId);
+              const toIdx = prev.findIndex(s => s.internalId === id);
+              if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return prev;
+              const arr = [...prev];
+              const [item] = arr.splice(fromIdx, 1);
+              arr.splice(toIdx, 0, item);
+              return arr.map((s, i) => ({ ...s, orderIndex: i }));
+            });
+          }
+          break;
+        }
+      }
+    }
+
+    function handleUp() {
+      stepDragId.current = null;
+      setDraggingStepId(null);
+      document.documentElement.classList.remove('dragging-step');
+      stepContentEls.current.forEach(el => { el.style.transition = ''; el.style.transform = ''; });
+    }
+
+    document.addEventListener('pointermove', handleMove);
+    document.addEventListener('pointerup', handleUp);
+    document.addEventListener('pointercancel', handleUp);
+    return () => {
+      document.removeEventListener('pointermove', handleMove);
+      document.removeEventListener('pointerup', handleUp);
+      document.removeEventListener('pointercancel', handleUp);
+    };
+  }, [draggingStepId]);
+
+  // FLIP animation for steps — only inner content divs; step numbers are excluded intentionally
+  useLayoutEffect(() => {
+    if (!stepPendingFlip.current) return;
+    stepPendingFlip.current = false;
+    const dragging = stepDragId.current;
+    stepContentEls.current.forEach((el, id) => {
+      if (id === dragging) return;
+      const prev = stepBeforePositions.current.get(id);
+      if (prev === undefined) return;
+      const after = el.getBoundingClientRect().top;
+      const delta = prev - after;
+      if (Math.abs(delta) < 1) return;
+      el.style.transition = 'none';
+      el.style.transform = `translateY(${delta}px)`;
+      el.getBoundingClientRect(); // force reflow
+      el.style.transition = FLIP_TRANSITION;
+      el.style.transform = '';
+    });
+  }, [steps]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -138,8 +279,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
       authorNotes: authorNotes || undefined,
       personalNotes: personalNotes || undefined,
       ingredients,
-      // Strip existingId before sending to backend
-      steps: steps.map(({ existingId: _id, ...rest }) => rest),
+      steps: steps.map(({ existingId: _id, internalId: _iid, ...rest }) => rest),
     });
   }
 
@@ -180,40 +320,31 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
       {/* Ingredients */}
       <div>
         <h3 className="text-sm font-medium text-gray-700 mb-2">Ingredients</h3>
-        <div className="space-y-2">
+        <div className="space-y-0.5">
           {ingredients.map((ing, index) => (
+            // Outer div: hit-testing only, never transformed — ensures layout position is always accurate
             <div
               key={ing.internalId}
-              className={`flex gap-1.5 items-center rounded transition-colors ${ingDropTarget === index && ingDragIdx.current !== index ? 'bg-orange-50 ring-1 ring-orange-200' : ''}`}
-              onDragOver={(e) => { e.preventDefault(); setIngDropTarget(index); }}
-              onDragLeave={() => setIngDropTarget(null)}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (ingDragIdx.current !== null && ingDragIdx.current !== index) {
-                  reorderIngredients(ingDragIdx.current, index);
-                }
-                ingDragIdx.current = null;
-                setIngDropTarget(null);
-              }}
+              ref={(el) => { if (el) ingEls.current.set(ing.internalId, el); else ingEls.current.delete(ing.internalId); }}
             >
-              {/* Drag handle */}
+              {/* Inner div: FLIP-animated + highlight */}
               <div
-                draggable
+                ref={(el) => { if (el) ingContentEls.current.set(ing.internalId, el); else ingContentEls.current.delete(ing.internalId); }}
+                className={`flex gap-1.5 items-center py-1 rounded-lg ${ingDraggingId === ing.internalId ? 'ring-2 ring-orange-400 bg-orange-50 shadow-md px-1' : ''}`}
+              >
+              <div
                 className={gripClass}
                 aria-label="Drag to reorder"
-                onDragStart={(e) => {
-                  ingDragIdx.current = index;
-                  e.dataTransfer.effectAllowed = 'move';
-                  // Use whole row as drag image
-                  const row = e.currentTarget.parentElement;
-                  if (row) e.dataTransfer.setDragImage(row, 20, 20);
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  ingDragId.current = ing.internalId;
+                  setIngDraggingId(ing.internalId);
+                  document.documentElement.classList.add('dragging-step');
                 }}
-                onDragEnd={() => { ingDragIdx.current = null; setIngDropTarget(null); }}
               >
                 <GripIcon />
               </div>
 
-              {/* Amount — narrow, no w-full */}
               <input
                 type="number"
                 value={ing.amount ?? ''}
@@ -223,7 +354,6 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
                 step="any"
                 onWheel={noScroll}
               />
-              {/* Unit — narrow */}
               <input
                 type="text"
                 value={ing.unit ?? ''}
@@ -231,7 +361,6 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
                 placeholder="Unit"
                 className={`${base} w-20 shrink-0`}
               />
-              {/* Name — fills remaining space */}
               <input
                 type="text"
                 value={ing.name}
@@ -247,6 +376,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
               <button type="button" onClick={() => removeIngredient(index)} className="text-red-400 hover:text-red-600 shrink-0" aria-label="Remove ingredient">
                 <TrashIcon />
               </button>
+              </div>
             </div>
           ))}
         </div>
@@ -258,69 +388,65 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
       {/* Steps */}
       <div>
         <h3 className="text-sm font-medium text-gray-700 mb-2">Steps</h3>
-        <div className="space-y-3">
+        <div className="space-y-1">
           {steps.map((step, index) => (
             <div
-              key={index}
-              className={`flex gap-2 items-start rounded transition-colors ${stepDropTarget === index && stepDragIdx.current !== index ? 'bg-orange-50 ring-1 ring-orange-200' : ''}`}
-              onDragOver={(e) => { e.preventDefault(); setStepDropTarget(index); }}
-              onDragLeave={() => setStepDropTarget(null)}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (stepDragIdx.current !== null && stepDragIdx.current !== index) {
-                  reorderSteps(stepDragIdx.current, index);
-                }
-                stepDragIdx.current = null;
-                setStepDropTarget(null);
-              }}
+              key={step.internalId}
+              ref={(el) => { if (el) stepEls.current.set(step.internalId, el); else stepEls.current.delete(step.internalId); }}
+              className="flex gap-3 items-start py-1"
             >
-              {/* Drag handle */}
-              <div
-                draggable
-                className={`${gripClass} mt-2`}
-                aria-label="Drag to reorder"
-                onDragStart={(e) => {
-                  stepDragIdx.current = index;
-                  e.dataTransfer.effectAllowed = 'move';
-                  const row = e.currentTarget.parentElement;
-                  if (row) e.dataTransfer.setDragImage(row, 20, 20);
-                }}
-                onDragEnd={() => { stepDragIdx.current = null; setStepDropTarget(null); }}
-              >
-                <GripIcon />
-              </div>
-
-              <span className="flex-shrink-0 w-7 h-7 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-semibold mt-1">
+              {/* Step number — static, outside the draggable area */}
+              <span className="flex-shrink-0 w-7 h-7 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-sm font-semibold mt-2 select-none">
                 {index + 1}
               </span>
-              <div className="flex-1 space-y-1 min-w-0">
-                <textarea
-                  value={step.instruction}
-                  onChange={(e) => updateStep(index, 'instruction', e.target.value)}
-                  placeholder="Step instruction"
-                  className={`${inputClass} min-h-[60px]`}
-                  required
-                />
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="number"
-                    value={step.timeMinutes ?? ''}
-                    onChange={(e) => updateStep(index, 'timeMinutes', e.target.value ? parseInt(e.target.value) : undefined)}
-                    placeholder="Minutes"
-                    className={`${base} w-24`}
-                    min={1}
-                    onWheel={noScroll}
-                  />
-                  <label className="flex items-center gap-1 text-xs text-gray-500">
-                    <input type="checkbox" checked={step.isActiveTime} onChange={(e) => updateStep(index, 'isActiveTime', e.target.checked)} />
-                    Active time
-                  </label>
+
+              {/* Draggable content — grip + fields + delete (only this div is FLIP-animated) */}
+              <div
+                ref={(el) => { if (el) stepContentEls.current.set(step.internalId, el); else stepContentEls.current.delete(step.internalId); }}
+                className={`flex-1 flex gap-2 items-start min-w-0 rounded-lg ${draggingStepId === step.internalId ? 'ring-2 ring-orange-400 bg-orange-50 shadow-md px-1' : ''}`}
+              >
+                <div
+                  className={`${gripClass} mt-2`}
+                  aria-label="Drag to reorder"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    stepDragId.current = step.internalId;
+                    setDraggingStepId(step.internalId);
+                    document.documentElement.classList.add('dragging-step');
+                  }}
+                >
+                  <GripIcon />
                 </div>
-                {step.existingId && <StepMedia stepId={step.existingId} />}
+
+                <div className="flex-1 space-y-1 min-w-0">
+                  <textarea
+                    value={step.instruction}
+                    onChange={(e) => updateStep(index, 'instruction', e.target.value)}
+                    placeholder="Step instruction"
+                    className={`${inputClass} min-h-[60px]`}
+                    required
+                  />
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      value={step.timeMinutes ?? ''}
+                      onChange={(e) => updateStep(index, 'timeMinutes', e.target.value ? parseInt(e.target.value) : undefined)}
+                      placeholder="Minutes"
+                      className={`${base} w-24`}
+                      min={1}
+                      onWheel={noScroll}
+                    />
+                    <label className="flex items-center gap-1 text-xs text-gray-500">
+                      <input type="checkbox" checked={step.isActiveTime} onChange={(e) => updateStep(index, 'isActiveTime', e.target.checked)} />
+                      Active time
+                    </label>
+                  </div>
+                  {step.existingId && <StepMedia stepId={step.existingId} />}
+                </div>
+                <button type="button" onClick={() => removeStep(index)} className="text-red-400 hover:text-red-600 shrink-0 mt-2" aria-label="Remove step">
+                  <TrashIcon />
+                </button>
               </div>
-              <button type="button" onClick={() => removeStep(index)} className="text-red-400 hover:text-red-600 shrink-0 mt-2" aria-label="Remove step">
-                <TrashIcon />
-              </button>
             </div>
           ))}
         </div>

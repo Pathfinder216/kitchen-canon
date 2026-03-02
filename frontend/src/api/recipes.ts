@@ -27,6 +27,10 @@ export function archiveRecipe(id: string): Promise<Recipe> {
   return apiDelete<Recipe>(`/recipes/${id}`);
 }
 
+export function deleteRecipePermanently(id: string): Promise<void> {
+  return apiDelete<void>(`/recipes/${id}/permanent`);
+}
+
 export function fetchRecipeVersions(id: string): Promise<Recipe[]> {
   return apiGet<Recipe[]>(`/recipes/${id}/versions`);
 }

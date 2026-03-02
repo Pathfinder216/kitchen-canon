@@ -1,5 +1,8 @@
+import fs from 'fs';
+import path from 'path';
 import { prisma } from '../db.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { config } from '../config.js';
 import type { CreateRecipeInput, UpdateRecipeInput, RecipeQueryInput } from '../schemas/recipe.schema.js';
 
 const recipeInclude = {
@@ -319,4 +322,33 @@ export async function restoreRecipeVersion(id: string, version: number) {
   });
 
   return restored;
+}
+
+export async function deleteRecipePermanently(id: string) {
+  // Collect all versions in the chain
+  const versions = await getRecipeVersions(id);
+  const allIds = versions.map((v) => v.id);
+  const steps = await prisma.step.findMany({ where: { recipeId: { in: allIds } }, select: { id: true } });
+  const allStepIds = steps.map((s) => s.id);
+
+  // Gather all media paths before deleting DB records
+  const [recipeMedia, stepMedia] = await Promise.all([
+    prisma.media.findMany({ where: { recipeId: { in: allIds } } }),
+    allStepIds.length > 0
+      ? prisma.media.findMany({ where: { stepId: { in: allStepIds } } })
+      : Promise.resolve([]),
+  ]);
+
+  // Delete files from disk
+  for (const m of [...recipeMedia, ...stepMedia]) {
+    const filePath = path.join(config.MEDIA_STORAGE_PATH, path.basename(m.path));
+    try { fs.unlinkSync(filePath); } catch { /* file may already be gone */ }
+  }
+
+  // Null out parentId references within the chain so deleteMany doesn't hit FK constraints,
+  // then delete all versions (cascade removes ingredients, steps, media DB records).
+  await prisma.$transaction(async (tx) => {
+    await tx.recipe.updateMany({ where: { id: { in: allIds } }, data: { parentId: null } });
+    await tx.recipe.deleteMany({ where: { id: { in: allIds } } });
+  });
 }

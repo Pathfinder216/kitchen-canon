@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import * as recipesApi from '../api/recipes';
 import type { RecipeListParams, CreateRecipeInput, UpdateRecipeInput } from '../types/recipe';
 
@@ -49,6 +50,19 @@ export function useArchiveRecipe() {
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ['recipes'] });
       queryClient.invalidateQueries({ queryKey: ['recipe', id] });
+    },
+  });
+}
+
+export function useDeleteRecipePermanently() {
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  return useMutation({
+    mutationFn: (id: string) => recipesApi.deleteRecipePermanently(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['recipes'] });
+      navigate('/');
     },
   });
 }

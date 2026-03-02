@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { useRecipe, useArchiveRecipe } from '../hooks/useRecipes';
+import { useRecipe, useArchiveRecipe, useDeleteRecipePermanently } from '../hooks/useRecipes';
 import { IngredientList } from '../components/IngredientList';
 import { useScaling, formatScaledAmount } from '../hooks/useScaling';
 import { SubstitutionList } from '../components/SubstitutionList';
@@ -15,12 +16,19 @@ function handleExport(id: string, format: 'json' | 'text') {
 function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const { id } = useParams<{ id: string }>();
   const archiveMutation = useArchiveRecipe();
+  const deleteMutation = useDeleteRecipePermanently();
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const { targetServings, setTargetServings, scaleIngredient } = useScaling(recipe.servings);
   const scaledIngredients = recipe.ingredients.map(scaleIngredient);
 
   function handleArchive() {
     if (!id) return;
     archiveMutation.mutate(id);
+  }
+
+  function handleDelete() {
+    if (!id) return;
+    deleteMutation.mutate(id);
   }
 
   return (
@@ -60,8 +68,42 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
           >
             {recipe.archived ? 'Unarchive' : 'Archive'}
           </button>
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="border border-red-200 text-red-600 px-4 py-2 rounded-md text-sm font-medium hover:bg-red-50 transition-colors"
+          >
+            Delete
+          </button>
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmDelete(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete recipe?</h2>
+            <p className="text-sm text-gray-600 mb-6">
+              <span className="font-medium">"{recipe.title}"</span> and all its versions will be permanently deleted. This cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Yes, delete permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {recipe.archived && (
         <div className="bg-amber-50 border border-amber-200 rounded-md px-4 py-2 mb-4 text-sm text-amber-700">

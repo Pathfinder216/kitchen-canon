@@ -62,6 +62,15 @@ router.delete(
   }),
 );
 
+// DELETE /api/recipes/:id/permanent - Permanently delete all versions
+router.delete(
+  '/:id/permanent',
+  asyncHandler(async (req, res) => {
+    await recipeService.deleteRecipePermanently(req.params.id);
+    res.status(204).send();
+  }),
+);
+
 // GET /api/recipes/:id/export?format=json|text
 router.get(
   '/:id/export',

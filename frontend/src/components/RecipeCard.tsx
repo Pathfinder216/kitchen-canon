@@ -43,7 +43,7 @@ export function RecipeCard({ recipe }: RecipeCardProps) {
       {/* Text */}
       <div className="flex-1 min-w-0">
         <h3 className="text-base font-semibold text-gray-900 truncate">{recipe.title}</h3>
-        <div className="flex gap-3 text-sm text-gray-500 mt-0.5">
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-gray-500 mt-0.5">
           {recipe.totalTime && <span>{recipe.totalTime} min</span>}
           <span>{recipe.servings} serving{recipe.servings !== 1 ? 's' : ''}</span>
           <span>{recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 ? 's' : ''}</span>

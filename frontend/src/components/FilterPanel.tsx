@@ -56,6 +56,7 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
   return (
     <div className="mb-4">
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
         className="text-sm text-gray-600 hover:text-gray-900 font-medium flex items-center gap-1"
       >
@@ -73,6 +74,7 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
                 type="text"
                 value={includeIng}
                 onChange={(e) => setIncludeIng(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyFilters(); } }}
                 placeholder="e.g., chicken, rice"
                 className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
               />
@@ -83,6 +85,7 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
                 type="text"
                 value={excludeIng}
                 onChange={(e) => setExcludeIng(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyFilters(); } }}
                 placeholder="e.g., mushrooms"
                 className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
               />
@@ -137,11 +140,11 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
 
           {/* Actions */}
           <div className="flex gap-2">
-            <button onClick={applyFilters} className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700">
+            <button type="button" onClick={applyFilters} className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700">
               Apply
             </button>
             {hasActiveFilters && (
-              <button onClick={clearFilters} className="text-gray-500 hover:text-gray-700 px-3 py-1 rounded text-sm border border-gray-300">
+              <button type="button" onClick={clearFilters} className="text-gray-500 hover:text-gray-700 px-3 py-1 rounded text-sm border border-gray-300">
                 Clear
               </button>
             )}

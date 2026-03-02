@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { validate } from '../middleware/validate.js';
-import { createMealPlanSchema, updateGroceryItemSchema } from '../schemas/meal-plan.schema.js';
+import { createMealPlanSchema, updateGroceryItemSchema, updateMealPlanSchema } from '../schemas/meal-plan.schema.js';
 import * as mealPlanService from '../services/meal-plan.service.js';
 
 const router = Router();
@@ -35,6 +35,16 @@ router.get(
   '/:id',
   asyncHandler(async (req, res) => {
     const mealPlan = await mealPlanService.getMealPlan(req.params.id);
+    res.json(mealPlan);
+  }),
+);
+
+// PATCH /api/meal-plans/:id — update meal plan (name, date, time, notes, recipes)
+router.patch(
+  '/:id',
+  validate(updateMealPlanSchema),
+  asyncHandler(async (req, res) => {
+    const mealPlan = await mealPlanService.updateMealPlan(req.params.id, req.body);
     res.json(mealPlan);
   }),
 );

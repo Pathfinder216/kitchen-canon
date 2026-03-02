@@ -24,6 +24,9 @@ export interface MealRecipeSummary {
 export interface MealPlanSummary {
   id: string;
   name: string | null;
+  date: string | null;
+  time: string | null;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
   recipes: MealRecipeSummary[];
@@ -57,6 +60,9 @@ export interface MealRecipeDetail extends MealRecipeSummary {
 export interface MealPlanDetail {
   id: string;
   name: string | null;
+  date: string | null;
+  time: string | null;
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
   recipes: MealRecipeDetail[];
@@ -64,8 +70,23 @@ export interface MealPlanDetail {
 }
 
 export interface CreateMealPlanInput {
-  name?: string;
+  name: string;
+  date?: string;
+  time?: string;
+  notes?: string;
   recipes: {
+    recipeId: string;
+    servings: number;
+    orderIndex?: number;
+  }[];
+}
+
+export interface UpdateMealPlanInput {
+  name?: string;
+  date?: string | null;
+  time?: string | null;
+  notes?: string | null;
+  recipes?: {
     recipeId: string;
     servings: number;
     orderIndex?: number;

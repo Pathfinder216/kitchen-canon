@@ -3,10 +3,10 @@ import {
   createMealPlan,
   fetchMealPlan,
   fetchMealPlans,
-  remakeMealPlan,
   toggleGroceryItem,
+  updateMealPlan,
 } from '../api/meal-plans';
-import type { CreateMealPlanInput } from '../types/meal-plan';
+import type { CreateMealPlanInput, UpdateMealPlanInput } from '../types/meal-plan';
 
 export function useMealPlans() {
   return useQuery({
@@ -33,6 +33,18 @@ export function useCreateMealPlan() {
   });
 }
 
+export function useUpdateMealPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: { id: string } & UpdateMealPlanInput) =>
+      updateMealPlan(id, input),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['meal-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['meal-plans', id] });
+    },
+  });
+}
+
 export function useToggleGroceryItem(mealPlanId: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -40,16 +52,6 @@ export function useToggleGroceryItem(mealPlanId: string) {
       toggleGroceryItem(mealPlanId, itemId, purchased),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meal-plans', mealPlanId] });
-    },
-  });
-}
-
-export function useRemakeMealPlan() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => remakeMealPlan(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['meal-plans'] });
     },
   });
 }

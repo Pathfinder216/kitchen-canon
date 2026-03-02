@@ -33,6 +33,7 @@ export default function App() {
           <Route path="/recipes/:id/versions" element={<RecipeVersionHistoryPage />} />
           <Route path="/meal-plans" element={<MealHistoryPage />} />
           <Route path="/meal-plans/new" element={<MealPlanFormPage />} />
+          <Route path="/meal-plans/:id/edit" element={<MealPlanFormPage />} />
           <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />
           <Route path="/import" element={<ImportPage />} />
         </Route>

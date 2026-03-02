@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useRecipe, useArchiveRecipe, useDeleteRecipePermanently } from '../hooks/useRecipes';
 import { IngredientList } from '../components/IngredientList';
 import { useScaling, formatScaledAmount } from '../hooks/useScaling';
@@ -15,6 +15,8 @@ function handleExport(id: string, format: 'json' | 'text') {
 // Inner component receives the loaded recipe — hooks are safe here.
 function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const backLink = (location.state as { from?: { label: string; href: string } } | null)?.from ?? { label: 'Back to recipes', href: '/' };
   const archiveMutation = useArchiveRecipe();
   const deleteMutation = useDeleteRecipePermanently();
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -36,8 +38,8 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <Link to="/" className="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">
-            &larr; Back to recipes
+          <Link to={backLink.href} className="text-sm text-gray-500 hover:text-gray-700 mb-2 inline-block">
+            &larr; {backLink.label}
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">{recipe.title}</h1>
           <div className="flex gap-3 text-sm text-gray-500 mt-1">

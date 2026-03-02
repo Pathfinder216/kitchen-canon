@@ -130,7 +130,11 @@ model LocalizationMapping {
 model MealPlan {
   id        String    @id @default(uuid())
   name      String?
+  date      String?   // ISO date string e.g. "2024-01-15"
+  time      String?   // Time string e.g. "18:30"
+  notes     String?
   createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
   cookedAt  DateTime?
   recipes   MealRecipe[]
   groceryList GroceryItem[]

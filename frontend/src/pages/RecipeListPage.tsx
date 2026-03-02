@@ -81,9 +81,11 @@ export function RecipeListPage() {
           <p className="text-gray-500 mb-4">
             {search || hasActiveFilters
               ? 'No recipes match your search or filters.'
-              : 'No recipes yet. Add your first recipe to get started!'}
+              : showArchived
+                ? 'No archived recipes.'
+                : 'No recipes yet. Add your first recipe to get started!'}
           </p>
-          {!search && !hasActiveFilters && (
+          {!search && !hasActiveFilters && !showArchived && (
             <Link to="/recipes/new" className="text-orange-600 hover:text-orange-700 font-medium text-sm">
               Create your first recipe
             </Link>

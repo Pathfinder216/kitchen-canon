@@ -3,12 +3,22 @@ import { Link } from 'react-router-dom';
 import type { CreateRecipeInput, IngredientInput, StepInput, Recipe } from '../types/recipe';
 import type { ParsedRecipe } from '../api/import';
 import { StepMedia } from './StepMedia';
+import { RecipeMedia } from './RecipeMedia';
+import { ComboInput } from './ComboInput';
+import { INGREDIENT_SUGGESTIONS, UNIT_SUGGESTIONS } from '../data/suggestions';
+
+export interface PendingMedia {
+  coverPhoto?: File;
+  stepMedia: Array<{ orderIndex: number; file: File }>;
+}
 
 interface RecipeFormProps {
   initialData?: Recipe;
   importData?: ParsedRecipe;
-  onSubmit: (data: CreateRecipeInput) => void;
+  onSubmit: (data: CreateRecipeInput, media: PendingMedia) => void;
   isSubmitting: boolean;
+  /** Set when editing an existing recipe — enables live media upload UI */
+  recipeId?: string;
 }
 
 function TrashIcon() {
@@ -37,24 +47,37 @@ function noScroll(e: React.WheelEvent<HTMLInputElement>) {
   (e.currentTarget as HTMLInputElement).blur();
 }
 
+/** Parse a fraction string like "1/2", "1 1/2", or "1.5" into a number */
+function parseFraction(s: string): number | undefined {
+  const t = s.trim();
+  if (!t) return undefined;
+  const mixed = t.match(/^(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
+  const fraction = t.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (fraction) return parseInt(fraction[1]) / parseInt(fraction[2]);
+  const num = parseFloat(t);
+  return isNaN(num) ? undefined : num;
+}
+
 const FLIP_TRANSITION = 'transform 320ms cubic-bezier(0.33, 1, 0.68, 1)';
 
-export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: RecipeFormProps) {
+export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, recipeId }: RecipeFormProps) {
   const seed = initialData ?? importData;
 
   const [title, setTitle] = useState(seed?.title ?? '');
-  const [servings, setServings] = useState(seed?.servings ?? 1);
-  const [totalTime, setTotalTime] = useState<string>(seed?.totalTime?.toString() ?? '');
-  const [activeTime, setActiveTime] = useState<string>(seed?.activeTime?.toString() ?? '');
+  const [servings, setServings] = useState<string>(seed?.servings?.toString() ?? '1');
   const [source, setSource] = useState(seed?.source ?? '');
   const [authorNotes, setAuthorNotes] = useState(seed?.authorNotes ?? '');
   const [personalNotes, setPersonalNotes] = useState(initialData?.personalNotes ?? '');
 
-  const [ingredients, setIngredients] = useState<IngredientInput[]>(
+  type IngredientFormItem = IngredientInput & { amountText: string };
+
+  const [ingredients, setIngredients] = useState<IngredientFormItem[]>(
     seed?.ingredients.map((ing) => ({
       name: ing.name,
       originalName: ing.originalName ?? undefined,
       amount: ing.amount ?? undefined,
+      amountText: ing.amount != null ? String(ing.amount) : '',
       unit: ing.unit ?? undefined,
       isOptional: ing.isOptional,
       orderIndex: ing.orderIndex,
@@ -62,7 +85,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
     })) ?? [],
   );
 
-  type StepFormItem = StepInput & { internalId: string };
+  type StepFormItem = StepInput & { internalId: string; timeMinutesText: string };
 
   const [steps, setSteps] = useState<StepFormItem[]>(
     seed?.steps.map((step, i) => ({
@@ -71,7 +94,8 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
       existingId: initialData ? (step as { id?: string }).id : undefined,
       orderIndex: step.orderIndex,
       instruction: step.instruction,
-      timeMinutes: step.timeMinutes ?? undefined,
+      timeMinutes: step.timeMinutes ?? 0,
+      timeMinutesText: (step.timeMinutes ?? 0).toString(),
       isActiveTime: step.isActiveTime,
     })) ?? [],
   );
@@ -102,7 +126,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
   function addIngredient() {
     setIngredients((prev) => [
       ...prev,
-      { name: '', orderIndex: prev.length, internalId: `ing_${Date.now()}`, isOptional: false },
+      { name: '', amountText: '', orderIndex: prev.length, internalId: `ing_${Date.now()}`, isOptional: false },
     ]);
   }
 
@@ -118,7 +142,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
   function addStep() {
     setSteps((prev) => [
       ...prev,
-      { internalId: `step_${Date.now()}`, orderIndex: prev.length, instruction: '', isActiveTime: true },
+      { internalId: `step_${Date.now()}`, orderIndex: prev.length, instruction: '', isActiveTime: true, timeMinutes: 0, timeMinutesText: '0' },
     ]);
   }
 
@@ -126,7 +150,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
     setSteps((prev) => prev.filter((_, i) => i !== index).map((step, i) => ({ ...step, orderIndex: i })));
   }
 
-  function updateStep(index: number, field: keyof StepInput, value: unknown) {
+  function updateStep(index: number, field: keyof StepFormItem, value: unknown) {
     setSteps((prev) => prev.map((step, i) => (i === index ? { ...step, [field]: value } : step)));
   }
 
@@ -268,19 +292,65 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
     });
   }, [steps]);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    onSubmit({
+  // ── Pending media (create mode) ─────────────────────────────────────────────
+  const [coverPhotoFile, setCoverPhotoFile] = useState<File | null>(null);
+  const [coverPhotoPreview, setCoverPhotoPreview] = useState<string | null>(null);
+  const [stepMediaFiles, setStepMediaFiles] = useState<Map<string, { file: File; preview: string }>>(new Map());
+
+  function handleCoverPhotoChange(file: File) {
+    if (coverPhotoPreview) URL.revokeObjectURL(coverPhotoPreview);
+    setCoverPhotoFile(file);
+    setCoverPhotoPreview(URL.createObjectURL(file));
+  }
+  function handleCoverPhotoRemove() {
+    if (coverPhotoPreview) URL.revokeObjectURL(coverPhotoPreview);
+    setCoverPhotoFile(null);
+    setCoverPhotoPreview(null);
+  }
+  function handleStepMediaChange(internalId: string, file: File) {
+    setStepMediaFiles(prev => {
+      const next = new Map(prev);
+      const existing = next.get(internalId);
+      if (existing) URL.revokeObjectURL(existing.preview);
+      next.set(internalId, { file, preview: URL.createObjectURL(file) });
+      return next;
+    });
+  }
+  function handleStepMediaRemove(internalId: string) {
+    setStepMediaFiles(prev => {
+      const next = new Map(prev);
+      const existing = next.get(internalId);
+      if (existing) URL.revokeObjectURL(existing.preview);
+      next.delete(internalId);
+      return next;
+    });
+  }
+
+  function getFormData(): CreateRecipeInput {
+    return {
       title,
-      servings,
-      totalTime: totalTime ? parseInt(totalTime) : undefined,
-      activeTime: activeTime ? parseInt(activeTime) : undefined,
+      servings: parseInt(servings) || 1,
       source: source || undefined,
       authorNotes: authorNotes || undefined,
       personalNotes: personalNotes || undefined,
-      ingredients,
-      steps: steps.map(({ existingId: _id, internalId: _iid, ...rest }) => rest),
+      ingredients: ingredients.map(({ amountText, ...ing }) => ({
+        ...ing,
+        amount: parseFraction(amountText),
+      })),
+      steps: steps.map(({ existingId: _id, internalId: _iid, timeMinutesText, timeMinutes: _tm, ...rest }) => ({
+        ...rest,
+        timeMinutes: parseInt(timeMinutesText) || 0,
+      })),
+    };
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const pendingStepMedia = Array.from(stepMediaFiles.entries()).flatMap(([internalId, { file }]) => {
+      const step = steps.find(s => s.internalId === internalId);
+      return step ? [{ orderIndex: step.orderIndex, file }] : [];
     });
+    onSubmit(getFormData(), { coverPhoto: coverPhotoFile ?? undefined, stepMedia: pendingStepMedia });
   }
 
   // base: no width, so narrow inputs can specify their own
@@ -297,24 +367,55 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
         <input id="recipe-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} required />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div>
+      <div className="flex items-end gap-6 flex-wrap">
+        <div className="w-32">
           <label htmlFor="recipe-servings" className={labelClass}>Servings</label>
-          <input id="recipe-servings" type="number" value={servings} onChange={(e) => setServings(parseInt(e.target.value) || 1)} min={1} className={inputClass} onWheel={noScroll} />
+          <input id="recipe-servings" type="number" value={servings} onChange={(e) => setServings(e.target.value)} min={1} className={inputClass} onWheel={noScroll} />
         </div>
-        <div>
-          <label htmlFor="recipe-total-time" className={labelClass}>Total Time (min)</label>
-          <input id="recipe-total-time" type="number" value={totalTime} onChange={(e) => setTotalTime(e.target.value)} min={1} className={inputClass} onWheel={noScroll} />
-        </div>
-        <div>
-          <label htmlFor="recipe-active-time" className={labelClass}>Active Time (min)</label>
-          <input id="recipe-active-time" type="number" value={activeTime} onChange={(e) => setActiveTime(e.target.value)} min={1} className={inputClass} onWheel={noScroll} />
-        </div>
+        {steps.length > 0 && (() => {
+          const total = steps.reduce((sum, s) => sum + (parseInt(s.timeMinutesText) || 0), 0);
+          const active = steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (parseInt(s.timeMinutesText) || 0), 0);
+          return (
+            <div className="pb-2 text-sm text-gray-500 space-y-0.5">
+              <p>Total time: <span className="font-medium text-gray-700">{total} min</span></p>
+              <p>Active time: <span className="font-medium text-gray-700">{active} min</span></p>
+            </div>
+          );
+        })()}
       </div>
 
       <div>
         <label htmlFor="recipe-source" className={labelClass}>Source</label>
         <input id="recipe-source" type="text" value={source} onChange={(e) => setSource(e.target.value)} placeholder="URL or description" className={inputClass} />
+      </div>
+
+      {/* Cover photo */}
+      <div>
+        <h3 className={labelClass}>Cover Photo</h3>
+        {recipeId ? (
+          <RecipeMedia recipeId={recipeId} />
+        ) : coverPhotoPreview ? (
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden border border-gray-200">
+              <img src={coverPhotoPreview} alt="" className="w-full h-full object-cover" />
+            </div>
+            <div className="flex gap-2">
+              <label className="cursor-pointer text-xs text-gray-600 hover:text-gray-900 border border-gray-300 px-2.5 py-1 rounded-lg hover:bg-gray-50 transition-colors">
+                Change
+                <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverPhotoChange(f); e.target.value = ''; }} />
+              </label>
+              <button type="button" onClick={handleCoverPhotoRemove} className="text-xs text-red-500 hover:text-red-700 border border-gray-300 px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors">
+                Remove
+              </button>
+            </div>
+          </div>
+        ) : (
+          <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-gray-400 hover:text-gray-600 border border-dashed border-gray-200 hover:border-gray-300 rounded-lg px-3 py-2 transition-colors">
+            <span className="text-lg leading-none">🖼</span>
+            <span>+ Add cover photo</span>
+            <input type="file" accept="image/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCoverPhotoChange(f); e.target.value = ''; }} />
+          </label>
+        )}
       </div>
 
       {/* Ingredients */}
@@ -332,50 +433,51 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
                 ref={(el) => { if (el) ingContentEls.current.set(ing.internalId, el); else ingContentEls.current.delete(ing.internalId); }}
                 className={`flex gap-1.5 items-center py-1 rounded-lg ${ingDraggingId === ing.internalId ? 'ring-2 ring-orange-400 bg-orange-50 shadow-md px-1' : ''}`}
               >
-              <div
-                className={gripClass}
-                aria-label="Drag to reorder"
-                onPointerDown={(e) => {
-                  e.preventDefault();
-                  ingDragId.current = ing.internalId;
-                  setIngDraggingId(ing.internalId);
-                  document.documentElement.classList.add('dragging-step');
-                }}
-              >
-                <GripIcon />
-              </div>
+                <div
+                  className={gripClass}
+                  aria-label="Drag to reorder"
+                  onPointerDown={(e) => {
+                    e.preventDefault();
+                    ingDragId.current = ing.internalId;
+                    setIngDraggingId(ing.internalId);
+                    document.documentElement.classList.add('dragging-step');
+                  }}
+                >
+                  <GripIcon />
+                </div>
 
-              <input
-                type="number"
-                value={ing.amount ?? ''}
-                onChange={(e) => updateIngredient(index, 'amount', e.target.value ? parseFloat(e.target.value) : undefined)}
-                placeholder="Amt"
-                className={`${base} w-14 shrink-0`}
-                step="any"
-                onWheel={noScroll}
-              />
-              <input
-                type="text"
-                value={ing.unit ?? ''}
-                onChange={(e) => updateIngredient(index, 'unit', e.target.value || undefined)}
-                placeholder="Unit"
-                className={`${base} w-20 shrink-0`}
-              />
-              <input
-                type="text"
-                value={ing.name}
-                onChange={(e) => updateIngredient(index, 'name', e.target.value)}
-                placeholder="Ingredient name"
-                className={`${base} flex-1 min-w-0`}
-                required
-              />
-              <label className="flex items-center gap-1 text-xs text-gray-500 whitespace-nowrap shrink-0">
-                <input type="checkbox" checked={ing.isOptional} onChange={(e) => updateIngredient(index, 'isOptional', e.target.checked)} />
-                Opt.
-              </label>
-              <button type="button" onClick={() => removeIngredient(index)} className="text-red-400 hover:text-red-600 shrink-0" aria-label="Remove ingredient">
-                <TrashIcon />
-              </button>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={ing.amountText}
+                  onChange={(e) => updateIngredient(index, 'amountText', e.target.value)}
+                  placeholder="Amt"
+                  className={`${base} w-18 shrink-0`}
+                />
+                <ComboInput
+                  value={ing.unit ?? ''}
+                  onChange={(v) => updateIngredient(index, 'unit', v || undefined)}
+                  suggestions={UNIT_SUGGESTIONS}
+                  placeholder="Unit"
+                  wrapperClassName="w-20 shrink-0"
+                  className={base}
+                />
+                <ComboInput
+                  value={ing.name}
+                  onChange={(v) => updateIngredient(index, 'name', v)}
+                  suggestions={INGREDIENT_SUGGESTIONS}
+                  placeholder="Ingredient name"
+                  wrapperClassName="flex-1 min-w-0"
+                  className={base}
+                  required
+                />
+                <label className="flex items-center gap-1 text-xs text-gray-500 whitespace-nowrap shrink-0">
+                  <input type="checkbox" checked={ing.isOptional} onChange={(e) => updateIngredient(index, 'isOptional', e.target.checked)} />
+                  Opt.
+                </label>
+                <button type="button" onClick={() => removeIngredient(index)} className="text-red-400 hover:text-red-600 shrink-0" aria-label="Remove ingredient">
+                  <TrashIcon />
+                </button>
               </div>
             </div>
           ))}
@@ -429,11 +531,11 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
                   <div className="flex gap-2 items-center">
                     <input
                       type="number"
-                      value={step.timeMinutes ?? ''}
-                      onChange={(e) => updateStep(index, 'timeMinutes', e.target.value ? parseInt(e.target.value) : undefined)}
-                      placeholder="Minutes"
+                      value={step.timeMinutesText}
+                      onChange={(e) => updateStep(index, 'timeMinutesText', e.target.value)}
                       className={`${base} w-24`}
-                      min={1}
+                      min={0}
+                      required
                       onWheel={noScroll}
                     />
                     <label className="flex items-center gap-1 text-xs text-gray-500">
@@ -441,7 +543,34 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting }: 
                       Active time
                     </label>
                   </div>
-                  {step.existingId && <StepMedia stepId={step.existingId} />}
+                  {step.existingId ? (
+                    <StepMedia stepId={step.existingId} />
+                  ) : (() => {
+                    const pending = stepMediaFiles.get(step.internalId);
+                    if (pending) return (
+                      <div className="mt-2 relative group inline-block">
+                        {pending.file.type.startsWith('video/')
+                          ? <video src={pending.preview} className="h-24 w-40 object-cover rounded-lg border border-gray-200" />
+                          : <img src={pending.preview} alt="" className="h-24 w-40 object-cover rounded-lg border border-gray-200" />
+                        }
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded-lg flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
+                          <label className="cursor-pointer bg-white text-gray-800 text-xs font-medium px-2 py-1 rounded shadow">
+                            Change
+                            <input type="file" accept="image/*,video/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleStepMediaChange(step.internalId, f); e.target.value = ''; }} />
+                          </label>
+                          <button type="button" onClick={() => handleStepMediaRemove(step.internalId)} className="bg-white text-red-600 text-xs font-medium px-2 py-1 rounded shadow">Remove</button>
+                        </div>
+                      </div>
+                    );
+                    return (
+                      <div className="mt-2">
+                        <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs text-gray-400 hover:text-gray-600 border border-dashed border-gray-200 hover:border-gray-300 rounded-lg px-3 py-1.5 transition-colors">
+                          <input type="file" accept="image/*,video/*" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleStepMediaChange(step.internalId, f); e.target.value = ''; }} />
+                          + Add photo / video
+                        </label>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <button type="button" onClick={() => removeStep(index)} className="text-red-400 hover:text-red-600 shrink-0 mt-2" aria-label="Remove step">
                   <TrashIcon />

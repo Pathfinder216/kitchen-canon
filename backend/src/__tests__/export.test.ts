@@ -7,7 +7,6 @@ const app = createApp();
 const sampleRecipe = {
   title: 'Test Cake',
   servings: 8,
-  totalTime: 60,
   authorNotes: 'A classic cake',
   ingredients: [
     { name: 'flour', amount: 2, unit: 'cups', orderIndex: 0, internalId: 'i1', isOptional: false },

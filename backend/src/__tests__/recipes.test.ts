@@ -8,8 +8,6 @@ const app = createApp();
 const sampleRecipe = {
   title: 'Scrambled Eggs',
   servings: 2,
-  totalTime: 10,
-  activeTime: 10,
   source: 'https://example.com/scrambled-eggs',
   authorNotes: 'Use low heat for creamier eggs',
   ingredients: [

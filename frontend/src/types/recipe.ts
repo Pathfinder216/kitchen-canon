@@ -51,8 +51,6 @@ export interface PaginatedResponse<T> {
 export interface CreateRecipeInput {
   title: string;
   servings?: number;
-  totalTime?: number;
-  activeTime?: number;
   source?: string;
   authorNotes?: string;
   personalNotes?: string;
@@ -81,8 +79,6 @@ export interface StepInput {
 export interface UpdateRecipeInput {
   title?: string;
   servings?: number;
-  totalTime?: number | null;
-  activeTime?: number | null;
   source?: string | null;
   authorNotes?: string | null;
   personalNotes?: string | null;

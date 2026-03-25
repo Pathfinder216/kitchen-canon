@@ -383,7 +383,7 @@ export function CookModePage() {
                 <span className="bg-orange-500 text-white text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center shrink-0">
                   {currentStep + 1}
                 </span>
-                {step.timeMinutes && (
+                {!!step.timeMinutes && (
                   <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                     {step.timeMinutes} min {step.isActiveTime ? '(active)' : '(passive)'}
                   </span>

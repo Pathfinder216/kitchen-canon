@@ -11,8 +11,6 @@ model Recipe {
   id            String   @id @default(uuid())
   title         String
   servings      Int      @default(1)
-  totalTime     Int?     // minutes
-  activeTime    Int?     // minutes
   source        String?  // Original URL or source name
   archived      Boolean  @default(false)
   createdAt     DateTime @default(now())

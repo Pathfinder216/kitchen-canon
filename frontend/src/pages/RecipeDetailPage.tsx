@@ -186,7 +186,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                 </span>
                 <div className="flex-1 pt-0.5">
                   <p className="text-gray-900 text-sm">{step.instruction}</p>
-                  {step.timeMinutes && (
+                  {!!step.timeMinutes && (
                     <p className="text-xs text-gray-500 mt-1">
                       {step.timeMinutes} min ({step.isActiveTime ? 'active' : 'inactive'})
                     </p>

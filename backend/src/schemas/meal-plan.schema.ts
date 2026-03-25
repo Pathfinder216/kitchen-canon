@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const createMealPlanSchema = z.object({
-  name: z.string().min(1).max(200),
+  name: z.string().min(1).max(200).optional(),
   date: z.string().optional(),
   time: z.string().optional(),
   notes: z.string().optional(),

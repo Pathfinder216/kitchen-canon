@@ -13,15 +13,13 @@ const ingredientSchema = z.object({
 const stepSchema = z.object({
   orderIndex: z.number().int().min(0),
   instruction: z.string().min(1),
-  timeMinutes: z.number().int().positive().optional(),
+  timeMinutes: z.number().int().min(0).optional(),
   isActiveTime: z.boolean().default(true),
 });
 
 export const createRecipeSchema = z.object({
   title: z.string().min(1).max(500),
   servings: z.number().int().positive().default(1),
-  totalTime: z.number().int().positive().optional(),
-  activeTime: z.number().int().positive().optional(),
   source: z.string().max(2000).optional(),
   authorNotes: z.string().optional(),
   personalNotes: z.string().optional(),
@@ -32,8 +30,6 @@ export const createRecipeSchema = z.object({
 export const updateRecipeSchema = z.object({
   title: z.string().min(1).max(500).optional(),
   servings: z.number().int().positive().optional(),
-  totalTime: z.number().int().positive().nullable().optional(),
-  activeTime: z.number().int().positive().nullable().optional(),
   source: z.string().max(2000).nullable().optional(),
   authorNotes: z.string().nullable().optional(),
   personalNotes: z.string().nullable().optional(),

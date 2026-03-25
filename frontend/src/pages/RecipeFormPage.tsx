@@ -2,9 +2,21 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { useRecipe, useCreateRecipe, useUpdateRecipe } from '../hooks/useRecipes';
 import { RecipeForm } from '../components/RecipeForm';
-import { RecipeMedia } from '../components/RecipeMedia';
+import type { PendingMedia } from '../components/RecipeForm';
 import type { CreateRecipeInput } from '../types/recipe';
 import type { ParsedRecipe } from '../api/import';
+
+async function uploadCoverPhoto(recipeId: string, file: File): Promise<void> {
+  const form = new FormData();
+  form.append('file', file);
+  await fetch(`/api/recipes/${recipeId}/media`, { method: 'POST', body: form });
+}
+
+async function uploadStepMedia(stepId: string, file: File): Promise<void> {
+  const form = new FormData();
+  form.append('file', file);
+  await fetch(`/api/steps/${stepId}/media`, { method: 'POST', body: form });
+}
 
 export function RecipeFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -18,15 +30,33 @@ export function RecipeFormPage() {
   const createMutation = useCreateRecipe();
   const updateMutation = useUpdateRecipe();
 
-  function handleSubmit(data: CreateRecipeInput) {
+  async function handleSubmit(data: CreateRecipeInput, media: PendingMedia) {
     if (isEditing && id) {
       updateMutation.mutate(
         { id, input: data },
-        { onSuccess: (updated) => navigate(`/recipes/${updated.id}`) },
+        {
+          onSuccess: async (updated) => {
+            const uploads = media.stepMedia.flatMap(({ orderIndex, file }) => {
+              const step = updated.steps.find(s => s.orderIndex === orderIndex);
+              return step ? [uploadStepMedia(step.id, file)] : [];
+            });
+            await Promise.all(uploads);
+            navigate(`/recipes/${updated.id}`);
+          },
+        },
       );
     } else {
       createMutation.mutate(data, {
-        onSuccess: (created) => navigate(`/recipes/${created.id}`),
+        onSuccess: async (created) => {
+          const uploads: Promise<void>[] = [];
+          if (media.coverPhoto) uploads.push(uploadCoverPhoto(created.id, media.coverPhoto));
+          for (const { orderIndex, file } of media.stepMedia) {
+            const step = created.steps.find(s => s.orderIndex === orderIndex);
+            if (step) uploads.push(uploadStepMedia(step.id, file));
+          }
+          await Promise.all(uploads);
+          navigate(`/recipes/${created.id}`);
+        },
       });
     }
   }
@@ -43,17 +73,12 @@ export function RecipeFormPage() {
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         {isEditing ? 'Edit Recipe' : 'New Recipe'}
       </h1>
-      {isEditing && id && (
-        <div className="mb-6">
-          <h2 className="text-sm font-medium text-gray-700 mb-2">Cover photo</h2>
-          <RecipeMedia recipeId={id} />
-        </div>
-      )}
       <RecipeForm
         initialData={recipe}
         importData={importData}
         onSubmit={handleSubmit}
         isSubmitting={createMutation.isPending || updateMutation.isPending}
+        recipeId={id}
       />
     </div>
   );

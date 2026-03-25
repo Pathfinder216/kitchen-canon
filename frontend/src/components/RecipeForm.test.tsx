@@ -42,10 +42,10 @@ describe('RecipeForm', () => {
     await user.type(screen.getByLabelText(/title/i), 'My New Recipe');
     await user.click(screen.getByText('Create Recipe'));
 
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      title: 'My New Recipe',
-      servings: 1,
-    }));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'My New Recipe', servings: 1 }),
+      expect.objectContaining({ stepMedia: [] }),
+    );
   });
 
   it('adds and removes ingredients', async () => {

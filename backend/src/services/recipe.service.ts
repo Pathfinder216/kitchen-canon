@@ -5,6 +5,14 @@ import { AppError } from '../middleware/errorHandler.js';
 import { config } from '../config.js';
 import type { CreateRecipeInput, UpdateRecipeInput, RecipeQueryInput } from '../schemas/recipe.schema.js';
 
+type WithSteps = { steps: { timeMinutes: number | null; isActiveTime: boolean }[] };
+
+function withComputedTimes<T extends WithSteps>(recipe: T): T & { totalTime: number | null; activeTime: number | null } {
+  const totalTime = recipe.steps.reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0) || null;
+  const activeTime = recipe.steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0) || null;
+  return { ...recipe, totalTime, activeTime };
+}
+
 const recipeInclude = {
   ingredients: { orderBy: { orderIndex: 'asc' as const } },
   steps: { orderBy: { orderIndex: 'asc' as const } },
@@ -82,7 +90,7 @@ export async function listRecipes(query: RecipeQueryInput) {
   ]);
 
   return {
-    recipes,
+    recipes: recipes.map(withComputedTimes),
     pagination: {
       page,
       limit,
@@ -102,7 +110,7 @@ export async function getRecipe(id: string) {
     throw new AppError(404, 'Recipe not found');
   }
 
-  return recipe;
+  return withComputedTimes(recipe);
 }
 
 export async function createRecipe(input: CreateRecipeInput) {
@@ -123,7 +131,7 @@ export async function createRecipe(input: CreateRecipeInput) {
     include: recipeInclude,
   });
 
-  return recipe;
+  return withComputedTimes(recipe);
 }
 
 export async function updateRecipe(id: string, input: UpdateRecipeInput) {
@@ -155,8 +163,6 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
       data: {
         title: recipeData.title ?? existing.title,
         servings: recipeData.servings ?? existing.servings,
-        totalTime: recipeData.totalTime !== undefined ? recipeData.totalTime : existing.totalTime,
-        activeTime: recipeData.activeTime !== undefined ? recipeData.activeTime : existing.activeTime,
         source: recipeData.source !== undefined ? recipeData.source : existing.source,
         authorNotes: recipeData.authorNotes !== undefined ? recipeData.authorNotes : existing.authorNotes,
         personalNotes: recipeData.personalNotes !== undefined ? recipeData.personalNotes : existing.personalNotes,
@@ -209,7 +215,7 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
     return created;
   });
 
-  return newRecipe;
+  return withComputedTimes(newRecipe);
 }
 
 export async function archiveRecipe(id: string) {
@@ -225,7 +231,7 @@ export async function archiveRecipe(id: string) {
     include: recipeInclude,
   });
 
-  return recipe;
+  return withComputedTimes(recipe);
 }
 
 export async function getRecipeVersions(id: string) {
@@ -273,7 +279,10 @@ export async function getRecipeVersions(id: string) {
     }
   }
 
-  return allVersions.sort((a, b) => a.version - b.version);
+  // allVersions items are fetched with recipeInclude so they have steps, but the array
+  // is typed from the top-level findUnique (no include). Cast to WithSteps to satisfy withComputedTimes.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return allVersions.sort((a, b) => a.version - b.version).map((v) => withComputedTimes(v as any));
 }
 
 export async function restoreRecipeVersion(id: string, version: number) {
@@ -301,8 +310,6 @@ export async function restoreRecipeVersion(id: string, version: number) {
       data: {
         title: targetVersion.title,
         servings: targetVersion.servings,
-        totalTime: targetVersion.totalTime,
-        activeTime: targetVersion.activeTime,
         source: targetVersion.source,
         authorNotes: targetVersion.authorNotes,
         personalNotes: targetVersion.personalNotes,
@@ -311,17 +318,19 @@ export async function restoreRecipeVersion(id: string, version: number) {
         parentId: latestVersion.id,
         isLatest: true,
         ingredients: {
-          create: targetVersion.ingredients.map(({ id: _id, recipeId: _rid, ...ing }) => ing),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          create: targetVersion.ingredients.map(({ id: _id, recipeId: _rid, ...ing }: any) => ing),
         },
         steps: {
-          create: targetVersion.steps.map(({ id: _id, recipeId: _rid, ...step }) => step),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          create: targetVersion.steps.map(({ id: _id, recipeId: _rid, ...step }: any) => step),
         },
       },
       include: recipeInclude,
     });
   });
 
-  return restored;
+  return withComputedTimes(restored);
 }
 
 export async function deleteRecipePermanently(id: string) {

@@ -47,8 +47,6 @@ export function ImportPage() {
       const recipe = await createRecipe.mutateAsync({
         title: preview.title,
         servings: preview.servings,
-        totalTime: preview.totalTime ?? undefined,
-        activeTime: preview.activeTime ?? undefined,
         source: preview.source ?? undefined,
         authorNotes: preview.authorNotes ?? undefined,
         ingredients: preview.ingredients,

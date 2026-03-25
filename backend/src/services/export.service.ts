@@ -22,10 +22,12 @@ export function recipeToText(recipe: RecipeWithRelations): string {
   lines.push('='.repeat(recipe.title.length));
   lines.push('');
 
+  const totalTime = recipe.steps.reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0);
+  const activeTime = recipe.steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0);
   const meta: string[] = [];
   if (recipe.servings) meta.push(`Serves: ${recipe.servings}`);
-  if (recipe.totalTime) meta.push(`Total time: ${recipe.totalTime} min`);
-  if (recipe.activeTime) meta.push(`Active time: ${recipe.activeTime} min`);
+  if (totalTime) meta.push(`Total time: ${totalTime} min`);
+  if (activeTime) meta.push(`Active time: ${activeTime} min`);
   if (recipe.source) meta.push(`Source: ${recipe.source}`);
   if (meta.length) { lines.push(meta.join(' | ')); lines.push(''); }
 
@@ -63,11 +65,13 @@ export function recipeToText(recipe: RecipeWithRelations): string {
 }
 
 export function recipeToJson(recipe: RecipeWithRelations): object {
+  const exportTotalTime = recipe.steps.reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0) || null;
+  const exportActiveTime = recipe.steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0) || null;
   return {
     title: recipe.title,
     servings: recipe.servings,
-    totalTime: recipe.totalTime,
-    activeTime: recipe.activeTime,
+    totalTime: exportTotalTime,
+    activeTime: exportActiveTime,
     source: recipe.source,
     authorNotes: recipe.authorNotes,
     personalNotes: recipe.personalNotes,

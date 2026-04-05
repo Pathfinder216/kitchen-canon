@@ -51,10 +51,11 @@ interface BrowserRecipeCardProps {
   recipe: Recipe;
   isAdded: boolean;
   onAdd: () => void;
+  onRemove: () => void;
   onView: () => void;
 }
 
-function BrowserRecipeCard({ recipe, isAdded, onAdd, onView }: BrowserRecipeCardProps) {
+function BrowserRecipeCard({ recipe, isAdded, onAdd, onRemove, onView }: BrowserRecipeCardProps) {
   const { data: cover = null } = useQuery({
     queryKey: ['cover-photo', recipe.id],
     queryFn: () => fetchCoverPhoto(recipe.id),
@@ -92,14 +93,13 @@ function BrowserRecipeCard({ recipe, isAdded, onAdd, onView }: BrowserRecipeCard
       {/* Add button */}
       <button
         type="button"
-        onClick={onAdd}
-        disabled={isAdded}
+        onClick={isAdded ? onRemove : onAdd}
         className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400 ${
           isAdded
-            ? 'bg-orange-100 text-orange-600 cursor-default'
+            ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
             : 'bg-orange-500 text-white hover:bg-orange-600'
         }`}
-        aria-label={isAdded ? 'Already added' : `Add ${recipe.title}`}
+        aria-label={isAdded ? `Remove ${recipe.title}` : `Add ${recipe.title}`}
       >
         {isAdded ? '✓' : '+'}
       </button>
@@ -460,6 +460,7 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
                     recipe={recipe}
                     isAdded={selectedIds.has(recipe.id)}
                     onAdd={() => addRecipe(recipe.id, recipe.title, recipe.servings, recipe.servings)}
+                    onRemove={() => removeRecipe(recipe.id)}
                     onView={() => setPreviewId(recipe.id)}
                   />
                 ))}

@@ -37,23 +37,29 @@ A personal recipe management app for collecting, organizing, and cooking from yo
    npm run db:migrate
    ```
 
-3. **Start the backend**
+3. **Start the app**
 
    ```bash
-   cd backend
    npm run dev
    ```
 
-   The API server starts on `http://localhost:3000`.
+   This runs the frontend and backend concurrently. Alternatively, you can use two terminals to run each one by itself:
 
-4. **Start the frontend** (in a separate terminal)
+   1. **Backend**
 
-   ```bash
-   cd frontend
-   npm run dev
-   ```
+      ```bash
+      cd backend
+      npm run dev
+      ```
 
-   Open `http://localhost:5173` in your browser.
+   2. **Frontend**
+
+      ```bash
+      cd frontend
+      npm run dev
+      ```
+
+   The API server starts on `http://localhost:3000`. The frontend server is probably accessible in your browser at `http://localhost:5173` (see terminal output to confirm address).
 
 ## Running tests
 

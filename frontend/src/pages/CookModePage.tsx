@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { useRecipe } from '../hooks/useRecipes';
 import { StepMedia } from '../components/StepMedia';
 import type { Step } from '../types/recipe';
@@ -274,6 +274,8 @@ function RunningTimersPanel({
 // ---------------------------------------------------------------------------
 export function CookModePage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  const backLink = (location.state as { from?: { label: string; href: string } } | null)?.from ?? { label: 'Back', href: `/recipes/${id}` };
   const { data: recipe, isLoading, error } = useRecipe(id!);
   const [currentStep, setCurrentStep] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
@@ -400,8 +402,8 @@ export function CookModePage() {
       <div className="max-w-2xl mx-auto pb-28">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <Link to={`/recipes/${id}`} className="text-gray-500 hover:text-gray-800 text-sm">
-            ← Back
+          <Link to={backLink.href} className="text-gray-500 hover:text-gray-800 text-sm">
+            ← {backLink.label}
           </Link>
           <h1 className="text-xl font-bold text-gray-900 flex-1 truncate">{recipe.title}</h1>
           <span className="text-sm text-gray-400 shrink-0">

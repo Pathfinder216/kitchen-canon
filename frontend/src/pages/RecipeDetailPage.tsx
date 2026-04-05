@@ -48,7 +48,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
         )}
 
         <h2 className="text-base font-semibold mt-4 mb-1">Ingredients</h2>
-        <ul className="text-sm space-y-0.5 mb-4">
+        <ul className="text-sm space-y-0.5 mb-4 columns-2">
           {recipe.ingredients.map((ing) => (
             <li key={ing.id}>
               {ing.amount !== null && (

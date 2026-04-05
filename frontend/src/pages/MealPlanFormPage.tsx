@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useRecipes } from '../hooks/useRecipes';
@@ -263,6 +263,11 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
   const [name, setName] = useState(initialPlan?.name ?? '');
   // Remake: clear the date so user must pick a new one; edit: pre-fill
   const [date, setDate] = useState(isRemake ? '' : (initialPlan?.date ?? ''));
+  const dateRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isRemake) dateRef.current?.focus();
+  }, [isRemake]);
   const [time, setTime] = useState(initialPlan?.time ?? '');
   const [notes, setNotes] = useState(initialPlan?.notes ?? '');
   const [selected, setSelected] = useState<SelectedRecipe[]>(
@@ -386,6 +391,7 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
         <div>
           <label htmlFor="plan-date" className={labelClass}>Date</label>
           <input
+            ref={dateRef}
             id="plan-date"
             type="date"
             value={date}

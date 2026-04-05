@@ -5,7 +5,7 @@ import type { ParsedRecipe } from '../api/import';
 import { StepMedia } from './StepMedia';
 import { RecipeMedia } from './RecipeMedia';
 import { ComboInput } from './ComboInput';
-import { INGREDIENT_SUGGESTIONS, UNIT_SUGGESTIONS } from '../data/suggestions';
+import { INGREDIENT_SUGGESTIONS, UNIT_SUGGESTIONS } from '../constants/suggestions';
 
 export interface PendingMedia {
   coverPhoto?: File;

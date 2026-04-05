@@ -282,7 +282,7 @@ export async function getRecipeVersions(id: string) {
   // allVersions items are fetched with recipeInclude so they have steps, but the array
   // is typed from the top-level findUnique (no include). Cast to WithSteps to satisfy withComputedTimes.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return allVersions.sort((a, b) => a.version - b.version).map((v) => withComputedTimes(v as any));
+  return allVersions.sort((a, b) => b.version - a.version).map((v) => withComputedTimes(v as any));
 }
 
 export async function restoreRecipeVersion(id: string, version: number) {

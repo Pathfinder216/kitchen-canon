@@ -538,7 +538,7 @@ export function CookModePage() {
               </button>
               {isLast ? (
                 <Link
-                  to={`/recipes/${id}`}
+                  to={backLink.href}
                   className="flex-1 text-center bg-green-500 hover:bg-green-600 text-white font-medium py-2.5 rounded-xl transition-colors"
                 >
                   Finish ✓

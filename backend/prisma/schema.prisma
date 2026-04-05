@@ -55,7 +55,7 @@ model Step {
   recipe       Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   orderIndex   Int
   instruction  String  // Can include {oil_1:50%} for "50% of ingredient 'oil_1'"
-  timeMinutes  Int?
+  timeMinutes  Float?
   isActiveTime Boolean @default(true)
   media        Media[]
 }

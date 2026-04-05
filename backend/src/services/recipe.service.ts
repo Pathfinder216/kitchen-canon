@@ -8,8 +8,8 @@ import type { CreateRecipeInput, UpdateRecipeInput, RecipeQueryInput } from '../
 type WithSteps = { steps: { timeMinutes: number | null; isActiveTime: boolean }[] };
 
 function withComputedTimes<T extends WithSteps>(recipe: T): T & { totalTime: number | null; activeTime: number | null } {
-  const totalTime = recipe.steps.reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0) || null;
-  const activeTime = recipe.steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0) || null;
+  const totalTime = Math.ceil(recipe.steps.reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0)) || null;
+  const activeTime = Math.ceil(recipe.steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0)) || null;
   return { ...recipe, totalTime, activeTime };
 }
 

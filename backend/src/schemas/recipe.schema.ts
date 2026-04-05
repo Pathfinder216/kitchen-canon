@@ -13,7 +13,7 @@ const ingredientSchema = z.object({
 const stepSchema = z.object({
   orderIndex: z.number().int().min(0),
   instruction: z.string().min(1),
-  timeMinutes: z.number().int().min(0).optional(),
+  timeMinutes: z.number().min(0).optional(),
   isActiveTime: z.boolean().default(true),
 });
 

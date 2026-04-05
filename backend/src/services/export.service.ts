@@ -22,8 +22,8 @@ export function recipeToText(recipe: RecipeWithRelations): string {
   lines.push('='.repeat(recipe.title.length));
   lines.push('');
 
-  const totalTime = recipe.steps.reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0);
-  const activeTime = recipe.steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0);
+  const totalTime = Math.ceil(recipe.steps.reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0));
+  const activeTime = Math.ceil(recipe.steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0));
   const meta: string[] = [];
   if (recipe.servings) meta.push(`Serves: ${recipe.servings}`);
   if (totalTime) meta.push(`Total time: ${totalTime} min`);

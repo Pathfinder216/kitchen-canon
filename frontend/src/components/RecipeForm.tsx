@@ -339,7 +339,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
       })),
       steps: steps.map(({ existingId: _id, internalId: _iid, timeMinutesText, timeMinutes: _tm, ...rest }) => ({
         ...rest,
-        timeMinutes: parseInt(timeMinutesText) || 0,
+        timeMinutes: parseFloat(timeMinutesText) || 0,
       })),
     };
   }
@@ -373,8 +373,8 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
           <input id="recipe-servings" type="number" value={servings} onChange={(e) => setServings(e.target.value)} min={1} className={inputClass} onWheel={noScroll} />
         </div>
         {steps.length > 0 && (() => {
-          const total = steps.reduce((sum, s) => sum + (parseInt(s.timeMinutesText) || 0), 0);
-          const active = steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (parseInt(s.timeMinutesText) || 0), 0);
+          const total = Math.ceil(steps.reduce((sum, s) => sum + (parseFloat(s.timeMinutesText) || 0), 0));
+          const active = Math.ceil(steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (parseFloat(s.timeMinutesText) || 0), 0));
           return (
             <div className="pb-2 text-sm text-gray-500 space-y-0.5">
               <p>Total time: <span className="font-medium text-gray-700">{total} min</span></p>
@@ -535,6 +535,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                       onChange={(e) => updateStep(index, 'timeMinutesText', e.target.value)}
                       className={`${base} w-24`}
                       min={0}
+                      step="any"
                       required
                       onWheel={noScroll}
                     />

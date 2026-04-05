@@ -402,6 +402,7 @@ export function CookModePage() {
                 />
               )}
             </div>
+
           </div>
         )}
 
@@ -437,6 +438,17 @@ export function CookModePage() {
             ))}
           </ul>
         </details>
+
+        {/* Next step preview */}
+        {steps.length > 0 && !isLast && (
+          <div className="mt-4 border border-gray-200 rounded-xl px-4 py-3 bg-gray-50">
+            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Next step</p>
+            <p className="text-sm text-gray-500 line-clamp-2 leading-snug">{steps[currentStep + 1].instruction}</p>
+            {!!steps[currentStep + 1].timeMinutes && (
+              <p className="text-xs text-gray-400 mt-1">{steps[currentStep + 1].timeMinutes} min</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Fixed navigation bar — always at the same spot regardless of scroll */}

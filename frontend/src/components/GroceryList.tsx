@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { GroceryItem } from '../types/meal-plan';
 
 interface GroceryListProps {
@@ -12,8 +13,19 @@ function formatAmount(amount: number | null, unit: string | null): string {
 }
 
 export function GroceryList({ items, onToggle }: GroceryListProps) {
+  const [copied, setCopied] = useState(false);
   const purchased = items.filter((i) => i.purchased);
   const remaining = items.filter((i) => !i.purchased);
+
+  function copyToClipboard() {
+    const text = remaining
+      .map((i) => i.ingredient + (i.amount !== null ? ` — ${formatAmount(i.amount, i.unit)}` : ''))
+      .join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   function renderItem(item: GroceryItem) {
     return (
@@ -45,7 +57,15 @@ export function GroceryList({ items, onToggle }: GroceryListProps) {
   return (
     <div>
       {remaining.length > 0 && (
-        <ul className="divide-y divide-gray-100">{remaining.map(renderItem)}</ul>
+        <>
+          <button
+            onClick={copyToClipboard}
+            className="mb-3 text-xs border border-gray-300 text-gray-600 hover:bg-gray-50 px-3 py-1.5 rounded-md transition-colors"
+          >
+            {copied ? 'Copied!' : 'Copy to clipboard'}
+          </button>
+          <ul className="divide-y divide-gray-100">{remaining.map(renderItem)}</ul>
+        </>
       )}
       {purchased.length > 0 && (
         <div className="mt-4">

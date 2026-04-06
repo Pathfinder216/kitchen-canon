@@ -1,4 +1,5 @@
 import type { Ingredient } from '../types/recipe';
+import { getIngredientAlias } from '../utils/ingredientAliases';
 
 interface IngredientListProps {
   ingredients: Ingredient[];
@@ -23,6 +24,10 @@ export function IngredientList({ ingredients, formatAmount: customFormatAmount }
           <span className={ingredient.isOptional ? 'text-gray-500' : 'text-gray-900'}>
             {ingredient.amount !== null ? `${fmtAmount(ingredient.amount)}${ingredient.unit ? ' ' + ingredient.unit : ''} ` : ''}
             <span className="font-medium">{ingredient.name}</span>
+            {(() => {
+              const alias = getIngredientAlias(ingredient.name);
+              return alias ? <span className="text-gray-400 ml-1">({alias})</span> : null;
+            })()}
             {ingredient.isOptional && (
               <span className="text-gray-400 ml-1">(optional)</span>
             )}

@@ -4,6 +4,7 @@ import { useRecipe } from '../hooks/useRecipes';
 import { formatScaledAmount } from '../hooks/useScaling';
 import { StepMedia } from '../components/StepMedia';
 import type { Step } from '../types/recipe';
+import { getIngredientAlias } from '../utils/ingredientAliases';
 
 // ---------------------------------------------------------------------------
 // Timer state
@@ -487,6 +488,7 @@ export function CookModePage() {
                     </span>
                   )}
                   {ing.name}
+                  {getIngredientAlias(ing.name) && <span className="text-gray-400 ml-1">({getIngredientAlias(ing.name)})</span>}
                   {ing.isOptional && <span className="text-gray-400 ml-1">(optional)</span>}
                 </label>
               </li>

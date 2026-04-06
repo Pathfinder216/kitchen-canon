@@ -8,6 +8,7 @@ import { RecipeMedia } from '../components/RecipeMedia';
 import { StepMedia } from '../components/StepMedia';
 import type { Recipe } from '../types/recipe';
 import { COURSE_DISPLAY_NAMES } from '../api/courses';
+import { getIngredientAlias } from '../utils/ingredientAliases';
 
 function handleExport(id: string, format: 'json' | 'text') {
   window.open(`/api/recipes/${id}/export?format=${format}`, '_blank');
@@ -64,6 +65,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                 </span>
               )}
               {ing.name}
+              {getIngredientAlias(ing.name) && <span className="text-gray-400"> ({getIngredientAlias(ing.name)})</span>}
               {ing.isOptional && <span className="text-gray-400"> (optional)</span>}
             </li>
           ))}

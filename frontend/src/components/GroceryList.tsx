@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { GroceryItem } from '../types/meal-plan';
 import { formatScaledAmount } from '../hooks/useScaling';
+import { getIngredientAlias } from '../utils/ingredientAliases';
 
 interface GroceryListProps {
   items: GroceryItem[];
@@ -43,6 +44,9 @@ export function GroceryList({ items, onToggle }: GroceryListProps) {
           className={`flex-1 cursor-pointer select-none ${item.purchased ? 'line-through text-gray-400' : 'text-gray-800'}`}
         >
           {item.ingredient}
+          {getIngredientAlias(item.ingredient) && (
+            <span className="text-gray-400 ml-1">({getIngredientAlias(item.ingredient)})</span>
+          )}
           {item.amount !== null && (
             <span className="ml-2 text-sm text-gray-500">— {formatAmount(item.amount, item.unit)}</span>
           )}

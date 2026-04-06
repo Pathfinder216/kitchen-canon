@@ -163,6 +163,17 @@ A recipe management application for collecting, consolidating, using, updating, 
 - Complementary recipe suggestions
 - Automated cooking timeline generation
 
+### Component Recipes
+A component recipe is a reusable sub-recipe consumed by other recipes (e.g. pie crust, stock, dough, whipped cream). This is distinct from a standalone recipe with a course of "Topping / Condiment" — a component has no course and is not served on its own.
+
+Planned behaviour:
+- Recipes can be flagged as components (e.g. `isComponent` boolean on the Recipe model)
+- Ingredients in a recipe can reference another recipe by ID instead of a raw ingredient name — e.g. "1 batch [Pie Crust]" links to the Pie Crust recipe
+- When scaling a parent recipe, referenced component recipes scale proportionally
+- The recipe detail page shows a "Used in" section listing recipes that reference this component
+- Component recipes appear in their own section of the recipe list, separate from regular recipes
+- Importing/exporting a recipe should include or reference its component recipes
+
 ### Design Principles
 - Architecture should anticipate multi-user extension
 - Keep stretch goals in mind during design/implementation

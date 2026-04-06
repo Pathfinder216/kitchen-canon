@@ -59,7 +59,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             <li key={ing.id}>
               {ing.amount !== null && (
                 <span className="font-medium">
-                  {Number.isInteger(ing.amount) ? ing.amount : ing.amount?.toFixed(2).replace(/\.?0+$/, '')}{' '}
+                  {formatScaledAmount(ing.amount)}{' '}
                   {ing.unit}{' '}
                 </span>
               )}

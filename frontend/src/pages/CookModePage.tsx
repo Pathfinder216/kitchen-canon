@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useRecipe } from '../hooks/useRecipes';
+import { formatScaledAmount } from '../hooks/useScaling';
 import { StepMedia } from '../components/StepMedia';
 import type { Step } from '../types/recipe';
 
@@ -481,7 +482,7 @@ export function CookModePage() {
                 >
                   {ing.amount !== null && (
                     <span className="font-medium">
-                      {Number.isInteger(ing.amount) ? ing.amount : ing.amount?.toFixed(2).replace(/\.?0+$/, '')}{' '}
+                      {formatScaledAmount(ing.amount)}{' '}
                       {ing.unit}{' '}
                     </span>
                   )}

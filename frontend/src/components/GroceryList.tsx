@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { GroceryItem } from '../types/meal-plan';
+import { formatScaledAmount } from '../hooks/useScaling';
 
 interface GroceryListProps {
   items: GroceryItem[];
@@ -8,7 +9,7 @@ interface GroceryListProps {
 
 function formatAmount(amount: number | null, unit: string | null): string {
   if (amount === null) return '';
-  const num = Number.isInteger(amount) ? amount.toString() : amount.toFixed(2).replace(/\.?0+$/, '');
+  const num = formatScaledAmount(amount);
   return unit ? `${num} ${unit}` : num;
 }
 

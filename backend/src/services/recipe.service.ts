@@ -7,6 +7,36 @@ import type { CreateRecipeInput, UpdateRecipeInput, RecipeQueryInput } from '../
 
 type WithSteps = { steps: { timeMinutes: number | null; isActiveTime: boolean }[] };
 
+/** Returns singular/plural variants for ingredient matching */
+function stemVariants(word: string): string[] {
+  const w = word.toLowerCase();
+  const variants = new Set([w]);
+
+  // Determine base (singular) form
+  let base = w;
+  if (w.endsWith('ies') && w.length > 4) {
+    base = w.slice(0, -3) + 'y';  // berries → berry
+  } else if (w.endsWith('ves') && w.length > 4) {
+    base = w.slice(0, -3) + 'f';  // halves → half
+    variants.add(w.slice(0, -3) + 'fe'); // knives → knife
+  } else if (w.endsWith('es') && w.length > 4) {
+    base = w.slice(0, -2);         // tomatoes → tomato
+  } else if (w.endsWith('s') && w.length > 3) {
+    base = w.slice(0, -1);         // lemons → lemon
+  }
+  variants.add(base);
+
+  // Also expand base into common plural forms
+  variants.add(base + 's');                            // lemon → lemons
+  if (base.endsWith('y')) variants.add(base.slice(0, -1) + 'ies'); // berry → berries
+  if (base.endsWith('f')) variants.add(base.slice(0, -1) + 'ves'); // half → halves
+  if (base.endsWith('fe')) variants.add(base.slice(0, -2) + 'ves'); // knife → knives
+  if (base.endsWith('o')) variants.add(base + 'es');  // tomato → tomatoes
+
+  return [...variants];
+}
+
+
 function withComputedTimes<T extends WithSteps>(recipe: T): T & { totalTime: number | null; activeTime: number | null } {
   const totalTime = Math.ceil(recipe.steps.reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0)) || null;
   const activeTime = Math.ceil(recipe.steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0)) || null;
@@ -34,24 +64,28 @@ export async function listRecipes(query: RecipeQueryInput) {
     where.title = { contains: search };
   }
 
-  // Filter: must contain these ingredients
+  // Filter: must contain these ingredients (word-boundary match, handles plurals)
   if (includeIngredients) {
     const ingredientNames = includeIngredients.split(',').map((s) => s.trim().toLowerCase());
     where.AND = [
       ...(where.AND || []),
       ...ingredientNames.map((name) => ({
-        ingredients: { some: { name: { contains: name } } },
+        ingredients: {
+          some: { OR: stemVariants(name).map((v) => ({ name: { equals: v } })) },
+        },
       })),
     ];
   }
 
-  // Filter: must NOT contain these ingredients
+  // Filter: must NOT contain these ingredients (word-boundary match, handles plurals)
   if (excludeIngredients) {
     const excludeNames = excludeIngredients.split(',').map((s) => s.trim().toLowerCase());
     where.AND = [
       ...(where.AND || []),
       ...excludeNames.map((name) => ({
-        ingredients: { none: { name: { contains: name } } },
+        ingredients: {
+          none: { OR: stemVariants(name).map((v) => ({ name: { equals: v } })) },
+        },
       })),
     ];
   }

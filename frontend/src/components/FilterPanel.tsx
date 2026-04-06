@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCourses } from '../api/courses';
 import { fetchLabels } from '../api/labels';
@@ -22,21 +22,24 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
   const { data: courses } = useQuery({ queryKey: ['courses'], queryFn: fetchCourses });
   const { data: labels } = useQuery({ queryKey: ['labels'], queryFn: () => fetchLabels() });
 
-  function applyFilters() {
-    onFilterChange({
-      includeIngredients: includeIng || undefined,
-      excludeIngredients: excludeIng || undefined,
-      labels: selectedLabels.length > 0 ? selectedLabels.join(',') : undefined,
-      courses: selectedCourses.length > 0 ? selectedCourses.join(',') : undefined,
-    });
-  }
+  // Debounce text inputs; chips apply immediately via the same effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onFilterChange({
+        includeIngredients: includeIng || undefined,
+        excludeIngredients: excludeIng || undefined,
+        labels: selectedLabels.length > 0 ? selectedLabels.join(',') : undefined,
+        courses: selectedCourses.length > 0 ? selectedCourses.join(',') : undefined,
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [includeIng, excludeIng, selectedLabels, selectedCourses]);
 
   function clearFilters() {
     setIncludeIng('');
     setExcludeIng('');
     setSelectedLabels([]);
     setSelectedCourses([]);
-    onFilterChange({});
   }
 
   function toggleLabel(name: string) {
@@ -74,7 +77,6 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
                 type="text"
                 value={includeIng}
                 onChange={(e) => setIncludeIng(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyFilters(); } }}
                 placeholder="e.g., chicken, rice"
                 className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
               />
@@ -85,7 +87,6 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
                 type="text"
                 value={excludeIng}
                 onChange={(e) => setExcludeIng(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); applyFilters(); } }}
                 placeholder="e.g., mushrooms"
                 className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
               />
@@ -138,17 +139,11 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-2">
-            <button type="button" onClick={applyFilters} className="bg-orange-600 text-white px-3 py-1 rounded text-sm hover:bg-orange-700">
-              Apply
+          {hasActiveFilters && (
+            <button type="button" onClick={clearFilters} className="text-gray-500 hover:text-gray-700 px-3 py-1 rounded text-sm border border-gray-300">
+              Clear
             </button>
-            {hasActiveFilters && (
-              <button type="button" onClick={clearFilters} className="text-gray-500 hover:text-gray-700 px-3 py-1 rounded text-sm border border-gray-300">
-                Clear
-              </button>
-            )}
-          </div>
+          )}
         </div>
       )}
     </div>

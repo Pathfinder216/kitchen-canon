@@ -14,7 +14,9 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
-    "@prisma/client": "^6.4.1",
+    "@libsql/client": "^0.17.2",
+    "@prisma/adapter-libsql": "^7.6.0",
+    "@prisma/client": "^7.6.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
@@ -34,7 +36,7 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/supertest": "^6.0.2",
     "@types/uuid": "^10.0.0",
-    "prisma": "^6.4.1",
+    "prisma": "^7.6.0",
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",

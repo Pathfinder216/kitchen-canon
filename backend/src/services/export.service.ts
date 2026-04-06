@@ -5,7 +5,7 @@ type RecipeWithRelations = Prisma.RecipeGetPayload<{
     ingredients: { orderBy: { orderIndex: 'asc' } };
     steps: { orderBy: { orderIndex: 'asc' } };
     labels: { include: { label: true } };
-    categories: { include: { category: true } };
+    courses: true;
   };
 }>;
 
@@ -91,7 +91,7 @@ export function recipeToJson(recipe: RecipeWithRelations): object {
       isActiveTime: step.isActiveTime,
     })),
     labels: recipe.labels.map((rl) => rl.label.name),
-    categories: recipe.categories.map((rc) => rc.category.name),
+    courses: recipe.courses.map((rc) => rc.courseType),
     exportedAt: new Date().toISOString(),
   };
 }

@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import { config } from './config.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import recipesRouter from './routes/recipes.js';
-import categoriesRouter from './routes/categories.js';
+import coursesRouter from './routes/courses.js';
 import labelsRouter from './routes/labels.js';
 import mealPlansRouter from './routes/meal-plans.js';
 import importRouter from './routes/import.js';
@@ -36,7 +36,7 @@ export function createApp() {
 
   // Routes
   app.use('/api/recipes', recipesRouter);
-  app.use('/api/categories', categoriesRouter);
+  app.use('/api/courses', coursesRouter);
   app.use('/api/labels', labelsRouter);
   // Label/category assignment routes are mounted under /api to allow /api/recipes/:id/labels
   app.use('/api', labelsRouter);

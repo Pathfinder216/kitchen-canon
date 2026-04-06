@@ -13,7 +13,7 @@ beforeEach(async () => {
   await prisma.mealRecipe.deleteMany();
   await prisma.mealPlan.deleteMany();
   await prisma.recipeLabel.deleteMany();
-  await prisma.recipeCategory.deleteMany();
+  await prisma.recipeCourse.deleteMany();
   await prisma.step.deleteMany();
   await prisma.ingredient.deleteMany();
   await prisma.recipe.deleteMany();

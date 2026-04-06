@@ -17,11 +17,11 @@ const recipeInclude = {
   ingredients: { orderBy: { orderIndex: 'asc' as const } },
   steps: { orderBy: { orderIndex: 'asc' as const } },
   labels: { include: { label: true } },
-  categories: { include: { category: true } },
+  courses: true,
 };
 
 export async function listRecipes(query: RecipeQueryInput) {
-  const { page, limit, search, archived, includeIngredients, excludeIngredients, labels, categories } = query;
+  const { page, limit, search, archived, includeIngredients, excludeIngredients, labels, courses } = query;
   const skip = (page - 1) * limit;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -67,13 +67,13 @@ export async function listRecipes(query: RecipeQueryInput) {
     ];
   }
 
-  // Filter: must have these categories
-  if (categories) {
-    const categoryNames = categories.split(',').map((s) => s.trim());
+  // Filter: must have these courses
+  if (courses) {
+    const courseTypes = courses.split(',').map((s) => s.trim());
     where.AND = [
       ...(where.AND || []),
-      ...categoryNames.map((name) => ({
-        categories: { some: { category: { name } } },
+      ...courseTypes.map((courseType) => ({
+        courses: { some: { courseType } },
       })),
     ];
   }

@@ -1,7 +1,10 @@
 import { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateRecipeInput, IngredientInput, StepInput, Recipe } from '../types/recipe';
 import type { ParsedRecipe } from '../api/import';
+import { fetchCourses } from '../api/courses';
+import { fetchLabels, createLabel } from '../api/labels';
 import { StepMedia } from './StepMedia';
 import { RecipeMedia } from './RecipeMedia';
 import { ComboInput } from './ComboInput';
@@ -15,7 +18,7 @@ export interface PendingMedia {
 interface RecipeFormProps {
   initialData?: Recipe;
   importData?: ParsedRecipe;
-  onSubmit: (data: CreateRecipeInput, media: PendingMedia) => void;
+  onSubmit: (data: CreateRecipeInput, media: PendingMedia, courseTypes: string[], labelIds: string[]) => void;
   isSubmitting: boolean;
   /** Set when editing an existing recipe — enables live media upload UI */
   recipeId?: string;
@@ -63,12 +66,40 @@ const FLIP_TRANSITION = 'transform 320ms cubic-bezier(0.33, 1, 0.68, 1)';
 
 export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, recipeId }: RecipeFormProps) {
   const seed = initialData ?? importData;
+  const queryClient = useQueryClient();
 
   const [title, setTitle] = useState(seed?.title ?? '');
   const [servings, setServings] = useState<string>(seed?.servings?.toString() ?? '1');
   const [source, setSource] = useState(seed?.source ?? '');
   const [authorNotes, setAuthorNotes] = useState(seed?.authorNotes ?? '');
   const [personalNotes, setPersonalNotes] = useState(initialData?.personalNotes ?? '');
+
+  const [selectedCourseTypes, setSelectedCourseTypes] = useState<string[]>(
+    initialData?.courses?.map((rc) => rc.courseType) ?? [],
+  );
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>(
+    initialData?.labels?.map((rl) => rl.label.id) ?? [],
+  );
+  const [newLabelName, setNewLabelName] = useState('');
+  const [newLabelType, setNewLabelType] = useState<'dietary' | 'allergen' | 'equipment' | 'makeAhead'>('dietary');
+  const [isAddingLabel, setIsAddingLabel] = useState(false);
+
+  const { data: allCourses = [] } = useQuery({ queryKey: ['courses'], queryFn: fetchCourses });
+  const { data: allLabels = [] } = useQuery({ queryKey: ['labels'], queryFn: () => fetchLabels() });
+
+  async function handleCreateLabel() {
+    const name = newLabelName.trim();
+    if (!name) return;
+    try {
+      const created = await createLabel({ type: newLabelType, name });
+      queryClient.invalidateQueries({ queryKey: ['labels'] });
+      setSelectedLabelIds((prev) => [...prev, created.id]);
+      setNewLabelName('');
+      setIsAddingLabel(false);
+    } catch {
+      // duplicate or error — keep input open
+    }
+  }
 
   type IngredientFormItem = IngredientInput & { amountText: string };
 
@@ -350,7 +381,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
       const step = steps.find(s => s.internalId === internalId);
       return step ? [{ orderIndex: step.orderIndex, file }] : [];
     });
-    onSubmit(getFormData(), { coverPhoto: coverPhotoFile ?? undefined, stepMedia: pendingStepMedia });
+    onSubmit(getFormData(), { coverPhoto: coverPhotoFile ?? undefined, stepMedia: pendingStepMedia }, selectedCourseTypes, selectedLabelIds);
   }
 
   // base: no width, so narrow inputs can specify their own
@@ -594,6 +625,93 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
       <div>
         <label htmlFor="recipe-personal-notes" className={labelClass}>Personal Notes</label>
         <textarea id="recipe-personal-notes" value={personalNotes} onChange={(e) => setPersonalNotes(e.target.value)} className={`${inputClass} min-h-[60px]`} placeholder="Your personal notes and variations to try" />
+      </div>
+
+      {/* Course */}
+      <div>
+        <h3 className={labelClass}>Course</h3>
+        <div className="flex flex-wrap gap-1.5">
+          {allCourses.map((course) => (
+            <button
+              key={course.type}
+              type="button"
+              onClick={() =>
+                setSelectedCourseTypes((prev) =>
+                  prev.includes(course.type) ? prev.filter((t) => t !== course.type) : [...prev, course.type],
+                )
+              }
+              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                selectedCourseTypes.includes(course.type)
+                  ? 'bg-orange-100 border-orange-300 text-orange-700'
+                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {course.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Labels */}
+      <div>
+        <h3 className={labelClass}>Labels</h3>
+        <div className="flex flex-wrap gap-1.5">
+          {allLabels.map((label) => (
+            <button
+              key={label.id}
+              type="button"
+              title={label.type}
+              onClick={() =>
+                setSelectedLabelIds((prev) =>
+                  prev.includes(label.id) ? prev.filter((id) => id !== label.id) : [...prev, label.id],
+                )
+              }
+              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                selectedLabelIds.includes(label.id)
+                  ? 'bg-orange-100 border-orange-300 text-orange-700'
+                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              {label.name}
+            </button>
+          ))}
+          {isAddingLabel ? (
+            <div className="flex gap-1 items-center flex-wrap">
+              <select
+                value={newLabelType}
+                onChange={(e) => setNewLabelType(e.target.value as typeof newLabelType)}
+                className="rounded border border-gray-300 px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+              >
+                <option value="dietary">dietary</option>
+                <option value="allergen">allergen</option>
+                <option value="equipment">equipment</option>
+                <option value="makeAhead">make-ahead</option>
+              </select>
+              <input
+                autoFocus
+                type="text"
+                value={newLabelName}
+                onChange={(e) => setNewLabelName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); handleCreateLabel(); }
+                  if (e.key === 'Escape') { setIsAddingLabel(false); setNewLabelName(''); }
+                }}
+                placeholder="Label name"
+                className="rounded border border-gray-300 px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
+              />
+              <button type="button" onClick={handleCreateLabel} className="text-xs text-orange-600 hover:text-orange-800 font-medium">Add</button>
+              <button type="button" onClick={() => { setIsAddingLabel(false); setNewLabelName(''); }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsAddingLabel(true)}
+              className="px-2.5 py-1 text-xs rounded-full border border-dashed border-gray-300 text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors"
+            >
+              + New
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Submit */}

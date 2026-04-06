@@ -7,44 +7,44 @@ const app = createApp();
 
 beforeEach(async () => {
   await prisma.recipeLabel.deleteMany();
-  await prisma.recipeCategory.deleteMany();
+  await prisma.recipeCourse.deleteMany();
   await prisma.step.deleteMany();
   await prisma.ingredient.deleteMany();
   await prisma.recipe.deleteMany();
   await prisma.label.deleteMany();
-  await prisma.category.deleteMany();
 });
 
-describe('Categories', () => {
-  it('creates a category', async () => {
-    const res = await request(app).post('/api/categories').send({ name: 'dinner' });
-    expect(res.status).toBe(201);
-    expect(res.body.name).toBe('dinner');
-  });
-
-  it('lists categories', async () => {
-    await request(app).post('/api/categories').send({ name: 'dinner' });
-    await request(app).post('/api/categories').send({ name: 'appetizer' });
-
-    const res = await request(app).get('/api/categories');
+describe('Courses', () => {
+  it('lists all courses', async () => {
+    const res = await request(app).get('/api/courses');
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(2);
-    // sorted alphabetically
-    expect(res.body[0].name).toBe('appetizer');
-    expect(res.body[1].name).toBe('dinner');
+    expect(res.body).toHaveLength(11);
+    expect(res.body.map((c: { type: string }) => c.type)).toContain('MAIN');
+    expect(res.body.map((c: { type: string }) => c.type)).toContain('TOPPING');
   });
 
-  it('assigns categories to a recipe', async () => {
+  it('assigns courses to a recipe', async () => {
     const recipe = await request(app).post('/api/recipes').send({ title: 'Pasta' });
-    const cat1 = await request(app).post('/api/categories').send({ name: 'dinner' });
-    const cat2 = await request(app).post('/api/categories').send({ name: 'entree' });
 
     const res = await request(app)
-      .post(`/api/recipes/${recipe.body.id}/categories`)
-      .send({ categoryIds: [cat1.body.id, cat2.body.id] });
+      .post(`/api/recipes/${recipe.body.id}/courses`)
+      .send({ courseTypes: ['MAIN', 'SIDE'] });
 
     expect(res.status).toBe(200);
-    expect(res.body.categories).toHaveLength(2);
+    expect(res.body.courses).toHaveLength(2);
+    expect(res.body.courses.map((c: { courseType: string }) => c.courseType).sort()).toEqual(['MAIN', 'SIDE']);
+  });
+
+  it('replaces existing courses on reassign', async () => {
+    const recipe = await request(app).post('/api/recipes').send({ title: 'Pasta' });
+    await request(app).post(`/api/recipes/${recipe.body.id}/courses`).send({ courseTypes: ['MAIN'] });
+
+    const res = await request(app)
+      .post(`/api/recipes/${recipe.body.id}/courses`)
+      .send({ courseTypes: ['APPETIZER', 'SOUP'] });
+
+    expect(res.body.courses).toHaveLength(2);
+    expect(res.body.courses.map((c: { courseType: string }) => c.courseType).sort()).toEqual(['APPETIZER', 'SOUP']);
   });
 });
 
@@ -94,7 +94,7 @@ describe('Labels', () => {
 
 describe('Recipe Filtering', () => {
   async function seedRecipes() {
-    // Recipe 1: Chicken Soup (has chicken, carrots; dinner, gluten-free)
+    // Recipe 1: Chicken Soup (has chicken, carrots; MAIN, gluten-free)
     const r1 = await request(app).post('/api/recipes').send({
       title: 'Chicken Soup',
       ingredients: [
@@ -104,7 +104,7 @@ describe('Recipe Filtering', () => {
       steps: [{ orderIndex: 0, instruction: 'Cook everything.' }],
     });
 
-    // Recipe 2: Mushroom Risotto (has mushrooms, rice; dinner, vegetarian)
+    // Recipe 2: Mushroom Risotto (has mushrooms, rice; MAIN, vegetarian)
     const r2 = await request(app).post('/api/recipes').send({
       title: 'Mushroom Risotto',
       ingredients: [
@@ -114,7 +114,7 @@ describe('Recipe Filtering', () => {
       steps: [{ orderIndex: 0, instruction: 'Cook risotto.' }],
     });
 
-    // Recipe 3: Chicken Salad (has chicken, lettuce; lunch, gluten-free)
+    // Recipe 3: Chicken Salad (has chicken, lettuce; SALAD, gluten-free)
     const r3 = await request(app).post('/api/recipes').send({
       title: 'Chicken Salad',
       ingredients: [
@@ -124,16 +124,12 @@ describe('Recipe Filtering', () => {
       steps: [{ orderIndex: 0, instruction: 'Toss together.' }],
     });
 
-    // Add categories and labels
-    const dinner = await request(app).post('/api/categories').send({ name: 'dinner' });
-    const lunch = await request(app).post('/api/categories').send({ name: 'lunch' });
     const gf = await request(app).post('/api/labels').send({ type: 'dietary', name: 'gluten-free' });
     const veg = await request(app).post('/api/labels').send({ type: 'dietary', name: 'vegetarian' });
 
-    // Assign
-    await request(app).post(`/api/recipes/${r1.body.id}/categories`).send({ categoryIds: [dinner.body.id] });
-    await request(app).post(`/api/recipes/${r2.body.id}/categories`).send({ categoryIds: [dinner.body.id] });
-    await request(app).post(`/api/recipes/${r3.body.id}/categories`).send({ categoryIds: [lunch.body.id] });
+    await request(app).post(`/api/recipes/${r1.body.id}/courses`).send({ courseTypes: ['MAIN'] });
+    await request(app).post(`/api/recipes/${r2.body.id}/courses`).send({ courseTypes: ['MAIN'] });
+    await request(app).post(`/api/recipes/${r3.body.id}/courses`).send({ courseTypes: ['SALAD'] });
 
     await request(app).post(`/api/recipes/${r1.body.id}/labels`).send({ labelIds: [gf.body.id] });
     await request(app).post(`/api/recipes/${r2.body.id}/labels`).send({ labelIds: [veg.body.id] });
@@ -166,13 +162,13 @@ describe('Recipe Filtering', () => {
     expect(res2.body.recipes[0].title).toBe('Mushroom Risotto');
   });
 
-  it('filters by category', async () => {
+  it('filters by course', async () => {
     await seedRecipes();
 
-    const res = await request(app).get('/api/recipes?categories=dinner');
+    const res = await request(app).get('/api/recipes?courses=MAIN');
     expect(res.body.recipes).toHaveLength(2);
 
-    const res2 = await request(app).get('/api/recipes?categories=lunch');
+    const res2 = await request(app).get('/api/recipes?courses=SALAD');
     expect(res2.body.recipes).toHaveLength(1);
     expect(res2.body.recipes[0].title).toBe('Chicken Salad');
   });
@@ -184,8 +180,8 @@ describe('Recipe Filtering', () => {
     const res = await request(app).get('/api/recipes?includeIngredients=chicken&labels=gluten-free');
     expect(res.body.recipes).toHaveLength(2);
 
-    // Chicken + dinner category = only Chicken Soup
-    const res2 = await request(app).get('/api/recipes?includeIngredients=chicken&categories=dinner');
+    // Chicken + MAIN course = only Chicken Soup
+    const res2 = await request(app).get('/api/recipes?includeIngredients=chicken&courses=MAIN');
     expect(res2.body.recipes).toHaveLength(1);
     expect(res2.body.recipes[0].title).toBe('Chicken Soup');
   });
@@ -193,7 +189,7 @@ describe('Recipe Filtering', () => {
   it('combines search with filters', async () => {
     await seedRecipes();
 
-    const res = await request(app).get('/api/recipes?search=Chicken&categories=dinner');
+    const res = await request(app).get('/api/recipes?search=Chicken&courses=MAIN');
     expect(res.body.recipes).toHaveLength(1);
     expect(res.body.recipes[0].title).toBe('Chicken Soup');
   });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchCategories } from '../api/categories';
+import { fetchCourses } from '../api/courses';
 import { fetchLabels } from '../api/labels';
 
 interface FilterPanelProps {
@@ -8,7 +8,7 @@ interface FilterPanelProps {
     includeIngredients?: string;
     excludeIngredients?: string;
     labels?: string;
-    categories?: string;
+    courses?: string;
   }) => void;
 }
 
@@ -17,9 +17,9 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
   const [includeIng, setIncludeIng] = useState('');
   const [excludeIng, setExcludeIng] = useState('');
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCourses, setSelectedCourses] = useState<string[]>([]);
 
-  const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
+  const { data: courses } = useQuery({ queryKey: ['courses'], queryFn: fetchCourses });
   const { data: labels } = useQuery({ queryKey: ['labels'], queryFn: () => fetchLabels() });
 
   function applyFilters() {
@@ -27,7 +27,7 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
       includeIngredients: includeIng || undefined,
       excludeIngredients: excludeIng || undefined,
       labels: selectedLabels.length > 0 ? selectedLabels.join(',') : undefined,
-      categories: selectedCategories.length > 0 ? selectedCategories.join(',') : undefined,
+      courses: selectedCourses.length > 0 ? selectedCourses.join(',') : undefined,
     });
   }
 
@@ -35,7 +35,7 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
     setIncludeIng('');
     setExcludeIng('');
     setSelectedLabels([]);
-    setSelectedCategories([]);
+    setSelectedCourses([]);
     onFilterChange({});
   }
 
@@ -45,13 +45,13 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
     );
   }
 
-  function toggleCategory(name: string) {
-    setSelectedCategories((prev) =>
-      prev.includes(name) ? prev.filter((c) => c !== name) : [...prev, name],
+  function toggleCourse(type: string) {
+    setSelectedCourses((prev) =>
+      prev.includes(type) ? prev.filter((c) => c !== type) : [...prev, type],
     );
   }
 
-  const hasActiveFilters = includeIng || excludeIng || selectedLabels.length > 0 || selectedCategories.length > 0;
+  const hasActiveFilters = includeIng || excludeIng || selectedLabels.length > 0 || selectedCourses.length > 0;
 
   return (
     <div className="mb-4">
@@ -92,23 +92,23 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
             </div>
           </div>
 
-          {/* Category chips */}
-          {categories && categories.length > 0 && (
+          {/* Course chips */}
+          {courses && courses.length > 0 && (
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Categories</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Course</label>
               <div className="flex flex-wrap gap-1">
-                {categories.map((cat) => (
+                {courses.map((course) => (
                   <button
-                    key={cat.id}
+                    key={course.type}
                     type="button"
-                    onClick={() => toggleCategory(cat.name)}
+                    onClick={() => toggleCourse(course.type)}
                     className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
-                      selectedCategories.includes(cat.name)
+                      selectedCourses.includes(course.type)
                         ? 'bg-orange-100 border-orange-300 text-orange-700'
                         : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
                     }`}
                   >
-                    {cat.name}
+                    {course.name}
                   </button>
                 ))}
               </div>

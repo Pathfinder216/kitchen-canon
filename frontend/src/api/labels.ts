@@ -19,6 +19,6 @@ export function assignLabels(recipeId: string, labelIds: string[]): Promise<unkn
   return apiPost(`/recipes/${recipeId}/labels`, { labelIds });
 }
 
-export function assignCategories(recipeId: string, categoryIds: string[]): Promise<unknown> {
-  return apiPost(`/recipes/${recipeId}/categories`, { categoryIds });
+export function assignCourses(recipeId: string, courseTypes: string[]): Promise<unknown> {
+  return apiPost(`/recipes/${recipeId}/courses`, { courseTypes });
 }

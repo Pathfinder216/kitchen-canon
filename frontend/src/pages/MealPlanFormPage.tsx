@@ -286,7 +286,7 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
     includeIngredients?: string;
     excludeIngredients?: string;
     labels?: string;
-    categories?: string;
+    courses?: string;
   }>({});
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

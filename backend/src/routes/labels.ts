@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
+import { CourseType } from '@prisma/client';
 import { prisma } from '../db.js';
 import { validate } from '../middleware/validate.js';
 import { AppError } from '../middleware/errorHandler.js';
@@ -22,8 +23,8 @@ const assignLabelsSchema = z.object({
   labelIds: z.array(z.string()),
 });
 
-const assignCategoriesSchema = z.object({
-  categoryIds: z.array(z.string()),
+const assignCoursesSchema = z.object({
+  courseTypes: z.array(z.nativeEnum(CourseType)),
 });
 
 // GET /api/labels
@@ -86,22 +87,22 @@ router.post(
   }),
 );
 
-// POST /api/recipes/:id/categories — assign categories to a recipe
+// POST /api/recipes/:id/courses — assign courses to a recipe
 router.post(
-  '/recipes/:id/categories',
-  validate(assignCategoriesSchema),
+  '/recipes/:id/courses',
+  validate(assignCoursesSchema),
   asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { categoryIds } = req.body;
+    const { courseTypes } = req.body;
 
     const recipe = await prisma.recipe.findUnique({ where: { id } });
     if (!recipe) throw new AppError(404, 'Recipe not found');
 
     await prisma.$transaction([
-      prisma.recipeCategory.deleteMany({ where: { recipeId: id } }),
-      ...categoryIds.map((categoryId: string) =>
-        prisma.recipeCategory.create({
-          data: { recipeId: id, categoryId },
+      prisma.recipeCourse.deleteMany({ where: { recipeId: id } }),
+      ...courseTypes.map((courseType: CourseType) =>
+        prisma.recipeCourse.create({
+          data: { recipeId: id, courseType },
         }),
       ),
     ]);
@@ -109,7 +110,7 @@ router.post(
     const updated = await prisma.recipe.findUnique({
       where: { id },
       include: {
-        categories: { include: { category: true } },
+        courses: true,
         ingredients: { orderBy: { orderIndex: 'asc' } },
         steps: { orderBy: { orderIndex: 'asc' } },
       },

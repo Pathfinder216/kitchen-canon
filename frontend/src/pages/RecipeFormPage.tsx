@@ -5,6 +5,7 @@ import { RecipeForm } from '../components/RecipeForm';
 import type { PendingMedia } from '../components/RecipeForm';
 import type { CreateRecipeInput } from '../types/recipe';
 import type { ParsedRecipe } from '../api/import';
+import { assignCourses, assignLabels } from '../api/labels';
 
 async function uploadCoverPhoto(recipeId: string, file: File): Promise<void> {
   const form = new FormData();
@@ -30,7 +31,7 @@ export function RecipeFormPage() {
   const createMutation = useCreateRecipe();
   const updateMutation = useUpdateRecipe();
 
-  async function handleSubmit(data: CreateRecipeInput, media: PendingMedia) {
+  async function handleSubmit(data: CreateRecipeInput, media: PendingMedia, courseTypes: string[], labelIds: string[]) {
     if (isEditing && id) {
       updateMutation.mutate(
         { id, input: data },
@@ -40,7 +41,11 @@ export function RecipeFormPage() {
               const step = updated.steps.find(s => s.orderIndex === orderIndex);
               return step ? [uploadStepMedia(step.id, file)] : [];
             });
-            await Promise.all(uploads);
+            await Promise.all([
+              ...uploads,
+              assignCourses(updated.id, courseTypes),
+              assignLabels(updated.id, labelIds),
+            ]);
             navigate(`/recipes/${updated.id}`);
           },
         },
@@ -54,7 +59,11 @@ export function RecipeFormPage() {
             const step = created.steps.find(s => s.orderIndex === orderIndex);
             if (step) uploads.push(uploadStepMedia(step.id, file));
           }
-          await Promise.all(uploads);
+          await Promise.all([
+            ...uploads,
+            assignCourses(created.id, courseTypes),
+            assignLabels(created.id, labelIds),
+          ]);
           navigate(`/recipes/${created.id}`);
         },
       });

@@ -12,7 +12,7 @@ export function RecipeListPage() {
     includeIngredients?: string;
     excludeIngredients?: string;
     labels?: string;
-    categories?: string;
+    courses?: string;
   }>({});
 
   const { data, isLoading, error } = useRecipes({

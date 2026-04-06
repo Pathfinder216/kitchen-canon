@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 model Recipe {
@@ -31,7 +30,7 @@ model Recipe {
   ingredients Ingredient[]
   steps       Step[]
   media       Media[]
-  categories  RecipeCategory[]
+  courses     RecipeCourse[]
   labels      RecipeLabel[]
   mealRecipes MealRecipe[]
 }
@@ -71,19 +70,26 @@ model Media {
   step     Step?   @relation(fields: [stepId], references: [id], onDelete: Cascade)
 }
 
-model Category {
-  id      String           @id @default(uuid())
-  name    String           @unique
-  recipes RecipeCategory[]
+enum CourseType {
+  APPETIZER
+  SOUP
+  SALAD
+  BREAD
+  MAIN
+  SIDE
+  DESSERT
+  BREAKFAST
+  SNACK
+  DRINK
+  TOPPING
 }
 
-model RecipeCategory {
+model RecipeCourse {
   recipeId   String
-  categoryId String
-  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  courseType CourseType
+  recipe     Recipe     @relation(fields: [recipeId], references: [id], onDelete: Cascade)
 
-  @@id([recipeId, categoryId])
+  @@id([recipeId, courseType])
 }
 
 model Label {

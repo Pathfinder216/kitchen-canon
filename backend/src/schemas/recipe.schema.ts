@@ -45,7 +45,7 @@ export const recipeQuerySchema = z.object({
   includeIngredients: z.string().optional(), // comma-separated
   excludeIngredients: z.string().optional(), // comma-separated
   labels: z.string().optional(), // comma-separated label names
-  categories: z.string().optional(), // comma-separated category names
+  courses: z.string().optional(), // comma-separated course names
 });
 
 export type CreateRecipeInput = z.infer<typeof createRecipeSchema>;

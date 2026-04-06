@@ -7,6 +7,7 @@ import { SubstitutionList } from '../components/SubstitutionList';
 import { RecipeMedia } from '../components/RecipeMedia';
 import { StepMedia } from '../components/StepMedia';
 import type { Recipe } from '../types/recipe';
+import { COURSE_DISPLAY_NAMES } from '../api/courses';
 
 function handleExport(id: string, format: 'json' | 'text') {
   window.open(`/api/recipes/${id}/export?format=${format}`, '_blank');
@@ -44,7 +45,12 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
           <span>{recipe.servings} serving{recipe.servings !== 1 ? 's' : ''}</span>
         </div>
         {recipe.source && (
-          <p className="text-sm text-gray-500 mb-3">Source: {recipe.source}</p>
+          <p className="text-sm text-gray-500 mb-1">Source: {recipe.source}</p>
+        )}
+        {recipe.courses.length > 0 && (
+          <p className="text-sm text-gray-500 mb-3">
+            {recipe.courses.map((rc) => COURSE_DISPLAY_NAMES[rc.courseType] ?? rc.courseType).join(', ')}
+          </p>
         )}
 
         <h2 className="text-base font-semibold mt-4 mb-1">Ingredients</h2>
@@ -187,6 +193,22 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
               recipe.source
             )}
           </p>
+        )}
+
+        {/* Courses & Labels */}
+        {(recipe.courses.length > 0 || recipe.labels.length > 0) && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {recipe.courses.map((rc) => (
+              <span key={rc.courseType} className="px-2.5 py-0.5 text-xs rounded-full bg-blue-50 border border-blue-200 text-blue-700">
+                {COURSE_DISPLAY_NAMES[rc.courseType] ?? rc.courseType}
+              </span>
+            ))}
+            {recipe.labels.map((rl) => (
+              <span key={rl.labelId} title={rl.label.type} className="px-2.5 py-0.5 text-xs rounded-full bg-gray-100 border border-gray-200 text-gray-600">
+                {rl.label.name}
+              </span>
+            ))}
+          </div>
         )}
 
         {/* Ingredients with serving scaler */}

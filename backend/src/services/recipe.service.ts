@@ -67,11 +67,11 @@ export async function listRecipes(query: RecipeQueryInput) {
     ];
   }
 
-  // Filter: must have these courses
+  // Filter: must have at least one of these courses
   if (courses) {
     const courseTypes = courses.split(',').map((s) => s.trim());
-    where.AND = [
-      ...(where.AND || []),
+    where.OR = [
+      ...(where.OR || []),
       ...courseTypes.map((courseType) => ({
         courses: { some: { courseType } },
       })),

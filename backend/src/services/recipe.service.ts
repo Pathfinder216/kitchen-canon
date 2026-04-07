@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { config } from '../config.js';
 import type { CreateRecipeInput, UpdateRecipeInput, RecipeQueryInput } from '../schemas/recipe.schema.js';
+import { getAliasGroup } from '../utils/ingredientAliases.js';
 
 type WithSteps = { steps: { timeMinutes: number | null; isActiveTime: boolean }[] };
 
@@ -36,6 +37,20 @@ function stemVariants(word: string): string[] {
   return [...variants];
 }
 
+/**
+ * Returns all DB-matchable name variants for an ingredient search term:
+ * stem variants of the term itself, plus stem variants of every alias.
+ */
+function ingredientSearchVariants(name: string): string[] {
+  const aliases = getAliasGroup(name);
+  const all = new Set<string>();
+  for (const alias of aliases) {
+    for (const v of stemVariants(alias)) {
+      all.add(v);
+    }
+  }
+  return [...all];
+}
 
 function withComputedTimes<T extends WithSteps>(recipe: T): T & { totalTime: number | null; activeTime: number | null } {
   const totalTime = Math.ceil(recipe.steps.reduce((sum, s) => sum + (s.timeMinutes ?? 0), 0)) || null;
@@ -71,7 +86,7 @@ export async function listRecipes(query: RecipeQueryInput) {
       ...(where.AND || []),
       ...ingredientNames.map((name) => ({
         ingredients: {
-          some: { OR: stemVariants(name).map((v) => ({ name: { equals: v } })) },
+          some: { OR: ingredientSearchVariants(name).map((v) => ({ name: { equals: v } })) },
         },
       })),
     ];
@@ -84,7 +99,7 @@ export async function listRecipes(query: RecipeQueryInput) {
       ...(where.AND || []),
       ...excludeNames.map((name) => ({
         ingredients: {
-          none: { OR: stemVariants(name).map((v) => ({ name: { equals: v } })) },
+          none: { OR: ingredientSearchVariants(name).map((v) => ({ name: { equals: v } })) },
         },
       })),
     ];

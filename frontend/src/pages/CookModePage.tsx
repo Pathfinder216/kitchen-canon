@@ -278,8 +278,10 @@ function RunningTimersPanel({
 export function CookModePage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
-  const backLink = (location.state as { from?: { label: string; href: string } } | null)?.from ?? { label: 'Back', href: `/recipes/${id}` };
+  const locationState = location.state as { from?: { label: string; href: string }; targetServings?: number } | null;
+  const backLink = locationState?.from ?? { label: 'Back', href: `/recipes/${id}` };
   const { data: recipe, isLoading, error } = useRecipe(id!);
+  const initialServings = locationState?.targetServings;
   const [currentStep, setCurrentStep] = useState(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const [timers, setTimers] = useState<TimerState[]>([]);
@@ -393,6 +395,12 @@ export function CookModePage() {
   if (isLoading) return <p className="text-gray-500">Loading recipe...</p>;
   if (error || !recipe) return <p className="text-red-600">Recipe not found.</p>;
 
+  const targetServings = initialServings ?? recipe.servings;
+  const multiplier = recipe.servings > 0 ? targetServings / recipe.servings : 1;
+  const scaledIngredients = recipe.ingredients.map((ing) =>
+    ing.amount === null ? ing : { ...ing, amount: ing.amount * multiplier },
+  );
+
   const steps = recipe.steps;
   const step = steps[currentStep];
   const isFirst = currentStep === 0;
@@ -406,7 +414,7 @@ export function CookModePage() {
       <div className="max-w-2xl mx-auto pb-28">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <Link to={backLink.href} className="text-gray-500 hover:text-gray-800 text-sm">
+          <Link to={backLink.href} state={{ targetServings }} className="text-gray-500 hover:text-gray-800 text-sm">
             ← {backLink.label}
           </Link>
           <h1 className="text-xl font-bold text-gray-900 flex-1 truncate">{recipe.title}</h1>
@@ -443,7 +451,7 @@ export function CookModePage() {
                 )}
               </div>
               <p className="text-gray-800 text-lg leading-relaxed">
-                {resolveIngredientRefs(step.instruction, recipe.ingredients)}
+                {resolveIngredientRefs(step.instruction, scaledIngredients)}
               </p>
               <StepMedia stepId={step.id} readOnly />
               {!step.isActiveTime && (
@@ -470,9 +478,12 @@ export function CookModePage() {
         <details className="mt-6 bg-white border border-gray-200 rounded-xl overflow-hidden">
           <summary className="px-5 py-3 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 select-none">
             Ingredients ({recipe.ingredients.length})
+            {targetServings !== recipe.servings && (
+              <span className="ml-1 text-orange-600 font-normal">· {targetServings} serving{targetServings !== 1 ? 's' : ''}</span>
+            )}
           </summary>
           <ul className="divide-y divide-gray-100 px-4 pb-2">
-            {recipe.ingredients.map((ing) => (
+            {scaledIngredients.map((ing) => (
               <li key={ing.id} className="flex items-center gap-3 py-2">
                 <input
                   type="checkbox"
@@ -505,7 +516,7 @@ export function CookModePage() {
           <div className="mt-4 border border-gray-200 rounded-xl px-4 py-3 bg-gray-50">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Next step</p>
             <p className="text-sm text-gray-500 line-clamp-2 leading-snug">
-              {resolveIngredientRefsText(steps[currentStep + 1].instruction, recipe.ingredients)}
+              {resolveIngredientRefsText(steps[currentStep + 1].instruction, scaledIngredients)}
             </p>
             {!!steps[currentStep + 1].timeMinutes && (
               <p className="text-xs text-gray-400 mt-1">{steps[currentStep + 1].timeMinutes} min</p>
@@ -548,6 +559,7 @@ export function CookModePage() {
               {isLast ? (
                 <Link
                   to={backLink.href}
+                  state={{ targetServings }}
                   className="flex-1 text-center bg-green-500 hover:bg-green-600 text-white font-medium py-2.5 rounded-xl transition-colors"
                 >
                   Finish ✓

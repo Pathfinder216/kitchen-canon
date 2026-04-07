@@ -19,11 +19,12 @@ function handleExport(id: string, format: 'json' | 'text') {
 function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
-  const backLink = (location.state as { from?: { label: string; href: string } } | null)?.from ?? { label: 'Back to recipes', href: '/' };
+  const locationState = location.state as { from?: { label: string; href: string }; targetServings?: number } | null;
+  const backLink = locationState?.from ?? { label: 'Back to recipes', href: '/' };
   const archiveMutation = useArchiveRecipe();
   const deleteMutation = useDeleteRecipePermanently();
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const { targetServings, setTargetServings, scaleIngredient } = useScaling(recipe.servings);
+  const { targetServings, setTargetServings, scaleIngredient } = useScaling(locationState?.targetServings ?? recipe.servings);
   const scaledIngredients = recipe.ingredients.map(scaleIngredient);
 
   function handleArchive() {
@@ -120,6 +121,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             {recipe.steps.length > 0 && (
               <Link
                 to={`/recipes/${id}/cook`}
+                state={{ targetServings, from: { label: recipe.title, href: `/recipes/${id}` } }}
                 className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
               >
                 Cook

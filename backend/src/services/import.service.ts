@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -11,7 +10,6 @@ export interface ParsedIngredient {
   unit: string | null;
   isOptional: boolean;
   orderIndex: number;
-  internalId: string;
 }
 
 export interface ParsedStep {
@@ -261,7 +259,6 @@ export function parseIngredientLine(line: string, index: number): ParsedIngredie
     unit,
     isOptional,
     orderIndex: index,
-    internalId: `ing-${uuidv4()}`,
   };
 }
 

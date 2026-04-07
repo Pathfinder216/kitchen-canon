@@ -26,7 +26,7 @@ const mockRecipe = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
   ingredients: [
-    { id: 'i1', recipeId: 'r1', name: 'Flour', amount: 2, unit: 'cups', isOptional: false, orderIndex: 0, internalId: 'ing-1', originalName: null },
+    { id: 'i1', recipeId: 'r1', name: 'Flour', amount: 2, unit: 'cups', isOptional: false, orderIndex: 0, originalName: null },
   ],
   steps: [
     { id: 's1', recipeId: 'r1', orderIndex: 0, instruction: 'Mix the flour', timeMinutes: 5, isActiveTime: true },

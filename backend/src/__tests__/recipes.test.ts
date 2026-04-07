@@ -11,16 +11,16 @@ const sampleRecipe = {
   source: 'https://example.com/scrambled-eggs',
   authorNotes: 'Use low heat for creamier eggs',
   ingredients: [
-    { name: 'eggs', amount: 4, unit: 'large', isOptional: false, orderIndex: 0, internalId: 'eggs_1' },
-    { name: 'butter', amount: 1, unit: 'tbsp', isOptional: false, orderIndex: 1, internalId: 'butter_1' },
-    { name: 'salt', amount: 0.25, unit: 'tsp', isOptional: false, orderIndex: 2, internalId: 'salt_1' },
-    { name: 'chives', amount: 1, unit: 'tbsp', isOptional: true, orderIndex: 3, internalId: 'chives_1' },
+    { name: 'eggs', amount: 4, unit: 'large', isOptional: false, orderIndex: 0 },
+    { name: 'butter', amount: 1, unit: 'tbsp', isOptional: false, orderIndex: 1 },
+    { name: 'salt', amount: 0.25, unit: 'tsp', isOptional: false, orderIndex: 2 },
+    { name: 'chives', amount: 1, unit: 'tbsp', isOptional: true, orderIndex: 3 },
   ],
   steps: [
-    { orderIndex: 0, instruction: 'Crack {eggs_1:100%} into a bowl and whisk.', timeMinutes: 2, isActiveTime: true },
-    { orderIndex: 1, instruction: 'Melt {butter_1:100%} in a non-stick pan over low heat.', timeMinutes: 1, isActiveTime: true },
+    { orderIndex: 0, instruction: 'Crack {eggs:100%} into a bowl and whisk.', timeMinutes: 2, isActiveTime: true },
+    { orderIndex: 1, instruction: 'Melt {butter:100%} in a non-stick pan over low heat.', timeMinutes: 1, isActiveTime: true },
     { orderIndex: 2, instruction: 'Pour in eggs and stir gently until just set.', timeMinutes: 5, isActiveTime: true },
-    { orderIndex: 3, instruction: 'Season with {salt_1:100%} and top with {chives_1:100%}.', timeMinutes: 1, isActiveTime: true },
+    { orderIndex: 3, instruction: 'Season with {salt:100%} and top with {chives:100%}.', timeMinutes: 1, isActiveTime: true },
   ],
 };
 
@@ -181,8 +181,8 @@ describe('PATCH /api/recipes/:id', () => {
     const createRes = await request(app).post('/api/recipes').send(sampleRecipe);
 
     const newIngredients = [
-      { name: 'eggs', amount: 6, unit: 'large', isOptional: false, orderIndex: 0, internalId: 'eggs_1' },
-      { name: 'cream', amount: 2, unit: 'tbsp', isOptional: false, orderIndex: 1, internalId: 'cream_1' },
+      { name: 'eggs', amount: 6, unit: 'large', isOptional: false, orderIndex: 0 },
+      { name: 'cream', amount: 2, unit: 'tbsp', isOptional: false, orderIndex: 1 },
     ];
 
     const updateRes = await request(app)
@@ -240,12 +240,12 @@ describe('GET /api/recipes/:id/versions', () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(3);
-    expect(res.body[0].version).toBe(1);
-    expect(res.body[0].title).toBe('Scrambled Eggs');
+    expect(res.body[0].version).toBe(3);
+    expect(res.body[0].title).toBe('Final Eggs');
     expect(res.body[1].version).toBe(2);
     expect(res.body[1].title).toBe('Updated Eggs');
-    expect(res.body[2].version).toBe(3);
-    expect(res.body[2].title).toBe('Final Eggs');
+    expect(res.body[2].version).toBe(1);
+    expect(res.body[2].title).toBe('Scrambled Eggs');
   });
 });
 
@@ -259,7 +259,7 @@ describe('POST /api/recipes/:id/restore/:version', () => {
       .send({
         title: 'Changed Eggs',
         ingredients: [
-          { name: 'eggs', amount: 2, unit: 'large', isOptional: false, orderIndex: 0, internalId: 'eggs_1' },
+          { name: 'eggs', amount: 2, unit: 'large', isOptional: false, orderIndex: 0 },
         ],
       });
 

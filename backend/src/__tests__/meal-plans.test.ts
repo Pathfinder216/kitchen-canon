@@ -23,9 +23,9 @@ beforeEach(async () => {
     title: 'Pasta',
     servings: 4,
     ingredients: [
-      { name: 'pasta', amount: 1, unit: 'lb', orderIndex: 0, internalId: 'pasta_1' },
-      { name: 'olive oil', amount: 2, unit: 'tbsp', orderIndex: 1, internalId: 'oil_1' },
-      { name: 'garlic', amount: 3, unit: 'cloves', orderIndex: 2, internalId: 'garlic_1' },
+      { name: 'pasta', amount: 1, unit: 'lb', orderIndex: 0 },
+      { name: 'olive oil', amount: 2, unit: 'tbsp', orderIndex: 1 },
+      { name: 'garlic', amount: 3, unit: 'cloves', orderIndex: 2 },
     ],
     steps: [
       { orderIndex: 0, instruction: 'Boil pasta.', timeMinutes: 10, isActiveTime: false },
@@ -38,8 +38,8 @@ beforeEach(async () => {
     title: 'Salad',
     servings: 2,
     ingredients: [
-      { name: 'lettuce', amount: 1, unit: 'head', orderIndex: 0, internalId: 'lettuce_1' },
-      { name: 'olive oil', amount: 1, unit: 'tbsp', orderIndex: 1, internalId: 'oil_1' },
+      { name: 'lettuce', amount: 1, unit: 'head', orderIndex: 0 },
+      { name: 'olive oil', amount: 1, unit: 'tbsp', orderIndex: 1 },
     ],
     steps: [
       { orderIndex: 0, instruction: 'Toss salad.', timeMinutes: 5, isActiveTime: true },

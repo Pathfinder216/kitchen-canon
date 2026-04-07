@@ -9,8 +9,8 @@ const sampleRecipe = {
   servings: 8,
   authorNotes: 'A classic cake',
   ingredients: [
-    { name: 'flour', amount: 2, unit: 'cups', orderIndex: 0, internalId: 'i1', isOptional: false },
-    { name: 'sugar', amount: 1, unit: 'cup', orderIndex: 1, internalId: 'i2', isOptional: false },
+    { name: 'flour', amount: 2, unit: 'cups', orderIndex: 0, isOptional: false },
+    { name: 'sugar', amount: 1, unit: 'cup', orderIndex: 1, isOptional: false },
   ],
   steps: [
     { orderIndex: 0, instruction: 'Mix ingredients', timeMinutes: 5 },

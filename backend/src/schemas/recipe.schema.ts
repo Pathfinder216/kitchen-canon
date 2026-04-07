@@ -7,7 +7,6 @@ const ingredientSchema = z.object({
   unit: z.string().optional(),
   isOptional: z.boolean().default(false),
   orderIndex: z.number().int().min(0),
-  internalId: z.string().min(1),
 });
 
 const stepSchema = z.object({

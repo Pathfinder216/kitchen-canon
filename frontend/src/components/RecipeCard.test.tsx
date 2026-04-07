@@ -21,8 +21,8 @@ const mockRecipe: Recipe = {
   authorNotes: null,
   personalNotes: null,
   ingredients: [
-    { id: '1', recipeId: '1', name: 'eggs', originalName: null, amount: 4, unit: 'large', isOptional: false, orderIndex: 0, internalId: 'eggs_1' },
-    { id: '2', recipeId: '1', name: 'butter', originalName: null, amount: 1, unit: 'tbsp', isOptional: false, orderIndex: 1, internalId: 'butter_1' },
+    { id: '1', recipeId: '1', name: 'eggs', originalName: null, amount: 4, unit: 'large', isOptional: false, orderIndex: 0 },
+    { id: '2', recipeId: '1', name: 'butter', originalName: null, amount: 1, unit: 'tbsp', isOptional: false, orderIndex: 1 },
   ],
   steps: [],
 };

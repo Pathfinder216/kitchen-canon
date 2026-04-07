@@ -60,8 +60,8 @@ describe('Substitutions API', () => {
       title: 'Butter Cake',
       servings: 4,
       ingredients: [
-        { name: 'butter', amount: 0.5, unit: 'cup', orderIndex: 0, internalId: 'i1' },
-        { name: 'sugar', amount: 1, unit: 'cup', orderIndex: 1, internalId: 'i2' },
+        { name: 'butter', amount: 0.5, unit: 'cup', orderIndex: 0 },
+        { name: 'sugar', amount: 1, unit: 'cup', orderIndex: 1 },
       ],
     });
     await request(app).post('/api/substitutions').send({ fromIngredient: 'butter', toIngredient: 'coconut oil', ratio: 0.8 });

@@ -92,7 +92,7 @@ describe('RecipeForm', () => {
       source: 'https://example.com',
       authorNotes: 'Some notes',
       ingredients: [
-        { name: 'Flour', originalName: 'Flour', amount: 2, unit: 'cups', isOptional: false, orderIndex: 0, internalId: 'i1' },
+        { name: 'Flour', originalName: 'Flour', amount: 2, unit: 'cups', isOptional: false, orderIndex: 0 },
       ],
       steps: [
         { orderIndex: 0, instruction: 'Mix everything', timeMinutes: null, isActiveTime: true },

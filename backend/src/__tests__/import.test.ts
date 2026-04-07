@@ -60,11 +60,6 @@ describe('parseIngredientLine', () => {
     expect(result.orderIndex).toBe(5);
   });
 
-  it('generates unique internalId', () => {
-    const a = parseIngredientLine('1 cup flour', 0);
-    const b = parseIngredientLine('1 cup flour', 0);
-    expect(a.internalId).not.toBe(b.internalId);
-  });
 });
 
 describe('parseTextRecipe', () => {

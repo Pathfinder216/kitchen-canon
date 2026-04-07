@@ -98,8 +98,8 @@ describe('Recipe Filtering', () => {
     const r1 = await request(app).post('/api/recipes').send({
       title: 'Chicken Soup',
       ingredients: [
-        { name: 'chicken', amount: 1, unit: 'lb', orderIndex: 0, internalId: 'chicken_1' },
-        { name: 'carrots', amount: 3, unit: 'medium', orderIndex: 1, internalId: 'carrots_1' },
+        { name: 'chicken', amount: 1, unit: 'lb', orderIndex: 0 },
+        { name: 'carrots', amount: 3, unit: 'medium', orderIndex: 1 },
       ],
       steps: [{ orderIndex: 0, instruction: 'Cook everything.' }],
     });
@@ -108,8 +108,8 @@ describe('Recipe Filtering', () => {
     const r2 = await request(app).post('/api/recipes').send({
       title: 'Mushroom Risotto',
       ingredients: [
-        { name: 'mushrooms', amount: 8, unit: 'oz', orderIndex: 0, internalId: 'mush_1' },
-        { name: 'rice', amount: 1, unit: 'cup', orderIndex: 1, internalId: 'rice_1' },
+        { name: 'mushrooms', amount: 8, unit: 'oz', orderIndex: 0 },
+        { name: 'rice', amount: 1, unit: 'cup', orderIndex: 1 },
       ],
       steps: [{ orderIndex: 0, instruction: 'Cook risotto.' }],
     });
@@ -118,8 +118,8 @@ describe('Recipe Filtering', () => {
     const r3 = await request(app).post('/api/recipes').send({
       title: 'Chicken Salad',
       ingredients: [
-        { name: 'chicken', amount: 0.5, unit: 'lb', orderIndex: 0, internalId: 'chicken_1' },
-        { name: 'lettuce', amount: 1, unit: 'head', orderIndex: 1, internalId: 'lettuce_1' },
+        { name: 'chicken', amount: 0.5, unit: 'lb', orderIndex: 0 },
+        { name: 'lettuce', amount: 1, unit: 'head', orderIndex: 1 },
       ],
       steps: [{ orderIndex: 0, instruction: 'Toss together.' }],
     });

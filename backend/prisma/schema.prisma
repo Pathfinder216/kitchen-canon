@@ -45,7 +45,6 @@ model Ingredient {
   unit         String?
   isOptional   Boolean @default(false)
   orderIndex   Int     // Display order
-  internalId   String  // e.g., "oil_1" for referencing in steps
 }
 
 model Step {
@@ -53,7 +52,7 @@ model Step {
   recipeId     String
   recipe       Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   orderIndex   Int
-  instruction  String  // Can include {oil_1:50%} for "50% of ingredient 'oil_1'"
+  instruction  String  // Can include {butter:50%} for "50% of the 'butter' ingredient"
   timeMinutes  Float?
   isActiveTime Boolean @default(true)
   media        Media[]

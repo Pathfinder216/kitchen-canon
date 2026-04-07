@@ -7,7 +7,6 @@ export interface Ingredient {
   unit: string | null;
   isOptional: boolean;
   orderIndex: number;
-  internalId: string;
 }
 
 export interface Step {
@@ -77,7 +76,6 @@ export interface IngredientInput {
   unit?: string;
   isOptional?: boolean;
   orderIndex: number;
-  internalId: string;
 }
 
 export interface StepInput {

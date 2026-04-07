@@ -15,7 +15,6 @@ export type ParsedRecipe = Omit<CreateRecipeInput, 'ingredients' | 'steps'> & {
     unit: string | null;
     isOptional: boolean;
     orderIndex: number;
-    internalId: string;
   }[];
   steps: {
     orderIndex: number;

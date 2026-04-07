@@ -9,6 +9,7 @@ import { StepMedia } from '../components/StepMedia';
 import type { Recipe } from '../types/recipe';
 import { COURSE_DISPLAY_NAMES } from '../api/courses';
 import { getIngredientAlias } from '../utils/ingredientAliases';
+import { resolveIngredientRefs, resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
 
 function handleExport(id: string, format: 'json' | 'text') {
   window.open(`/api/recipes/${id}/export?format=${format}`, '_blank');
@@ -77,7 +78,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             <li key={step.id} className="flex gap-2">
               <span className="font-semibold shrink-0">{index + 1}.</span>
               <span>
-                {step.instruction}
+                {resolveIngredientRefsText(step.instruction, scaledIngredients)}
                 {!!step.timeMinutes && (
                   <span className="text-gray-500"> ({step.timeMinutes} min{step.isActiveTime ? ', active' : ''})</span>
                 )}
@@ -268,7 +269,9 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                     {index + 1}
                   </span>
                   <div className="flex-1 pt-0.5">
-                    <p className="text-gray-900 text-sm">{step.instruction}</p>
+                    <p className="text-gray-900 text-sm">
+                      {resolveIngredientRefs(step.instruction, scaledIngredients)}
+                    </p>
                     {!!step.timeMinutes && (
                       <p className="text-xs text-gray-500 mt-1">
                         {step.timeMinutes} min ({step.isActiveTime ? 'active' : 'inactive'})

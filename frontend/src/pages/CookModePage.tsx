@@ -3,8 +3,9 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { useRecipe } from '../hooks/useRecipes';
 import { formatScaledAmount } from '../hooks/useScaling';
 import { StepMedia } from '../components/StepMedia';
-import type { Step } from '../types/recipe';
+import type { Ingredient, Step } from '../types/recipe';
 import { getIngredientAlias } from '../utils/ingredientAliases';
+import { resolveIngredientRefs, resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
 
 // ---------------------------------------------------------------------------
 // Timer state
@@ -328,6 +329,7 @@ export function CookModePage() {
   // ── Timer actions ──────────────────────────────────────────────────────────
   const startTimer = useCallback((stepIndex: number, step: Step) => {
     const totalSeconds = (step.timeMinutes ?? 0) * 60;
+    const ingredients: Ingredient[] = recipe?.ingredients ?? [];
     setTimers((prev) => {
       const existing = prev.find((t) => t.stepIndex === stepIndex);
       if (existing) {
@@ -341,14 +343,14 @@ export function CookModePage() {
         ...prev,
         {
           stepIndex,
-          stepLabel: stepLabel(stepIndex, step.instruction),
+          stepLabel: stepLabel(stepIndex, resolveIngredientRefsText(step.instruction, ingredients)),
           totalSeconds,
           accumulatedSeconds: 0,
           startedAt: Date.now(),
         },
       ];
     });
-  }, []);
+  }, [recipe]);
 
   const pauseTimer = useCallback((stepIndex: number) => {
     setTimers((prev) =>
@@ -440,7 +442,9 @@ export function CookModePage() {
                   </span>
                 )}
               </div>
-              <p className="text-gray-800 text-lg leading-relaxed">{step.instruction}</p>
+              <p className="text-gray-800 text-lg leading-relaxed">
+                {resolveIngredientRefs(step.instruction, recipe.ingredients)}
+              </p>
               <StepMedia stepId={step.id} readOnly />
               {!step.isActiveTime && (
                 <StepTimerCard
@@ -500,7 +504,9 @@ export function CookModePage() {
         {steps.length > 0 && !isLast && (
           <div className="mt-4 border border-gray-200 rounded-xl px-4 py-3 bg-gray-50">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Next step</p>
-            <p className="text-sm text-gray-500 line-clamp-2 leading-snug">{steps[currentStep + 1].instruction}</p>
+            <p className="text-sm text-gray-500 line-clamp-2 leading-snug">
+              {resolveIngredientRefsText(steps[currentStep + 1].instruction, recipe.ingredients)}
+            </p>
             {!!steps[currentStep + 1].timeMinutes && (
               <p className="text-xs text-gray-400 mt-1">{steps[currentStep + 1].timeMinutes} min</p>
             )}

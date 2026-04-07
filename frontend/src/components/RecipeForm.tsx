@@ -64,6 +64,7 @@ function parseFraction(s: string): number | undefined {
 
 const FLIP_TRANSITION = 'transform 320ms cubic-bezier(0.33, 1, 0.68, 1)';
 
+
 export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, recipeId }: RecipeFormProps) {
   const seed = initialData ?? importData;
   const queryClient = useQueryClient();
@@ -104,7 +105,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
   type IngredientFormItem = IngredientInput & { amountText: string };
 
   const [ingredients, setIngredients] = useState<IngredientFormItem[]>(
-    seed?.ingredients.map((ing) => ({
+    seed?.ingredients.map((ing, i) => ({
       name: ing.name,
       originalName: ing.originalName ?? undefined,
       amount: ing.amount ?? undefined,
@@ -112,7 +113,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
       unit: ing.unit ?? undefined,
       isOptional: ing.isOptional,
       orderIndex: ing.orderIndex,
-      internalId: ing.internalId,
+      internalId: ing.name || `ing_${i}`,
     })) ?? [],
   );
 
@@ -152,6 +153,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
   const stepContentEls = useRef<Map<string, HTMLDivElement>>(new Map());
   const stepBeforePositions = useRef<Map<string, number>>(new Map());
   const stepPendingFlip = useRef(false);
+  const stepTextareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
 
   // ── Ingredient helpers ───────────────────────────────────────────────────────
   function addIngredient() {
@@ -183,6 +185,35 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
 
   function updateStep(index: number, field: keyof StepFormItem, value: unknown) {
     setSteps((prev) => prev.map((step, i) => (i === index ? { ...step, [field]: value } : step)));
+  }
+
+  function refKeyForIngredient(ingIndex: number): string {
+    const name = ingredients[ingIndex].name;
+    const total = ingredients.filter((i) => i.name === name).length;
+    if (total === 1) return name;
+    let rank = 1;
+    for (let i = 0; i < ingIndex; i++) {
+      if (ingredients[i].name === name) rank++;
+    }
+    return `${name} ${rank}`;
+  }
+
+  function insertIngredientRef(stepIndex: number, ingIndex: number) {
+    const textarea = stepTextareaRefs.current.get(steps[stepIndex].internalId);
+    const token = `{${refKeyForIngredient(ingIndex)}:100%}`;
+    setSteps((prev) => prev.map((step, i) => {
+      if (i !== stepIndex) return step;
+      if (textarea) {
+        const start = textarea.selectionStart ?? step.instruction.length;
+        const end = textarea.selectionEnd ?? start;
+        const instruction = step.instruction.slice(0, start) + token + step.instruction.slice(end);
+        return { ...step, instruction };
+      }
+      const sep = step.instruction && !step.instruction.endsWith(' ') ? ' ' : '';
+      return { ...step, instruction: step.instruction + sep + token };
+    }));
+    // Restore focus after state update
+    setTimeout(() => textarea?.focus(), 0);
   }
 
   // ── Ingredient drag: document-level pointer listeners ────────────────────────
@@ -364,7 +395,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
       source: source || undefined,
       authorNotes: authorNotes || undefined,
       personalNotes: personalNotes || undefined,
-      ingredients: ingredients.map(({ amountText, ...ing }) => ({
+      ingredients: ingredients.map(({ amountText, internalId: _iid, ...ing }) => ({
         ...ing,
         amount: parseFraction(amountText),
       })),
@@ -553,12 +584,28 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
 
                 <div className="flex-1 space-y-1 min-w-0">
                   <textarea
+                    ref={(el) => { if (el) stepTextareaRefs.current.set(step.internalId, el); else stepTextareaRefs.current.delete(step.internalId); }}
                     value={step.instruction}
                     onChange={(e) => updateStep(index, 'instruction', e.target.value)}
                     placeholder="Step instruction"
                     className={`${inputClass} min-h-[60px]`}
                     required
                   />
+                  {ingredients.some((ing) => ing.name) && (
+                    <div className="flex flex-wrap gap-1 items-center">
+                      <span className="text-xs text-gray-400 shrink-0">Insert ref:</span>
+                      {ingredients.map((ing, ingIndex) => ing.name ? (
+                        <button
+                          key={ing.internalId}
+                          type="button"
+                          onClick={() => insertIngredientRef(index, ingIndex)}
+                          className="text-xs bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded transition-colors"
+                        >
+                          {refKeyForIngredient(ingIndex)}
+                        </button>
+                      ) : null)}
+                    </div>
+                  )}
                   <div className="flex gap-2 items-center">
                     <input
                       type="number"

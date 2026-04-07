@@ -23,7 +23,7 @@ beforeAll(() => {
   }
 
   // Push schema to test database (faster than running migrations)
-  execSync('npx prisma db push --skip-generate', {
+  execSync('npx prisma db push', {
     cwd: path.join(__dirname, '..', '..'),
     env: { ...process.env, DATABASE_URL: `file:${testDbPath}` },
     stdio: 'pipe',

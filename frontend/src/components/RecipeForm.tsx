@@ -593,7 +593,23 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                   />
                   {ingredients.some((ing) => ing.name) && (
                     <div className="flex flex-wrap gap-1 items-center">
-                      <span className="text-xs text-gray-400 shrink-0">Insert ref:</span>
+                      <span className="text-xs text-gray-400 shrink-0">Insert ingredient reference:</span>
+                      <div className="relative shrink-0 group">
+                        <button
+                          type="button"
+                          className="w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-500 text-[10px] font-bold flex items-center justify-center leading-none transition-colors"
+                          tabIndex={-1}
+                          aria-label="About ingredient references"
+                        >
+                          ?
+                        </button>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-xs rounded-lg px-3 py-2.5 shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                          <p className="font-semibold mb-1">Ingredient references</p>
+                          <p className="text-gray-300 leading-snug">Click an ingredient button to insert a scaling ingredient reference into the step. The reference will be replaced with the ingredient amount scaled to the right serving size.</p>
+                          <p className="text-gray-400 mt-1.5 font-mono text-[10px]">2 Tbsp butter referenced as &#123;butter:50%&#125; → 1 Tbsp butter</p>
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+                        </div>
+                      </div>
                       {ingredients.map((ing, ingIndex) => ing.name ? (
                         <button
                           key={ing.internalId}
@@ -687,11 +703,10 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                   prev.includes(course.type) ? prev.filter((t) => t !== course.type) : [...prev, course.type],
                 )
               }
-              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                selectedCourseTypes.includes(course.type)
-                  ? 'bg-orange-100 border-orange-300 text-orange-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${selectedCourseTypes.includes(course.type)
+                ? 'bg-orange-100 border-orange-300 text-orange-700'
+                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                }`}
             >
               {course.name}
             </button>
@@ -713,11 +728,10 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                   prev.includes(label.id) ? prev.filter((id) => id !== label.id) : [...prev, label.id],
                 )
               }
-              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                selectedLabelIds.includes(label.id)
-                  ? 'bg-orange-100 border-orange-300 text-orange-700'
-                  : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-              }`}
+              className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${selectedLabelIds.includes(label.id)
+                ? 'bg-orange-100 border-orange-300 text-orange-700'
+                : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                }`}
             >
               {label.name}
             </button>

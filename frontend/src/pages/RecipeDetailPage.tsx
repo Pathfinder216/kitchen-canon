@@ -114,7 +114,6 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             <div className="flex gap-3 text-sm text-gray-500 mt-1">
               {recipe.totalTime && <span>Total: {recipe.totalTime} min</span>}
               {recipe.activeTime && <span>Active: {recipe.activeTime} min</span>}
-              <span>{recipe.servings} serving{recipe.servings !== 1 ? 's' : ''}</span>
             </div>
           </div>
           <div className="flex gap-2">

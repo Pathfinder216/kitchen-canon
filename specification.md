@@ -3,6 +3,12 @@
 ## Overview
 A recipe management application for collecting, consolidating, using, updating, and sharing recipes. Designed for personal use with potential for future public availability.
 
+#### Possible Permanent Names
+- En Place
+- Mise
+- Prepped
+- Station
+
 ---
 
 ## 1. Recipe Management

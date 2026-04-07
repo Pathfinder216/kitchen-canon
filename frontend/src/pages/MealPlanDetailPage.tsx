@@ -45,7 +45,7 @@ function MealRecipeRow({ mr, planId }: {
       </div>
       <Link
         to={`/recipes/${mr.recipeId}/cook`}
-        state={{ from: { label: 'Back to meal plan', href: `/meal-plans/${planId}` } }}
+        state={{ from: { label: 'Back to meal plan', href: `/meal-plans/${planId}` }, targetServings: mr.servings }}
         className="text-sm text-orange-600 hover:text-orange-800 font-medium"
       >
         Cook →

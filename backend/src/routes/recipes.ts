@@ -78,17 +78,26 @@ router.get(
     const recipe = await recipeService.getRecipe(req.params.id);
     const format = (req.query.format as string) || 'json';
     const safeName = recipe.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const requestedServings = req.query.servings ? Number(req.query.servings) : null;
+    const multiplier = (requestedServings && recipe.servings > 0) ? requestedServings / recipe.servings : 1;
+    const targetServings = requestedServings ?? recipe.servings;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const scaledRecipe: any = multiplier === 1 ? recipe : {
+      ...recipe,
+      servings: targetServings,
+      ingredients: (recipe as any).ingredients.map((ing: any) =>
+        ing.amount === null ? ing : { ...ing, amount: ing.amount * multiplier },
+      ),
+    };
 
     if (format === 'text') {
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename="${safeName}.txt"`);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      res.send(recipeToText(recipe as any));
+      res.send(recipeToText(scaledRecipe));
     } else {
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="${safeName}.json"`);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      res.json(recipeToJson(recipe as any));
+      res.json(recipeToJson(scaledRecipe));
     }
   }),
 );

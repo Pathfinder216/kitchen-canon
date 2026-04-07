@@ -15,6 +15,29 @@ function formatAmount(amount: number | null, unit: string | null): string {
   return unit ? `${n} ${unit}` : n;
 }
 
+const REF_PATTERN = /\{([^}:]+):(\d+(?:\.\d+)?)%\}/g;
+
+function resolveRefs(instruction: string, ingredients: RecipeWithRelations['ingredients']): string {
+  const totals = new Map<string, number>();
+  for (const ing of ingredients) totals.set(ing.name, (totals.get(ing.name) ?? 0) + 1);
+  const ranks = new Map<string, number>();
+  const byKey = new Map<string, (typeof ingredients)[number]>();
+  for (const ing of ingredients) {
+    const rank = (ranks.get(ing.name) ?? 0) + 1;
+    ranks.set(ing.name, rank);
+    const key = (totals.get(ing.name) ?? 1) === 1 ? ing.name : `${ing.name} ${rank}`;
+    byKey.set(key, ing);
+  }
+  return instruction.replace(REF_PATTERN, (_full, internalId, pctStr) => {
+    const ing = byKey.get(internalId);
+    if (!ing) return _full;
+    const pct = parseFloat(pctStr) / 100;
+    const scaledAmount = ing.amount !== null ? ing.amount * pct : null;
+    const parts = [formatAmount(scaledAmount, ing.unit), ing.name].filter(Boolean);
+    return parts.join(' ');
+  });
+}
+
 export function recipeToText(recipe: RecipeWithRelations): string {
   const lines: string[] = [];
 
@@ -51,7 +74,7 @@ export function recipeToText(recipe: RecipeWithRelations): string {
     lines.push('------------');
     for (const step of recipe.steps) {
       const time = step.timeMinutes ? ` [${step.timeMinutes} min]` : '';
-      lines.push(`${step.orderIndex + 1}. ${step.instruction}${time}`);
+      lines.push(`${step.orderIndex + 1}. ${resolveRefs(step.instruction, recipe.ingredients)}${time}`);
     }
     lines.push('');
   }
@@ -86,7 +109,7 @@ export function recipeToJson(recipe: RecipeWithRelations): object {
     })),
     steps: recipe.steps.map((step) => ({
       orderIndex: step.orderIndex,
-      instruction: step.instruction,
+      instruction: resolveRefs(step.instruction, recipe.ingredients),
       timeMinutes: step.timeMinutes,
       isActiveTime: step.isActiveTime,
     })),

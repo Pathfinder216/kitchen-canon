@@ -11,8 +11,8 @@ import { COURSE_DISPLAY_NAMES } from '../api/courses';
 import { getIngredientAlias } from '../utils/ingredientAliases';
 import { resolveIngredientRefs, resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
 
-function handleExport(id: string, format: 'json' | 'text') {
-  window.open(`/api/recipes/${id}/export?format=${format}`, '_blank');
+function handleExport(id: string, format: 'json' | 'text', servings: number) {
+  window.open(`/api/recipes/${id}/export?format=${format}&servings=${servings}`, '_blank');
 }
 
 // Inner component receives the loaded recipe — hooks are safe here.
@@ -45,7 +45,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
         <div className="flex gap-4 text-sm text-gray-600 mb-1">
           {recipe.totalTime && <span>Total: {recipe.totalTime} min</span>}
           {recipe.activeTime && <span>Active: {recipe.activeTime} min</span>}
-          <span>{recipe.servings} serving{recipe.servings !== 1 ? 's' : ''}</span>
+          <span>{targetServings} serving{targetServings !== 1 ? 's' : ''}</span>
         </div>
         {recipe.source && (
           <p className="text-sm text-gray-500 mb-1">Source: {recipe.source}</p>
@@ -58,7 +58,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
 
         <h2 className="text-base font-semibold mt-4 mb-1">Ingredients</h2>
         <ul className="text-sm space-y-0.5 mb-4 columns-2">
-          {recipe.ingredients.map((ing) => (
+          {scaledIngredients.map((ing) => (
             <li key={ing.id}>
               {ing.amount !== null && (
                 <span className="font-medium">
@@ -317,13 +317,13 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
           </div>
           <div className="flex gap-2 shrink-0">
             <button
-              onClick={() => handleExport(id!, 'text')}
+              onClick={() => handleExport(id!, 'text', targetServings)}
               className="text-xs border border-gray-300 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-md transition-colors"
             >
               Export .txt
             </button>
             <button
-              onClick={() => handleExport(id!, 'json')}
+              onClick={() => handleExport(id!, 'json', targetServings)}
               className="text-xs border border-gray-300 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-md transition-colors"
             >
               Export JSON

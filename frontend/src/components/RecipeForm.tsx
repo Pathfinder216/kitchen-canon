@@ -414,13 +414,65 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
     };
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const [showOverRefWarning, setShowOverRefWarning] = useState(false);
+  const [showUnderRefInfo, setShowUnderRefInfo] = useState(false);
+
+  function getRefUsage(): Record<string, number> {
+    const refUsage: Record<string, number> = {};
+    const refPattern = /\{([^}:]+):(\d+(?:\.\d+)?)%\}/g;
+    for (const s of steps) {
+      let m: RegExpExecArray | null;
+      refPattern.lastIndex = 0;
+      while ((m = refPattern.exec(s.instruction)) !== null) {
+        refUsage[m[1]] = (refUsage[m[1]] ?? 0) + parseFloat(m[2]);
+      }
+    }
+    return refUsage;
+  }
+
+  function getOverReferencedIngredients(): string[] {
+    const usage = getRefUsage();
+    return Object.entries(usage).filter(([, pct]) => pct > 100).map(([key, pct]) => `${key} (${pct}%)`);
+  }
+
+  function getUnderReferencedIngredients(): string[] {
+    const usage = getRefUsage();
+    return ingredients
+      .filter((ing) => ing.name)
+      .map((ing, i) => {
+        const name = ingredients[i].name;
+        const total = ingredients.filter((x) => x.name === name).length;
+        let rank = 1;
+        for (let j = 0; j < i; j++) if (ingredients[j].name === name) rank++;
+        return total === 1 ? name : `${name} ${rank}`;
+      })
+      .filter((key, i, arr) => arr.indexOf(key) === i) // dedupe
+      .filter((key) => (usage[key] ?? 0) < 100)
+      .map((key) => {
+        const pct = usage[key] ?? 0;
+        return pct === 0 ? key : `${key} (${pct}%)`;
+      });
+  }
+
+  function doSubmit() {
     const pendingStepMedia = Array.from(stepMediaFiles.entries()).flatMap(([internalId, { file }]) => {
       const step = steps.find(s => s.internalId === internalId);
       return step ? [{ orderIndex: step.orderIndex, file }] : [];
     });
     onSubmit(getFormData(), { coverPhoto: coverPhotoFile ?? undefined, stepMedia: pendingStepMedia }, selectedCourseTypes, selectedLabelIds);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (getOverReferencedIngredients().length > 0) {
+      setShowOverRefWarning(true);
+      return;
+    }
+    if (!initialData && getUnderReferencedIngredients().length > 0) {
+      setShowUnderRefInfo(true);
+      return;
+    }
+    doSubmit();
   }
 
   // base: no width, so narrow inputs can specify their own
@@ -429,8 +481,88 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
   const labelClass = 'block text-sm font-medium text-gray-700 mb-1';
   const gripClass = 'cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 shrink-0 touch-none select-none px-0.5';
 
+  const overRefWarningIngredients = showOverRefWarning ? getOverReferencedIngredients() : [];
+  const underRefInfoIngredients = showUnderRefInfo ? getUnderReferencedIngredients() : [];
+  const noRefsUsedAtAll = showUnderRefInfo && Object.keys(getRefUsage()).length === 0;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {showOverRefWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowOverRefWarning(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Ingredient references exceed 100%</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              The following ingredients are referenced for more than their total amount across all steps:
+            </p>
+            <ul className="text-sm font-medium text-red-700 mb-5 space-y-1">
+              {overRefWarningIngredients.map((label) => (
+                <li key={label}>• {label}</li>
+              ))}
+            </ul>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowOverRefWarning(false); doSubmit(); }}
+                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Save anyway
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setShowOverRefWarning(false)}
+                className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
+              >
+                Continue editing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showUnderRefInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowUnderRefInfo(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+              {noRefsUsedAtAll ? 'No ingredient references used' : "Some ingredients aren't fully referenced"}
+            </h2>
+            {noRefsUsedAtAll ? (
+              <p className="text-sm text-gray-600 mb-5">
+                When you use ingredient references in the steps (see the buttons below the step text field), the step description will list the ingredient by name and amount, scaled based on serving size. This is helpful when cooking. Please consider using this feature!
+              </p>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600 mb-3">
+                  The following ingredients are referenced for less than 100% of their amount across all steps:
+                </p>
+                <ul className="text-sm font-medium text-gray-700 mb-5 space-y-1">
+                  {underRefInfoIngredients.map((label) => (
+                    <li key={label}>• {label}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowUnderRefInfo(false); doSubmit(); }}
+                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Save anyway
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setShowUnderRefInfo(false)}
+                className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
+              >
+                Continue editing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Basic Info */}
       <div>
         <label htmlFor="recipe-title" className={labelClass}>Title *</label>
@@ -640,13 +772,12 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                               type="button"
                               onClick={() => insertIngredientRef(index, ingIndex)}
                               title={used > 0 ? `${used}% referenced across steps` : undefined}
-                              className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${
-                                overUsed
-                                  ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-300'
-                                  : fullyUsed
+                              className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${overUsed
+                                ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-300'
+                                : fullyUsed
                                   ? 'bg-green-50 hover:bg-green-100 text-green-700 border-green-300'
                                   : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200'
-                              }`}
+                                }`}
                             >
                               {key}{overUsed ? ' !' : fullyUsed ? ' ✓' : ''}
                             </button>

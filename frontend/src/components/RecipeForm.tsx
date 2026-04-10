@@ -652,7 +652,10 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                   type="text"
                   inputMode="decimal"
                   value={ing.amountText}
-                  onChange={(e) => updateIngredient(index, 'amountText', e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (/^[0-9/. ]*$/.test(val)) updateIngredient(index, 'amountText', val);
+                  }}
                   placeholder="Amt"
                   className={`${base} w-18 shrink-0`}
                 />

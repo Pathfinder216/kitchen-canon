@@ -1,7 +1,7 @@
 import type { Ingredient } from '../types/recipe';
 import { formatScaledAmount } from '../hooks/useScaling';
 
-const REF_PATTERN = /\{([^}:]+):(\d+(?:\.\d+)?)%\}/g;
+const REF_PATTERN = /\{([^}:]+)(?::(\d+(?:\.\d+)?)%)?\}/g;
 
 /** Build a name → ingredient map. Unique names get the bare name as key.
  *  When a name appears multiple times all occurrences are numbered: "butter 1", "butter 2", … */
@@ -49,15 +49,16 @@ export function resolveIngredientRefs(
 
     const ing = ingByInternalId.get(internalId);
     if (ing) {
-      const pct = parseFloat(pctStr) / 100;
+      const pct = (pctStr !== undefined ? parseFloat(pctStr) : 100) / 100;
       const scaledAmount = ing.amount !== null ? ing.amount * pct * multiplier : null;
       const amountStr = scaledAmount !== null ? formatScaledAmount(scaledAmount) : null;
       const label = [amountStr, ing.unit, ing.name].filter(Boolean).join(' ');
+      const pctDisplay = pctStr ?? '100';
       parts.push(
         <span
           key={`${internalId}-${start}`}
           className="text-orange-700 font-medium"
-          title={`${pctStr}% of ${ing.name}`}
+          title={`${pctDisplay}% of ${ing.name}`}
         >
           {label}
         </span>,
@@ -92,7 +93,7 @@ export function resolveIngredientRefsText(
   return instruction.replace(REF_PATTERN, (_full, internalId, pctStr) => {
     const ing = ingByInternalId.get(internalId);
     if (!ing) return _full;
-    const pct = parseFloat(pctStr) / 100;
+    const pct = (pctStr !== undefined ? parseFloat(pctStr) : 100) / 100;
     const scaledAmount = ing.amount !== null ? ing.amount * pct * multiplier : null;
     const amountStr = scaledAmount !== null ? formatScaledAmount(scaledAmount) : null;
     return [amountStr, ing.unit, ing.name].filter(Boolean).join(' ');

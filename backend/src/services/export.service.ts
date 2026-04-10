@@ -15,7 +15,7 @@ function formatAmount(amount: number | null, unit: string | null): string {
   return unit ? `${n} ${unit}` : n;
 }
 
-const REF_PATTERN = /\{([^}:]+):(\d+(?:\.\d+)?)%\}/g;
+const REF_PATTERN = /\{([^}:]+)(?::(\d+(?:\.\d+)?)%)?\}/g;
 
 function resolveRefs(instruction: string, ingredients: RecipeWithRelations['ingredients']): string {
   const totals = new Map<string, number>();
@@ -31,7 +31,7 @@ function resolveRefs(instruction: string, ingredients: RecipeWithRelations['ingr
   return instruction.replace(REF_PATTERN, (_full, internalId, pctStr) => {
     const ing = byKey.get(internalId);
     if (!ing) return _full;
-    const pct = parseFloat(pctStr) / 100;
+    const pct = (pctStr !== undefined ? parseFloat(pctStr) : 100) / 100;
     const scaledAmount = ing.amount !== null ? ing.amount * pct : null;
     const parts = [formatAmount(scaledAmount, ing.unit), ing.name].filter(Boolean);
     return parts.join(' ');

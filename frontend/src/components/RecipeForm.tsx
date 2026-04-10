@@ -200,7 +200,9 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
 
   function insertIngredientRef(stepIndex: number, ingIndex: number) {
     const textarea = stepTextareaRefs.current.get(steps[stepIndex].internalId);
-    const token = `{${refKeyForIngredient(ingIndex)}:100%}`;
+    const key = refKeyForIngredient(ingIndex);
+    const hasAmount = ingredients[ingIndex].amountText.trim() !== '';
+    const token = hasAmount ? `{${key}:100%}` : `{${key}}`;
     let cursorPos: number | null = null;
     setSteps((prev) => prev.map((step, i) => {
       if (i !== stepIndex) return step;
@@ -419,12 +421,12 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
 
   function getRefUsage(): Record<string, number> {
     const refUsage: Record<string, number> = {};
-    const refPattern = /\{([^}:]+):(\d+(?:\.\d+)?)%\}/g;
+    const refPattern = /\{([^}:]+)(?::(\d+(?:\.\d+)?)%)?\}/g;
     for (const s of steps) {
       let m: RegExpExecArray | null;
       refPattern.lastIndex = 0;
       while ((m = refPattern.exec(s.instruction)) !== null) {
-        refUsage[m[1]] = (refUsage[m[1]] ?? 0) + parseFloat(m[2]);
+        refUsage[m[1]] = (refUsage[m[1]] ?? 0) + (m[2] !== undefined ? parseFloat(m[2]) : 100);
       }
     }
     return refUsage;
@@ -736,12 +738,12 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                   />
                   {ingredients.some((ing) => ing.name) && (() => {
                     const refUsage: Record<string, number> = {};
-                    const refPattern = /\{([^}:]+):(\d+(?:\.\d+)?)%\}/g;
+                    const refPattern = /\{([^}:]+)(?::(\d+(?:\.\d+)?)%)?\}/g;
                     for (const s of steps) {
                       let m: RegExpExecArray | null;
                       refPattern.lastIndex = 0;
                       while ((m = refPattern.exec(s.instruction)) !== null) {
-                        refUsage[m[1]] = (refUsage[m[1]] ?? 0) + parseFloat(m[2]);
+                        refUsage[m[1]] = (refUsage[m[1]] ?? 0) + (m[2] !== undefined ? parseFloat(m[2]) : 100);
                       }
                     }
                     return (

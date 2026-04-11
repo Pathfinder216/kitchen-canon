@@ -27,7 +27,7 @@ export function ComboInput({
   minInputLength = 1,
 }: ComboInputProps) {
   const [open, setOpen] = useState(false);
-  const [highlighted, setHighlighted] = useState(0);
+  const [highlighted, setHighlighted] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -60,26 +60,18 @@ export function ComboInput({
       setHighlighted((i) => Math.min(i + 1, filtered.length - 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setHighlighted((i) => Math.max(i - 1, 0));
+      setHighlighted((i) => Math.max(i - 1, -1));
     } else if (e.key === 'Tab') {
-      if (!e.shiftKey) {
-        if (highlighted < filtered.length - 1) {
-          e.preventDefault();
-          setHighlighted((i) => i + 1);
-        } else {
-          closeDropdown(); // let Tab move to next field
-        }
+      if (!e.shiftKey && highlighted >= 0) {
+        // Select highlighted suggestion and move to next field
+        select(filtered[highlighted]);
       } else {
-        if (highlighted > 0) {
-          e.preventDefault();
-          setHighlighted((i) => i - 1);
-        } else {
-          closeDropdown(); // let Shift+Tab move to prev field
-        }
+        // No selection or Shift+Tab: just close and let browser move focus
+        closeDropdown();
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      select(filtered[highlighted]);
+      if (highlighted >= 0) select(filtered[highlighted]);
     }
   }
 
@@ -96,7 +88,7 @@ export function ComboInput({
 
   // Scroll highlighted item into view
   useEffect(() => {
-    if (showDropdown && listRef.current) {
+    if (showDropdown && listRef.current && highlighted >= 0) {
       const item = listRef.current.children[highlighted] as HTMLElement;
       item?.scrollIntoView({ block: 'nearest' });
     }
@@ -126,9 +118,8 @@ export function ComboInput({
               key={s}
               onMouseDown={(e) => { e.preventDefault(); select(s); }}
               onMouseEnter={() => setHighlighted(i)}
-              className={`px-3 py-1.5 text-sm cursor-pointer whitespace-nowrap ${
-                i === highlighted ? 'bg-orange-50 text-orange-700' : 'text-gray-700 hover:bg-gray-50'
-              }`}
+              className={`px-3 py-1.5 text-sm cursor-pointer whitespace-nowrap ${i === highlighted ? 'bg-orange-50 text-orange-700' : 'text-gray-700 hover:bg-gray-50'
+                }`}
             >
               {s}
             </li>

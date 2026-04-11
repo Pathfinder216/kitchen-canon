@@ -3,7 +3,6 @@ import { validate } from '../middleware/validate.js';
 import { createRecipeSchema, updateRecipeSchema, recipeQuerySchema } from '../schemas/recipe.schema.js';
 import * as recipeService from '../services/recipe.service.js';
 import { recipeToJson, recipeToText } from '../services/export.service.js';
-import { getSubstitutionsForRecipe } from '../services/substitutions.service.js';
 
 const router = Router();
 
@@ -99,15 +98,6 @@ router.get(
       res.setHeader('Content-Disposition', `attachment; filename="${safeName}.json"`);
       res.json(recipeToJson(scaledRecipe));
     }
-  }),
-);
-
-// GET /api/recipes/:id/substitutions - Substitutions for recipe ingredients
-router.get(
-  '/:id/substitutions',
-  asyncHandler(async (req, res) => {
-    const substitutions = await getSubstitutionsForRecipe(req.params.id);
-    res.json(substitutions);
   }),
 );
 

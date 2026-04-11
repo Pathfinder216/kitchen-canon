@@ -3,7 +3,6 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { useRecipe, useArchiveRecipe, useDeleteRecipePermanently } from '../hooks/useRecipes';
 import { IngredientList } from '../components/IngredientList';
 import { useScaling, formatScaledAmount } from '../hooks/useScaling';
-import { SubstitutionList } from '../components/SubstitutionList';
 import { RecipeMedia } from '../components/RecipeMedia';
 import { StepMedia } from '../components/StepMedia';
 import type { Recipe } from '../types/recipe';
@@ -293,9 +292,6 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             <p className="text-sm text-yellow-700">{recipe.authorNotes}</p>
           </div>
         )}
-
-        {/* Substitutions */}
-        <SubstitutionList recipeId={id!} />
 
         {/* Personal Notes */}
         {recipe.personalNotes && (

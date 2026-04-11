@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from 'react-router-dom';
 const navItems = [
   { path: '/', label: 'Recipes' },
   { path: '/meal-plans', label: 'Meal Plans' },
+  { path: '/substitutions', label: 'Substitutions' },
   { path: '/import', label: 'Import' },
 ];
 

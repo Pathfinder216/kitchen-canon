@@ -7,6 +7,7 @@ import { FilterPanel } from '../components/FilterPanel';
 import { apiGet } from '../api/client';
 import type { Recipe } from '../types/recipe';
 import type { MealPlanDetail } from '../types/meal-plan';
+import { resolveIngredientRefs } from '../utils/resolveIngredientRefs';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -197,7 +198,7 @@ function RecipePreviewModal({ recipeId, isAdded, currentServings, onAddOrUpdate,
                         <span className="shrink-0 w-5 h-5 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-xs font-semibold mt-0.5">
                           {i + 1}
                         </span>
-                        <span>{step.instruction}</span>
+                        <span>{resolveIngredientRefs(step.instruction, recipe.ingredients)}</span>
                       </li>
                     ))}
                   </ol>

@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { validate } from '../middleware/validate.js';
 import { createRecipeSchema, updateRecipeSchema, recipeQuerySchema } from '../schemas/recipe.schema.js';
 import * as recipeService from '../services/recipe.service.js';
-import { recipeToJson, recipeToText } from '../services/export.service.js';
+import * as substitutionService from '../services/substitutions.service.js';
 
 const router = Router();
 
@@ -70,34 +70,12 @@ router.delete(
   }),
 );
 
-// GET /api/recipes/:id/export?format=json|text
+// GET /api/recipes/:id/substitutions - Substitutions for recipe ingredients
 router.get(
-  '/:id/export',
+  '/:id/substitutions',
   asyncHandler(async (req, res) => {
-    const recipe = await recipeService.getRecipe(req.params.id);
-    const format = (req.query.format as string) || 'json';
-    const safeName = recipe.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    const requestedServings = req.query.servings ? Number(req.query.servings) : null;
-    const multiplier = (requestedServings && recipe.servings > 0) ? requestedServings / recipe.servings : 1;
-    const targetServings = requestedServings ?? recipe.servings;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const scaledRecipe: any = multiplier === 1 ? recipe : {
-      ...recipe,
-      servings: targetServings,
-      ingredients: (recipe as any).ingredients.map((ing: any) =>
-        ing.amount === null ? ing : { ...ing, amount: ing.amount * multiplier },
-      ),
-    };
-
-    if (format === 'text') {
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="${safeName}.txt"`);
-      res.send(recipeToText(scaledRecipe));
-    } else {
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename="${safeName}.json"`);
-      res.json(recipeToJson(scaledRecipe));
-    }
+    const substitutions = await substitutionService.getSubstitutionsForRecipe(req.params.id);
+    res.json(substitutions);
   }),
 );
 

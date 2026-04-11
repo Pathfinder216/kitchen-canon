@@ -31,6 +31,7 @@ export function resolveIngredientRefs(
   instruction: string,
   ingredients: Ingredient[],
   multiplier = 1,
+  nameOverrides?: Map<string, string>,
 ): React.ReactNode[] {
   const ingByInternalId = buildIngredientMap(ingredients);
   const parts: React.ReactNode[] = [];
@@ -52,7 +53,8 @@ export function resolveIngredientRefs(
       const pct = (pctStr !== undefined ? parseFloat(pctStr) : 100) / 100;
       const scaledAmount = ing.amount !== null ? ing.amount * pct * multiplier : null;
       const amountStr = scaledAmount !== null ? formatScaledAmount(scaledAmount) : null;
-      const label = [amountStr, ing.unit, ing.name].filter(Boolean).join(' ');
+      const displayName = nameOverrides?.get(ing.id) ?? ing.name;
+      const label = [amountStr, ing.unit, displayName].filter(Boolean).join(' ');
       const pctDisplay = pctStr ?? '100';
       parts.push(
         <span
@@ -88,6 +90,7 @@ export function resolveIngredientRefsText(
   instruction: string,
   ingredients: Ingredient[],
   multiplier = 1,
+  nameOverrides?: Map<string, string>,
 ): string {
   const ingByInternalId = buildIngredientMap(ingredients);
   return instruction.replace(REF_PATTERN, (_full, internalId, pctStr) => {
@@ -96,6 +99,7 @@ export function resolveIngredientRefsText(
     const pct = (pctStr !== undefined ? parseFloat(pctStr) : 100) / 100;
     const scaledAmount = ing.amount !== null ? ing.amount * pct * multiplier : null;
     const amountStr = scaledAmount !== null ? formatScaledAmount(scaledAmount) : null;
-    return [amountStr, ing.unit, ing.name].filter(Boolean).join(' ');
+    const displayName = nameOverrides?.get(ing.id) ?? ing.name;
+    return [amountStr, ing.unit, displayName].filter(Boolean).join(' ');
   });
 }

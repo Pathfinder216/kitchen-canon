@@ -36,3 +36,19 @@ export async function deleteSubstitution(id: string) {
   if (!existing) throw new AppError(404, 'Substitution not found');
   return prisma.ingredientSubstitution.delete({ where: { id } });
 }
+
+export async function getSubstitutionsForRecipe(recipeId: string) {
+  const recipe = await prisma.recipe.findUnique({
+    where: { id: recipeId },
+    include: { ingredients: true },
+  });
+  if (!recipe) throw new AppError(404, 'Recipe not found');
+
+  const ingredientNames = recipe.ingredients.map((i) => i.name.toLowerCase());
+  if (ingredientNames.length === 0) return [];
+
+  return prisma.ingredientSubstitution.findMany({
+    where: { fromIngredient: { in: ingredientNames } },
+    orderBy: [{ isOfficial: 'desc' }, { fromIngredient: 'asc' }],
+  });
+}

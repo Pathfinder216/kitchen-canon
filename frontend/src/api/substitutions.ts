@@ -21,6 +21,10 @@ export async function fetchSubstitutions(from?: string): Promise<Substitution[]>
   return apiGet<Substitution[]>(`/substitutions${query}`);
 }
 
+export async function fetchSubstitutionsForRecipe(recipeId: string): Promise<Substitution[]> {
+  return apiGet<Substitution[]>(`/recipes/${recipeId}/substitutions`);
+}
+
 export async function createSubstitution(input: CreateSubstitutionInput): Promise<Substitution> {
   return apiPost<Substitution>('/substitutions', input);
 }

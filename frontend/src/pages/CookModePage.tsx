@@ -278,7 +278,7 @@ function RunningTimersPanel({
 export function CookModePage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
-  const locationState = location.state as { from?: { label: string; href: string }; targetServings?: number } | null;
+  const locationState = location.state as { from?: { label: string; href: string }; targetServings?: number; activeSwaps?: Record<string, { toIngredient: string; ratio: number }> } | null;
   const backLink = locationState?.from ?? { label: 'Back', href: `/recipes/${id}` };
   const { data: recipe, isLoading, error } = useRecipe(id!);
   const initialServings = locationState?.targetServings;
@@ -397,9 +397,18 @@ export function CookModePage() {
 
   const targetServings = initialServings ?? recipe.servings;
   const multiplier = recipe.servings > 0 ? targetServings / recipe.servings : 1;
-  const scaledIngredients = recipe.ingredients.map((ing) =>
-    ing.amount === null ? ing : { ...ing, amount: ing.amount * multiplier },
-  );
+  const activeSwaps = locationState?.activeSwaps ?? {};
+  const scaledIngredients = recipe.ingredients.map((ing) => {
+    const scaled = ing.amount === null ? ing : { ...ing, amount: ing.amount * multiplier };
+    const swap = activeSwaps[ing.id];
+    if (!swap) return scaled;
+    return { ...scaled, amount: scaled.amount !== null ? scaled.amount * swap.ratio : null };
+  });
+
+  const swapDisplayNames = new Map<string, string>();
+  for (const [ingId, swap] of Object.entries(activeSwaps)) {
+    swapDisplayNames.set(ingId, swap.toIngredient);
+  }
 
   const steps = recipe.steps;
   const step = steps[currentStep];
@@ -451,7 +460,7 @@ export function CookModePage() {
                 )}
               </div>
               <p className="text-gray-800 text-lg leading-relaxed">
-                {resolveIngredientRefs(step.instruction, scaledIngredients)}
+                {resolveIngredientRefs(step.instruction, scaledIngredients, 1, swapDisplayNames)}
               </p>
               <StepMedia stepId={step.id} readOnly />
               {!step.isActiveTime && (
@@ -502,8 +511,8 @@ export function CookModePage() {
                       {ing.unit}{' '}
                     </span>
                   )}
-                  {ing.name}
-                  {getIngredientAlias(ing.name) && <span className="text-gray-400 ml-1">({getIngredientAlias(ing.name)})</span>}
+                  {swapDisplayNames.get(ing.id) ?? ing.name}
+                  {!swapDisplayNames.has(ing.id) && getIngredientAlias(ing.name) && <span className="text-gray-400 ml-1">({getIngredientAlias(ing.name)})</span>}
                   {ing.isOptional && <span className="text-gray-400 ml-1">(optional)</span>}
                 </label>
               </li>
@@ -516,7 +525,7 @@ export function CookModePage() {
           <div className="mt-4 border border-gray-200 rounded-xl px-4 py-3 bg-gray-50">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Next step</p>
             <p className="text-sm text-gray-500 line-clamp-2 leading-snug">
-              {resolveIngredientRefsText(steps[currentStep + 1].instruction, scaledIngredients)}
+              {resolveIngredientRefsText(steps[currentStep + 1].instruction, scaledIngredients, 1, swapDisplayNames)}
             </p>
             {!!steps[currentStep + 1].timeMinutes && (
               <p className="text-xs text-gray-400 mt-1">{steps[currentStep + 1].timeMinutes} min</p>

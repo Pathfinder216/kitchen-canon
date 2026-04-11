@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useRecipe, useArchiveRecipe, useDeleteRecipePermanently } from '../hooks/useRecipes';
-import { IngredientList } from '../components/IngredientList';
 import { useScaling, formatScaledAmount } from '../hooks/useScaling';
 import { RecipeMedia } from '../components/RecipeMedia';
 import { StepMedia } from '../components/StepMedia';
@@ -9,9 +9,15 @@ import type { Recipe } from '../types/recipe';
 import { COURSE_DISPLAY_NAMES } from '../api/courses';
 import { getIngredientAlias } from '../utils/ingredientAliases';
 import { resolveIngredientRefs, resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
+import { fetchSubstitutionsForRecipe, type Substitution } from '../api/substitutions';
+import { exportRecipeAsText, exportRecipeAsJson } from '../utils/exportRecipe';
 
-function handleExport(id: string, format: 'json' | 'text', servings: number) {
-  window.open(`/api/recipes/${id}/export?format=${format}&servings=${servings}`, '_blank');
+function SwapIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+      <path fillRule="evenodd" d="M13.2 2.24a.75.75 0 00.04 1.06l2.1 1.95H6.75a.75.75 0 000 1.5h8.59l-2.1 1.95a.75.75 0 101.02 1.1l3.5-3.25a.75.75 0 000-1.1l-3.5-3.25a.75.75 0 00-1.06.04zm-6.4 8a.75.75 0 00-1.06-.04l-3.5 3.25a.75.75 0 000 1.1l3.5 3.25a.75.75 0 101.02-1.1l-2.1-1.95h8.59a.75.75 0 000-1.5H4.66l2.1-1.95a.75.75 0 00.04-1.06z" clipRule="evenodd" />
+    </svg>
+  );
 }
 
 // Inner component receives the loaded recipe — hooks are safe here.
@@ -26,6 +32,34 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const { targetServings, setTargetServings, scaleIngredient } = useScaling(locationState?.targetServings ?? recipe.servings);
   const scaledIngredients = recipe.ingredients.map(scaleIngredient);
 
+  const [activeSwaps, setActiveSwaps] = useState<Record<string, Substitution>>({});
+  const [openSwapId, setOpenSwapId] = useState<string | null>(null);
+
+  const { data: allSubs = [] } = useQuery({
+    queryKey: ['recipe-substitutions', id],
+    queryFn: () => fetchSubstitutionsForRecipe(id!),
+  });
+
+  // Map ingredient ID → available substitutions
+  const subsByIngredientId: Record<string, Substitution[]> = {};
+  for (const ing of recipe.ingredients) {
+    const matches = allSubs.filter((s) => s.fromIngredient === ing.name.toLowerCase());
+    if (matches.length > 0) subsByIngredientId[ing.id] = matches;
+  }
+
+  // Scaled + swap-adjusted amounts; names kept original so {ref} lookup still works
+  const finalIngredients = scaledIngredients.map((ing) => {
+    const swap = activeSwaps[ing.id];
+    if (!swap) return ing;
+    return { ...ing, amount: ing.amount !== null ? ing.amount * swap.ratio : null };
+  });
+
+  // Display name overrides keyed by ingredient ID (unambiguous even with duplicate names)
+  const swapDisplayNames = new Map<string, string>();
+  for (const [ingId, swap] of Object.entries(activeSwaps)) {
+    swapDisplayNames.set(ingId, swap.toIngredient);
+  }
+
   function handleArchive() {
     if (!id) return;
     archiveMutation.mutate(id);
@@ -34,6 +68,10 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   function handleDelete() {
     if (!id) return;
     deleteMutation.mutate(id);
+  }
+
+  function removeSwap(ingId: string) {
+    setActiveSwaps((s) => { const n = { ...s }; delete n[ingId]; return n; });
   }
 
   return (
@@ -57,7 +95,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
 
         <h2 className="text-base font-semibold mt-4 mb-1">Ingredients</h2>
         <ul className="text-sm space-y-0.5 mb-4 columns-2">
-          {scaledIngredients.map((ing) => (
+          {finalIngredients.map((ing) => (
             <li key={ing.id}>
               {ing.amount !== null && (
                 <span className="font-medium">
@@ -65,8 +103,8 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                   {ing.unit}{' '}
                 </span>
               )}
-              {ing.name}
-              {getIngredientAlias(ing.name) && <span className="text-gray-400"> ({getIngredientAlias(ing.name)})</span>}
+              {swapDisplayNames.get(ing.id) ?? ing.name}
+              {!swapDisplayNames.has(ing.id) && getIngredientAlias(ing.name) && <span className="text-gray-400"> ({getIngredientAlias(ing.name)})</span>}
               {ing.isOptional && <span className="text-gray-400"> (optional)</span>}
             </li>
           ))}
@@ -78,7 +116,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             <li key={step.id} className="flex gap-2">
               <span className="font-semibold shrink-0">{index + 1}.</span>
               <span>
-                {resolveIngredientRefsText(step.instruction, scaledIngredients)}
+                {resolveIngredientRefsText(step.instruction, finalIngredients, 1, swapDisplayNames)}
                 {!!step.timeMinutes && (
                   <span className="text-gray-500"> ({step.timeMinutes} min{step.isActiveTime ? ', active' : ''})</span>
                 )}
@@ -103,6 +141,11 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
 
       {/* Screen layout — hidden when printing */}
       <div className="print:hidden">
+        {/* Backdrop for swap popover */}
+        {openSwapId && (
+          <div className="fixed inset-0 z-40" onClick={() => setOpenSwapId(null)} />
+        )}
+
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
@@ -119,7 +162,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             {recipe.steps.length > 0 && (
               <Link
                 to={`/recipes/${id}/cook`}
-                state={{ targetServings, from: { label: recipe.title, href: `/recipes/${id}` } }}
+                state={{ targetServings, activeSwaps, from: { label: recipe.title, href: `/recipes/${id}` } }}
                 className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors"
               >
                 Cook
@@ -253,7 +296,123 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
               </span>
             </div>
           </div>
-          <IngredientList ingredients={scaledIngredients} formatAmount={formatScaledAmount} />
+
+          {/* Active swap chips */}
+          {Object.keys(activeSwaps).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {Object.entries(activeSwaps).map(([ingId, swap]) => {
+                const originalIng = recipe.ingredients.find((i) => i.id === ingId);
+                if (!originalIng) return null;
+                return (
+                  <span key={ingId} className="inline-flex items-center gap-1 text-xs bg-orange-50 border border-orange-200 text-orange-700 px-2 py-0.5 rounded-full">
+                    {originalIng.name} → {swap.toIngredient}
+                    <button
+                      onClick={() => removeSwap(ingId)}
+                      className="text-orange-400 hover:text-orange-600 ml-0.5 leading-none"
+                      aria-label={`Remove substitution for ${originalIng.name}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              })}
+              {Object.keys(activeSwaps).length > 1 && (
+                <button
+                  onClick={() => setActiveSwaps({})}
+                  className="text-xs text-gray-400 hover:text-gray-600 px-1"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Ingredient list with swap buttons */}
+          {scaledIngredients.length === 0 ? (
+            <p className="text-gray-500 text-sm">No ingredients listed.</p>
+          ) : (
+            <ul className="space-y-1">
+              {scaledIngredients.map((ing) => {
+                const swap = activeSwaps[ing.id];
+                const displayName = swap ? swap.toIngredient : ing.name;
+                const displayAmount = swap && ing.amount !== null ? ing.amount * swap.ratio : ing.amount;
+                const availableSubs = subsByIngredientId[ing.id] ?? [];
+                const isOpen = openSwapId === ing.id;
+
+                return (
+                  <li key={ing.id} className="flex items-start gap-2 text-sm">
+                    <span className="text-gray-400 mt-0.5">-</span>
+                    <span className={`flex-1 ${ing.isOptional ? 'text-gray-500' : 'text-gray-900'}`}>
+                      {displayAmount !== null
+                        ? `${formatScaledAmount(displayAmount)}${ing.unit ? ' ' + ing.unit : ''} `
+                        : ''}
+                      <span className="font-medium">{displayName}</span>
+                      {swap && (
+                        <span className="text-xs text-orange-500 ml-1">(sub for {ing.name})</span>
+                      )}
+                      {!swap && getIngredientAlias(ing.name) && (
+                        <span className="text-gray-400 ml-1">({getIngredientAlias(ing.name)})</span>
+                      )}
+                      {ing.isOptional && (
+                        <span className="text-gray-400 ml-1">(optional)</span>
+                      )}
+                      {availableSubs.length > 0 && (
+                        <span className="relative inline-block ml-2 align-middle">
+                          <button
+                            onClick={() => setOpenSwapId(isOpen ? null : ing.id)}
+                            className={`inline-flex items-center justify-center rounded transition-colors ${swap
+                              ? 'text-orange-500 hover:text-orange-600'
+                              : 'text-gray-400 hover:text-orange-500'
+                              }`}
+                            aria-label={swap ? `Change substitution for ${ing.name}` : `Substitute ${ing.name}`}
+                          >
+                            <SwapIcon />
+                          </button>
+                          {isOpen && (
+                            <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg min-w-44 py-1">
+                              <p className="px-3 pt-1.5 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide border-b border-gray-100">
+                                Sub for {ing.name}
+                              </p>
+                              {availableSubs.map((sub) => (
+                                <button
+                                  key={sub.id}
+                                  onClick={() => {
+                                    setActiveSwaps((s) => ({ ...s, [ing.id]: sub }));
+                                    setOpenSwapId(null);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between gap-3 hover:bg-gray-50 ${swap?.id === sub.id
+                                    ? 'text-orange-600 bg-orange-50'
+                                    : 'text-gray-700'
+                                    }`}
+                                >
+                                  <span>{sub.toIngredient}</span>
+                                  {sub.ratio !== 1 && (
+                                    <span className="text-xs text-gray-400 shrink-0">
+                                      {parseFloat(sub.ratio.toPrecision(4))}×
+                                    </span>
+                                  )}
+                                </button>
+                              ))}
+                              {swap && (
+                                <div className="border-t border-gray-100 mt-1 pt-1">
+                                  <button
+                                    onClick={() => { removeSwap(ing.id); setOpenSwapId(null); }}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                  >
+                                    Use original
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
         {/* Steps */}
@@ -270,7 +429,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                   </span>
                   <div className="flex-1 pt-0.5">
                     <p className="text-gray-900 text-sm">
-                      {resolveIngredientRefs(step.instruction, scaledIngredients)}
+                      {resolveIngredientRefs(step.instruction, finalIngredients, 1, swapDisplayNames)}
                     </p>
                     {!!step.timeMinutes && (
                       <p className="text-xs text-gray-500 mt-1">
@@ -313,13 +472,13 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
           </div>
           <div className="flex gap-2 shrink-0">
             <button
-              onClick={() => handleExport(id!, 'text', targetServings)}
+              onClick={() => exportRecipeAsText(recipe, finalIngredients, swapDisplayNames, targetServings)}
               className="text-xs border border-gray-300 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-md transition-colors"
             >
               Export .txt
             </button>
             <button
-              onClick={() => handleExport(id!, 'json', targetServings)}
+              onClick={() => exportRecipeAsJson(recipe, finalIngredients, swapDisplayNames, targetServings)}
               className="text-xs border border-gray-300 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-md transition-colors"
             >
               Export JSON

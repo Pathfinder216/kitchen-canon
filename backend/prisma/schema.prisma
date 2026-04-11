@@ -152,6 +152,7 @@ model MealRecipe {
   recipeVersion Int      // Snapshot of version used
   servings      Int      // May be different from recipe default
   orderIndex    Int?
+  substitutions Json?    // Record<ingredientId, { toIngredient: string; ratio: number }>
 }
 
 model GroceryItem {

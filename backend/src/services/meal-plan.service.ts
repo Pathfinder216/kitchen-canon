@@ -52,12 +52,23 @@ export async function createMealPlan(input: CreateMealPlanInput) {
     throw new AppError(400, 'One or more recipes not found');
   }
 
-  // Generate consolidated grocery list
+  // Generate consolidated grocery list (applying substitutions)
   const groceryItems = consolidateIngredients(
     input.recipes.map((r) => {
       const recipe = recipes.find((rec) => rec.id === r.recipeId)!;
+      const subs = (r.substitutions ?? {}) as Record<string, { toIngredient: string; ratio: number }>;
       return {
-        ingredients: recipe.ingredients,
+        ingredients: recipe.ingredients.map((ing) => {
+          const sub = subs[ing.id];
+          if (sub) {
+            return {
+              name: sub.toIngredient,
+              amount: ing.amount !== null ? ing.amount * sub.ratio : null,
+              unit: ing.unit,
+            };
+          }
+          return ing;
+        }),
         servingsMultiplier: r.servings / recipe.servings,
       };
     }),
@@ -76,6 +87,7 @@ export async function createMealPlan(input: CreateMealPlanInput) {
           recipeVersion: recipes.find((rec) => rec.id === r.recipeId)!.version,
           servings: r.servings,
           orderIndex: r.orderIndex ?? index,
+          substitutions: r.substitutions ?? undefined,
         })),
       },
       groceryList: {
@@ -106,7 +118,21 @@ export async function updateMealPlan(id: string, input: UpdateMealPlanInput) {
     const groceryItems = consolidateIngredients(
       input.recipes.map((r) => {
         const recipe = recipes.find((rec) => rec.id === r.recipeId)!;
-        return { ingredients: recipe.ingredients, servingsMultiplier: r.servings / recipe.servings };
+        const subs = (r.substitutions ?? {}) as Record<string, { toIngredient: string; ratio: number }>;
+        return {
+          ingredients: recipe.ingredients.map((ing) => {
+            const sub = subs[ing.id];
+            if (sub) {
+              return {
+                name: sub.toIngredient,
+                amount: ing.amount !== null ? ing.amount * sub.ratio : null,
+                unit: ing.unit,
+              };
+            }
+            return ing;
+          }),
+          servingsMultiplier: r.servings / recipe.servings,
+        };
       }),
     );
 
@@ -126,6 +152,7 @@ export async function updateMealPlan(id: string, input: UpdateMealPlanInput) {
               recipeVersion: recipes.find((rec) => rec.id === r.recipeId)!.version,
               servings: r.servings,
               orderIndex: r.orderIndex ?? index,
+              substitutions: r.substitutions ?? undefined,
             })),
           },
           groceryList: { create: groceryItems },
@@ -178,6 +205,7 @@ export async function remakeMealPlan(id: string) {
       recipeId: r.recipeId,
       servings: r.servings,
       orderIndex: r.orderIndex ?? undefined,
+      substitutions: (r.substitutions as Record<string, { toIngredient: string; ratio: number }> | null) ?? undefined,
     })),
   };
 

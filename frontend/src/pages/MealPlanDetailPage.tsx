@@ -13,7 +13,7 @@ async function fetchCoverPhoto(recipeId: string): Promise<MediaItem | null> {
 }
 
 function MealRecipeRow({ mr, planId }: {
-  mr: { id: string; recipeId: string; servings: number; recipeVersion: number; recipe: { title: string } };
+  mr: { id: string; recipeId: string; servings: number; recipeVersion: number; substitutions: Record<string, { toIngredient: string; ratio: number }> | null; recipe: { title: string } };
   planId: string;
 }) {
   const { data: cover = null } = useQuery({
@@ -45,7 +45,11 @@ function MealRecipeRow({ mr, planId }: {
       </div>
       <Link
         to={`/recipes/${mr.recipeId}/cook`}
-        state={{ from: { label: 'Back to meal plan', href: `/meal-plans/${planId}` }, targetServings: mr.servings }}
+        state={{
+          from: { label: 'Back to meal plan', href: `/meal-plans/${planId}` },
+          targetServings: mr.servings,
+          activeSwaps: mr.substitutions ?? undefined,
+        }}
         className="text-sm text-orange-600 hover:text-orange-800 font-medium"
       >
         Cook →

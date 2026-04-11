@@ -7,6 +7,8 @@ export interface GroceryItem {
   purchased: boolean;
 }
 
+export type ActiveSwaps = Record<string, { toIngredient: string; ratio: number }>;
+
 export interface MealRecipeSummary {
   id: string;
   mealPlanId: string;
@@ -14,6 +16,7 @@ export interface MealRecipeSummary {
   recipeVersion: number;
   servings: number;
   orderIndex: number;
+  substitutions: ActiveSwaps | null;
   recipe: {
     id: string;
     title: string;
@@ -78,6 +81,7 @@ export interface CreateMealPlanInput {
     recipeId: string;
     servings: number;
     orderIndex?: number;
+    substitutions?: ActiveSwaps;
   }[];
 }
 
@@ -90,5 +94,6 @@ export interface UpdateMealPlanInput {
     recipeId: string;
     servings: number;
     orderIndex?: number;
+    substitutions?: ActiveSwaps;
   }[];
 }

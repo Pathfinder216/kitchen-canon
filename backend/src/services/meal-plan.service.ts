@@ -1,6 +1,7 @@
 import { prisma } from '../db.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { consolidateIngredients } from './grocery.service.js';
+import { computeDietaryInfo } from './dietary.service.js';
 import type { CreateMealPlanInput, UpdateMealPlanInput } from '../schemas/meal-plan.schema.js';
 
 const mealPlanInclude = {
@@ -40,6 +41,29 @@ export async function getMealPlan(id: string) {
   return mealPlan;
 }
 
+type RecipeWithIngredients = { id: string; version: number; servings: number; ingredients: { id: string; name: string; isOptional: boolean; amount: number | null; unit: string | null }[] };
+
+function effectiveIngredients(
+  recipeInputs: CreateMealPlanInput['recipes'],
+  recipes: RecipeWithIngredients[],
+): { name: string; isOptional: boolean }[] {
+  const seen = new Set<string>();
+  const result: { name: string; isOptional: boolean }[] = [];
+  for (const r of recipeInputs) {
+    const recipe = recipes.find((rec) => rec.id === r.recipeId)!;
+    const subs = (r.substitutions ?? {}) as Record<string, { toIngredient: string; ratio: number }>;
+    for (const ing of recipe.ingredients) {
+      const name = subs[ing.id]?.toIngredient ?? ing.name;
+      const key = name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push({ name, isOptional: ing.isOptional });
+      }
+    }
+  }
+  return result;
+}
+
 export async function createMealPlan(input: CreateMealPlanInput) {
   // Verify all recipes exist and get their data
   const recipeIds = input.recipes.map((r) => r.recipeId);
@@ -74,6 +98,8 @@ export async function createMealPlan(input: CreateMealPlanInput) {
     }),
   );
 
+  const dietaryInfo = await computeDietaryInfo(effectiveIngredients(input.recipes, recipes));
+
   // Create meal plan with recipes and grocery list
   const mealPlan = await prisma.mealPlan.create({
     data: {
@@ -81,6 +107,7 @@ export async function createMealPlan(input: CreateMealPlanInput) {
       date: input.date,
       time: input.time,
       notes: input.notes,
+      dietaryInfo,
       recipes: {
         create: input.recipes.map((r, index) => ({
           recipeId: r.recipeId,
@@ -136,6 +163,8 @@ export async function updateMealPlan(id: string, input: UpdateMealPlanInput) {
       }),
     );
 
+    const dietaryInfo = await computeDietaryInfo(effectiveIngredients(input.recipes, recipes));
+
     await prisma.$transaction([
       prisma.mealRecipe.deleteMany({ where: { mealPlanId: id } }),
       prisma.groceryItem.deleteMany({ where: { mealPlanId: id } }),
@@ -146,6 +175,7 @@ export async function updateMealPlan(id: string, input: UpdateMealPlanInput) {
           ...(input.date !== undefined && { date: input.date }),
           ...(input.time !== undefined && { time: input.time }),
           ...(input.notes !== undefined && { notes: input.notes }),
+          dietaryInfo,
           recipes: {
             create: input.recipes.map((r, index) => ({
               recipeId: r.recipeId,

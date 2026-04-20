@@ -60,6 +60,12 @@ export interface MealRecipeDetail extends MealRecipeSummary {
   };
 }
 
+export interface DietaryInfo {
+  allergens: string[];
+  diets: string[];
+  unknownIngredients: string[];
+}
+
 export interface MealPlanDetail {
   id: string;
   name: string | null;
@@ -68,6 +74,7 @@ export interface MealPlanDetail {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  dietaryInfo: DietaryInfo | null;
   recipes: MealRecipeDetail[];
   groceryList: GroceryItem[];
 }

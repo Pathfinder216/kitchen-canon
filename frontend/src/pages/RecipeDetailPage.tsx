@@ -11,6 +11,9 @@ import { getIngredientAlias } from '../utils/ingredientAliases';
 import { resolveIngredientRefs, resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
 import { fetchSubstitutionsForRecipe, type Substitution } from '../api/substitutions';
 import { exportRecipeAsText, exportRecipeAsJson } from '../utils/exportRecipe';
+import { apiGet } from '../api/client';
+import { ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
+import type { DietaryInfo } from '../types/meal-plan';
 
 function SwapIcon() {
   return (
@@ -38,6 +41,12 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const { data: allSubs = [] } = useQuery({
     queryKey: ['recipe-substitutions', id],
     queryFn: () => fetchSubstitutionsForRecipe(id!),
+  });
+
+  const { data: dietaryInfo } = useQuery<DietaryInfo>({
+    queryKey: ['recipe-dietary', id],
+    queryFn: () => apiGet(`/recipes/${id}/dietary-info`),
+    staleTime: 5 * 60 * 1000,
   });
 
   // Map ingredient ID → available substitutions
@@ -254,6 +263,27 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                 {rl.label.name}
               </span>
             ))}
+          </div>
+        )}
+
+        {/* Dietary info (auto-computed from ingredients) */}
+        {dietaryInfo && (dietaryInfo.allergens.length > 0 || dietaryInfo.diets.length > 0 || dietaryInfo.unknownIngredients.length > 0) && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {dietaryInfo.allergens.map((a) => (
+              <span key={a} title="Contains allergen" className="px-2.5 py-0.5 text-xs rounded-full bg-red-50 border border-red-200 text-red-700">
+                {ALLERGEN_LABELS[a] ?? a}
+              </span>
+            ))}
+            {dietaryInfo.diets.map((d) => (
+              <span key={d} title="Diet compatible" className="px-2.5 py-0.5 text-xs rounded-full bg-green-50 border border-green-200 text-green-700">
+                {DIET_LABELS[d] ?? d}
+              </span>
+            ))}
+            {dietaryInfo.unknownIngredients.length > 0 && (
+              <span title={`Unclassified: ${dietaryInfo.unknownIngredients.join(', ')}`} className="px-2.5 py-0.5 text-xs rounded-full bg-amber-50 border border-amber-200 text-amber-700 cursor-help">
+                {dietaryInfo.unknownIngredients.length} unclassified
+              </span>
+            )}
           </div>
         )}
 

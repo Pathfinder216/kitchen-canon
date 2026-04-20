@@ -1,7 +1,11 @@
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { GroceryList } from '../components/GroceryList';
 import { useMealPlan, useToggleGroceryItem } from '../hooks/useMealPlans';
+import { createIngredientEntry, fetchIngredients } from '../api/ingredients';
+import { ALLERGENS, DIETS, ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
+import type { DietaryInfo } from '../types/meal-plan';
 
 interface MediaItem { id: string; type: string; path: string; }
 
@@ -58,13 +62,218 @@ function MealRecipeRow({ mr, planId }: {
   );
 }
 
+// ── Classify unknown ingredients ─────────────────────────────────────────────
+
+interface ClassifyFormState {
+  allergens: string[];
+  diets: string[];
+}
+
+function ClassifyIngredientsPanel({
+  unknownIngredients,
+  mealPlanId,
+  onDone,
+}: {
+  unknownIngredients: string[];
+  mealPlanId: string;
+  onDone: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [forms, setForms] = useState<Record<string, ClassifyFormState>>(() =>
+    Object.fromEntries(unknownIngredients.map((n) => [n, { allergens: [], diets: [] }]))
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggleTag(name: string, kind: 'allergens' | 'diets', tag: string) {
+    setForms((prev) => {
+      const current = prev[name][kind];
+      return {
+        ...prev,
+        [name]: {
+          ...prev[name],
+          [kind]: current.includes(tag) ? current.filter((t) => t !== tag) : [...current, tag],
+        },
+      };
+    });
+  }
+
+  async function handleSave() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      for (const name of unknownIngredients) {
+        const existing = await fetchIngredients(name);
+        const match = existing.find((e) => e.name === name.toLowerCase().trim());
+        if (match) {
+          // Already added by another concurrent call; skip
+          continue;
+        }
+        await createIngredientEntry({ name, ...forms[name] });
+      }
+      // Invalidate ingredients + meal plan so dietary info refreshes
+      await queryClient.invalidateQueries({ queryKey: ['ingredients'] });
+      await queryClient.invalidateQueries({ queryKey: ['meal-plan', mealPlanId] });
+      onDone();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="border border-amber-200 bg-amber-50 rounded-xl p-4 space-y-4">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-amber-800">Unclassified ingredients</p>
+          <p className="text-xs text-amber-700 mt-0.5">
+            Tag these ingredients so dietary info can be calculated accurately.
+          </p>
+        </div>
+        <button type="button" onClick={onDone} className="text-amber-500 hover:text-amber-700 text-lg leading-none shrink-0">×</button>
+      </div>
+
+      {unknownIngredients.map((name) => (
+        <div key={name} className="bg-white border border-amber-100 rounded-lg p-3 space-y-2">
+          <p className="text-sm font-medium text-gray-800 capitalize">{name}</p>
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Allergens</p>
+            <div className="flex flex-wrap gap-1.5">
+              {ALLERGENS.map((a) => {
+                const checked = forms[name].allergens.includes(a);
+                return (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => toggleTag(name, 'allergens', a)}
+                    className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                      checked
+                        ? 'bg-red-100 border-red-300 text-red-700'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    {ALLERGEN_LABELS[a]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Compatible diets</p>
+            <div className="flex flex-wrap gap-1.5">
+              {DIETS.map((d) => {
+                const checked = forms[name].diets.includes(d);
+                return (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => toggleTag(name, 'diets', d)}
+                    className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                      checked
+                        ? 'bg-green-100 border-green-300 text-green-700'
+                        : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    }`}
+                  >
+                    {DIET_LABELS[d]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={submitting}
+        className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white text-sm font-medium py-2 rounded-lg transition-colors"
+      >
+        {submitting ? 'Saving…' : 'Save & recalculate'}
+      </button>
+    </div>
+  );
+}
+
+// ── Dietary info display ──────────────────────────────────────────────────────
+
+function DietaryInfoSection({
+  info,
+  planId,
+}: {
+  info: DietaryInfo;
+  planId: string;
+}) {
+  const [classifying, setClassifying] = useState(false);
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-lg font-semibold text-gray-900">Dietary Info</h2>
+
+      {info.allergens.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Contains allergens</p>
+          <div className="flex flex-wrap gap-1.5">
+            {info.allergens.map((a) => (
+              <span key={a} className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+                {ALLERGEN_LABELS[a] ?? a}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {info.diets.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">Diet compatible</p>
+          <div className="flex flex-wrap gap-1.5">
+            {info.diets.map((d) => (
+              <span key={d} className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">
+                {DIET_LABELS[d] ?? d}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {info.allergens.length === 0 && info.diets.length === 0 && info.unknownIngredients.length === 0 && (
+        <p className="text-sm text-gray-500">No allergens detected. Compatible with all tracked diets.</p>
+      )}
+
+      {info.unknownIngredients.length > 0 && !classifying && (
+        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          <p className="text-xs text-amber-800">
+            {info.unknownIngredients.length} ingredient{info.unknownIngredients.length > 1 ? 's' : ''} not in catalog — diet info may be incomplete.
+          </p>
+          <button
+            type="button"
+            onClick={() => setClassifying(true)}
+            className="text-xs font-medium text-amber-700 hover:text-amber-900 underline ml-2 shrink-0"
+          >
+            Classify
+          </button>
+        </div>
+      )}
+
+      {classifying && (
+        <ClassifyIngredientsPanel
+          unknownIngredients={info.unknownIngredients}
+          mealPlanId={planId}
+          onDone={() => setClassifying(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
 function formatDate(iso: string) {
-  // iso is "YYYY-MM-DD"; append T12:00 to avoid timezone shifting to previous day
   return new Date(iso + 'T12:00:00').toLocaleDateString(undefined, {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 }
 
@@ -72,18 +281,16 @@ function formatTime(time: string) {
   const [hourStr, minuteStr] = time.split(':');
   const hour = parseInt(hourStr, 10);
   const period = hour >= 12 ? 'PM' : 'AM';
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${minuteStr} ${period}`;
+  return `${hour % 12 || 12}:${minuteStr} ${period}`;
 }
 
 function formatCreatedAt(iso: string) {
   return new Date(iso).toLocaleDateString(undefined, {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
+    weekday: 'short', year: 'numeric', month: 'short', day: 'numeric',
   });
 }
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export function MealPlanDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -100,12 +307,10 @@ export function MealPlanDetailPage() {
     : 0;
 
   function handleRemake() {
-    // Navigate to the creation form with this plan pre-filled (date intentionally omitted)
     navigate('/meal-plans/new', {
       state: {
         remakeFrom: {
           name: plan!.name,
-          // date omitted so user must pick a new one
           time: plan!.time,
           notes: plan!.notes,
           recipes: plan!.recipes,
@@ -125,7 +330,6 @@ export function MealPlanDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900">
             {plan.name ?? 'Meal Plan'}
           </h1>
-          {/* Date / time */}
           {plan.date && (
             <p className="text-sm text-gray-700 mt-1 font-medium">
               {formatDate(plan.date)}{plan.time && ` at ${formatTime(plan.time)}`}
@@ -167,6 +371,11 @@ export function MealPlanDetailPage() {
           ))}
         </ul>
       </section>
+
+      {/* Dietary info */}
+      {plan.dietaryInfo && (
+        <DietaryInfoSection info={plan.dietaryInfo} planId={id!} />
+      )}
 
       {/* Grocery list */}
       <section>

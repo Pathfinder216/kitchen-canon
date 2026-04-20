@@ -7,7 +7,7 @@ import {
   type Substitution,
 } from '../api/substitutions';
 import { ComboInput } from '../components/ComboInput';
-import { INGREDIENT_SUGGESTIONS } from '../constants/suggestions';
+import { useIngredientNames } from '../hooks/useIngredients';
 
 function TrashIcon() {
   return (
@@ -25,6 +25,7 @@ function formatRatio(ratio: number): string {
 
 export function SubstitutionsPage() {
   const queryClient = useQueryClient();
+  const ingredientNames = useIngredientNames();
   const { data: subs = [], isLoading } = useQuery({
     queryKey: ['substitutions'],
     queryFn: () => fetchSubstitutions(),
@@ -128,7 +129,7 @@ export function SubstitutionsPage() {
                   <ComboInput
                     value={form.fromIngredient}
                     onChange={(v) => setForm((f) => ({ ...f, fromIngredient: v }))}
-                    suggestions={INGREDIENT_SUGGESTIONS}
+                    suggestions={ingredientNames}
                     placeholder="e.g. butter"
                     className={inputBase}
                   />
@@ -138,7 +139,7 @@ export function SubstitutionsPage() {
                   <ComboInput
                     value={form.toIngredient}
                     onChange={(v) => setForm((f) => ({ ...f, toIngredient: v }))}
-                    suggestions={INGREDIENT_SUGGESTIONS}
+                    suggestions={ingredientNames}
                     placeholder="e.g. coconut oil"
                     className={inputBase}
                   />

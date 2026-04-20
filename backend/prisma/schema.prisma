@@ -131,16 +131,26 @@ model LocalizationMapping {
 }
 
 model MealPlan {
-  id        String    @id @default(uuid())
-  name      String?
-  date      String?   // ISO date string e.g. "2024-01-15"
-  time      String?   // Time string e.g. "18:30"
-  notes     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @default(now()) @updatedAt
-  cookedAt  DateTime?
-  recipes   MealRecipe[]
+  id          String    @id @default(uuid())
+  name        String?
+  date        String?   // ISO date string e.g. "2024-01-15"
+  time        String?   // Time string e.g. "18:30"
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  cookedAt    DateTime?
+  dietaryInfo Json?     // { allergens: string[], diets: string[], unknownIngredients: string[] }
+  recipes     MealRecipe[]
   groceryList GroceryItem[]
+}
+
+model IngredientCatalog {
+  id          String   @id @default(uuid())
+  name        String   @unique // lowercase canonical name
+  allergens   Json     @default("[]") // string[]
+  diets       Json     @default("[]") // string[] — diets this ingredient is compatible with
+  isUserAdded Boolean  @default(false)
+  createdAt   DateTime @default(now())
 }
 
 model MealRecipe {

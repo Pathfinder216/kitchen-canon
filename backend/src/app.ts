@@ -11,6 +11,7 @@ import mealPlansRouter from './routes/meal-plans.js';
 import importRouter from './routes/import.js';
 import substitutionsRouter from './routes/substitutions.js';
 import mediaRouter from './routes/media.js';
+import ingredientsRouter from './routes/ingredients.js';
 import fs from 'fs';
 
 export function createApp() {
@@ -43,6 +44,7 @@ export function createApp() {
   app.use('/api/meal-plans', mealPlansRouter);
   app.use('/api/import', importRouter);
   app.use('/api/substitutions', substitutionsRouter);
+  app.use('/api/ingredients', ingredientsRouter);
   app.use('/api', mediaRouter);
 
   // Error handler (must be last)

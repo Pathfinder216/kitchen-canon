@@ -8,7 +8,8 @@ import { fetchLabels, createLabel } from '../api/labels';
 import { StepMedia } from './StepMedia';
 import { RecipeMedia } from './RecipeMedia';
 import { ComboInput } from './ComboInput';
-import { INGREDIENT_SUGGESTIONS, UNIT_SUGGESTIONS } from '../constants/suggestions';
+import { UNIT_SUGGESTIONS } from '../constants/suggestions';
+import { useIngredientNames } from '../hooks/useIngredients';
 
 export interface PendingMedia {
   coverPhoto?: File;
@@ -68,6 +69,7 @@ const FLIP_TRANSITION = 'transform 320ms cubic-bezier(0.33, 1, 0.68, 1)';
 export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, recipeId }: RecipeFormProps) {
   const seed = initialData ?? importData;
   const queryClient = useQueryClient();
+  const ingredientNames = useIngredientNames();
 
   const [title, setTitle] = useState(seed?.title ?? '');
   const [servings, setServings] = useState<string>(seed?.servings?.toString() ?? '1');
@@ -672,7 +674,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                 <ComboInput
                   value={ing.name}
                   onChange={(v) => updateIngredient(index, 'name', v)}
-                  suggestions={INGREDIENT_SUGGESTIONS}
+                  suggestions={ingredientNames}
                   placeholder="Ingredient name"
                   wrapperClassName="flex-1 min-w-0"
                   className={base}

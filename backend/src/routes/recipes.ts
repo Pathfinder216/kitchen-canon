@@ -3,6 +3,7 @@ import { validate } from '../middleware/validate.js';
 import { createRecipeSchema, updateRecipeSchema, recipeQuerySchema } from '../schemas/recipe.schema.js';
 import * as recipeService from '../services/recipe.service.js';
 import * as substitutionService from '../services/substitutions.service.js';
+import { computeDietaryInfo } from '../services/dietary.service.js';
 
 const router = Router();
 
@@ -67,6 +68,16 @@ router.delete(
   asyncHandler(async (req, res) => {
     await recipeService.deleteRecipePermanently(req.params.id);
     res.status(204).send();
+  }),
+);
+
+// GET /api/recipes/:id/dietary-info — compute dietary info from recipe ingredients (no DB write)
+router.get(
+  '/:id/dietary-info',
+  asyncHandler(async (req, res) => {
+    const recipe = await recipeService.getRecipe(req.params.id);
+    const info = await computeDietaryInfo(recipe.ingredients);
+    res.json(info);
   }),
 );
 

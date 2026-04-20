@@ -180,6 +180,17 @@ Planned behaviour:
 - Component recipes appear in their own section of the recipe list, separate from regular recipes
 - Importing/exporting a recipe should include or reference its component recipes
 
+### Ingredient Catalog
+
+A global `IngredientCatalog` table stores canonical ingredient names alongside their allergen and diet-compatibility metadata. This powers:
+- Auto-calculated dietary/allergen info on meal plans (computed from effective ingredients after substitutions; optional ingredients excluded from allergen detection)
+- Typeahead suggestions in recipe forms and the substitutions page (replacing the previous static frontend list)
+
+When a meal plan is created or edited, any ingredient not found in the catalog is reported as `unknownIngredients` on the meal plan's `dietaryInfo`. The meal plan detail page prompts the user to classify these ingredients before diet calculations are shown.
+
+**Future: user-scoped ingredient catalog**
+The catalog is currently global (shared across all users). In a multi-user context this creates problems: a user's classification of "sausage" (e.g., vegan soy sausage vs. pork sausage) would affect everyone. When multi-user support is added, `IngredientCatalog` should gain a `userId` field (nullable for official/seed entries), and lookups should prefer the current user's entries over global ones. User-added entries should not be visible to other users by default.
+
 ### Design Principles
 - Architecture should anticipate multi-user extension
 - Keep stretch goals in mind during design/implementation

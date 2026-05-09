@@ -12,6 +12,8 @@ export function RecipeListPage() {
     includeIngredients?: string;
     excludeIngredients?: string;
     labels?: string;
+    diets?: string;
+    freeFrom?: string;
     courses?: string;
   }>({});
 

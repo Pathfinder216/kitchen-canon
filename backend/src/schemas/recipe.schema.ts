@@ -43,7 +43,9 @@ export const recipeQuerySchema = z.object({
   archived: z.enum(['true', 'false']).default('false'),
   includeIngredients: z.string().optional(), // comma-separated
   excludeIngredients: z.string().optional(), // comma-separated
-  labels: z.string().optional(), // comma-separated label names
+  labels: z.string().optional(), // comma-separated label names (must have ALL)
+  diets: z.string().optional(), // comma-separated diet names — filters via ingredient catalog
+  freeFrom: z.string().optional(), // comma-separated allergen names — filters via ingredient catalog
   courses: z.string().optional(), // comma-separated course names
 });
 

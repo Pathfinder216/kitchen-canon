@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchIngredients, updateIngredientEntry, type CatalogEntry } from '../api/ingredients';
 import { ALLERGENS, DIETS, ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
@@ -143,7 +144,8 @@ function IngredientRow({ entry, isEditing, onEdit, onDone }: {
 }
 
 export function IngredientsPage() {
-  const [search, setSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get('q') ?? '');
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const { data: entries = [], isLoading } = useQuery({

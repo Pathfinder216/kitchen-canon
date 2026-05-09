@@ -1,10 +1,12 @@
-import { useRef, useState, useEffect, useLayoutEffect } from 'react';
+import { useRef, useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateRecipeInput, IngredientInput, StepInput, Recipe } from '../types/recipe';
 import type { ParsedRecipe } from '../api/import';
 import { fetchCourses } from '../api/courses';
 import { fetchLabels, createLabel } from '../api/labels';
+import { createIngredientEntry } from '../api/ingredients';
+import { ALLERGENS, DIETS, ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
 import { StepMedia } from './StepMedia';
 import { RecipeMedia } from './RecipeMedia';
 import { ComboInput } from './ComboInput';
@@ -46,6 +48,96 @@ function GripIcon() {
   );
 }
 
+function UnclassifiedIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+      <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function InlineClassifyPanel({ ingredientName, onSaved, onClose }: {
+  ingredientName: string;
+  onSaved: () => void;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [allergens, setAllergens] = useState<string[]>([]);
+  const [diets, setDiets] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggle(kind: 'allergens' | 'diets', tag: string) {
+    if (kind === 'allergens') {
+      setAllergens((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
+    } else {
+      setDiets((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]);
+    }
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      await createIngredientEntry({ name: ingredientName.toLowerCase().trim(), allergens, diets });
+      await queryClient.invalidateQueries({ queryKey: ['ingredients'] });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="ml-7 mt-1 mb-1 p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-amber-800">Classify "{ingredientName}"</p>
+        <button type="button" onClick={onClose} className="text-amber-500 hover:text-amber-700 text-base leading-none">×</button>
+      </div>
+      <div>
+        <p className="text-xs text-gray-500 mb-1">Allergens</p>
+        <div className="flex flex-wrap gap-1.5">
+          {ALLERGENS.map((a) => {
+            const checked = allergens.includes(a);
+            return (
+              <button key={a} type="button" onClick={() => toggle('allergens', a)}
+                className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${checked ? 'bg-red-100 border-red-300 text-red-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                {ALLERGEN_LABELS[a]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div>
+        <p className="text-xs text-gray-500 mb-1">Compatible diets</p>
+        <div className="flex flex-wrap gap-1.5">
+          {DIETS.map((d) => {
+            const checked = diets.includes(d);
+            return (
+              <button key={d} type="button" onClick={() => toggle('diets', d)}
+                className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${checked ? 'bg-green-100 border-green-300 text-green-700' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                {DIET_LABELS[d]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex gap-2">
+        <button type="button" onClick={handleSave} disabled={saving}
+          className="text-xs font-medium bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white px-3 py-1.5 rounded-md transition-colors">
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+        <button type="button" onClick={onClose}
+          className="text-xs font-medium text-gray-600 px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-50 transition-colors">
+          Skip
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Prevent mouse scroll from changing number input values */
 function noScroll(e: React.WheelEvent<HTMLInputElement>) {
   (e.currentTarget as HTMLInputElement).blur();
@@ -70,6 +162,8 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
   const seed = initialData ?? importData;
   const queryClient = useQueryClient();
   const ingredientNames = useIngredientNames();
+  const catalogNameSet = useMemo(() => new Set(ingredientNames), [ingredientNames]);
+  const [classifyingIngredientId, setClassifyingIngredientId] = useState<string | null>(null);
 
   const [title, setTitle] = useState(seed?.title ?? '');
   const [servings, setServings] = useState<string>(seed?.servings?.toString() ?? '1');
@@ -81,20 +175,20 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
     initialData?.courses?.map((rc) => rc.courseType) ?? [],
   );
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>(
-    initialData?.labels?.map((rl) => rl.label.id) ?? [],
+    initialData?.labels?.filter((rl) => rl.label.type !== 'dietary' && rl.label.type !== 'allergen').map((rl) => rl.label.id) ?? [],
   );
   const [newLabelName, setNewLabelName] = useState('');
-  const [newLabelType, setNewLabelType] = useState<'dietary' | 'allergen' | 'equipment' | 'makeAhead'>('dietary');
   const [isAddingLabel, setIsAddingLabel] = useState(false);
 
   const { data: allCourses = [] } = useQuery({ queryKey: ['courses'], queryFn: fetchCourses });
   const { data: allLabels = [] } = useQuery({ queryKey: ['labels'], queryFn: () => fetchLabels() });
+  const manualLabels = allLabels.filter((l) => l.type !== 'dietary' && l.type !== 'allergen');
 
   async function handleCreateLabel() {
     const name = newLabelName.trim();
     if (!name) return;
     try {
-      const created = await createLabel({ type: newLabelType, name });
+      const created = await createLabel({ type: 'makeAhead', name });
       queryClient.invalidateQueries({ queryKey: ['labels'] });
       setSelectedLabelIds((prev) => [...prev, created.id]);
       setNewLabelName('');
@@ -420,6 +514,8 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
 
   const [showOverRefWarning, setShowOverRefWarning] = useState(false);
   const [showUnderRefInfo, setShowUnderRefInfo] = useState(false);
+  const [showUnclassifiedWarning, setShowUnclassifiedWarning] = useState(false);
+  const [unclassifiedForWarning, setUnclassifiedForWarning] = useState<string[]>([]);
 
   function getRefUsage(): Record<string, number> {
     const refUsage: Record<string, number> = {};
@@ -458,7 +554,15 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
       });
   }
 
-  function doSubmit() {
+  function getUnclassifiedIngredients(): string[] {
+    return [...new Set(
+      ingredients
+        .filter((ing) => ing.name.trim() && !catalogNameSet.has(ing.name.toLowerCase().trim()))
+        .map((ing) => ing.name),
+    )];
+  }
+
+  function finalSubmit() {
     const pendingStepMedia = Array.from(stepMediaFiles.entries()).flatMap(([internalId, { file }]) => {
       const step = steps.find(s => s.internalId === internalId);
       return step ? [{ orderIndex: step.orderIndex, file }] : [];
@@ -476,7 +580,13 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
       setShowUnderRefInfo(true);
       return;
     }
-    doSubmit();
+    const unclassified = getUnclassifiedIngredients();
+    if (unclassified.length > 0) {
+      setUnclassifiedForWarning(unclassified);
+      setShowUnclassifiedWarning(true);
+      return;
+    }
+    finalSubmit();
   }
 
   // base: no width, so narrow inputs can specify their own
@@ -507,7 +617,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => { setShowOverRefWarning(false); doSubmit(); }}
+                onClick={() => { setShowOverRefWarning(false); finalSubmit(); }}
                 className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
               >
                 Save anyway
@@ -550,7 +660,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
             <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => { setShowUnderRefInfo(false); doSubmit(); }}
+                onClick={() => { setShowUnderRefInfo(false); finalSubmit(); }}
                 className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
               >
                 Save anyway
@@ -559,6 +669,39 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                 type="button"
                 autoFocus
                 onClick={() => setShowUnderRefInfo(false)}
+                className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
+              >
+                Continue editing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {showUnclassifiedWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowUnclassifiedWarning(false)} />
+          <div className="relative bg-white rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">Unclassified ingredients</h2>
+            <p className="text-sm text-gray-600 mb-3">
+              The following ingredients aren't in the catalog. Dietary info may be incomplete.
+            </p>
+            <ul className="text-sm font-medium text-amber-700 mb-5 space-y-1">
+              {unclassifiedForWarning.map((name) => (
+                <li key={name}>• {name}</li>
+              ))}
+            </ul>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => { setShowUnclassifiedWarning(false); finalSubmit(); }}
+                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Save anyway
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setShowUnclassifiedWarning(false)}
                 className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
               >
                 Continue editing
@@ -632,6 +775,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
             // Outer div: hit-testing only, never transformed — ensures layout position is always accurate
             <div
               key={ing.internalId}
+              id={ing.name.trim() ? `ing-${ing.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : undefined}
               ref={(el) => { if (el) ingEls.current.set(ing.internalId, el); else ingEls.current.delete(ing.internalId); }}
             >
               {/* Inner div: FLIP-animated + highlight */}
@@ -680,6 +824,18 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                   className={base}
                   required
                 />
+                {ing.name.trim() && !catalogNameSet.has(ing.name.toLowerCase().trim()) && (
+                  <button
+                    type="button"
+                    title="Not in ingredient catalog — click to classify"
+                    onClick={() => setClassifyingIngredientId(
+                      classifyingIngredientId === ing.internalId ? null : ing.internalId
+                    )}
+                    className="text-amber-400 hover:text-amber-600 shrink-0"
+                  >
+                    <UnclassifiedIcon />
+                  </button>
+                )}
                 <label className="flex items-center gap-1 text-xs text-gray-500 whitespace-nowrap shrink-0">
                   <input type="checkbox" checked={ing.isOptional} onChange={(e) => updateIngredient(index, 'isOptional', e.target.checked)} />
                   Opt.
@@ -688,6 +844,13 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                   <TrashIcon />
                 </button>
               </div>
+              {classifyingIngredientId === ing.internalId && (
+                <InlineClassifyPanel
+                  ingredientName={ing.name}
+                  onSaved={() => setClassifyingIngredientId(null)}
+                  onClose={() => setClassifyingIngredientId(null)}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -889,11 +1052,10 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
       <div>
         <h3 className={labelClass}>Labels</h3>
         <div className="flex flex-wrap gap-1.5">
-          {allLabels.map((label) => (
+          {manualLabels.map((label) => (
             <button
               key={label.id}
               type="button"
-              title={label.type}
               onClick={() =>
                 setSelectedLabelIds((prev) =>
                   prev.includes(label.id) ? prev.filter((id) => id !== label.id) : [...prev, label.id],
@@ -909,16 +1071,6 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
           ))}
           {isAddingLabel ? (
             <div className="flex gap-1 items-center flex-wrap">
-              <select
-                value={newLabelType}
-                onChange={(e) => setNewLabelType(e.target.value as typeof newLabelType)}
-                className="rounded border border-gray-300 px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
-              >
-                <option value="dietary">dietary</option>
-                <option value="allergen">allergen</option>
-                <option value="equipment">equipment</option>
-                <option value="makeAhead">make-ahead</option>
-              </select>
               <input
                 autoFocus
                 type="text"
@@ -928,7 +1080,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
                   if (e.key === 'Enter') { e.preventDefault(); handleCreateLabel(); }
                   if (e.key === 'Escape') { setIsAddingLabel(false); setNewLabelName(''); }
                 }}
-                placeholder="Label name"
+                placeholder="Custom label"
                 className="rounded border border-gray-300 px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-orange-500"
               />
               <button type="button" onClick={handleCreateLabel} className="text-xs text-orange-600 hover:text-orange-800 font-medium">Add</button>
@@ -940,7 +1092,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
               onClick={() => setIsAddingLabel(true)}
               className="px-2.5 py-1 text-xs rounded-full border border-dashed border-gray-300 text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors"
             >
-              + New
+              + Custom
             </button>
           )}
         </div>

@@ -1,10 +1,8 @@
-import { useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useRecipe, useCreateRecipe, useUpdateRecipe } from '../hooks/useRecipes';
 import { RecipeForm } from '../components/RecipeForm';
-import { ClassifyIngredientsPanel } from '../components/ClassifyIngredientsPanel';
 import type { PendingMedia } from '../components/RecipeForm';
 import type { CreateRecipeInput } from '../types/recipe';
 import type { ParsedRecipe } from '../api/import';
@@ -28,9 +26,7 @@ export function RecipeFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const queryClient = useQueryClient();
   const isEditing = !!id;
-  const [classifying, setClassifying] = useState(false);
 
   const importData = (location.state as { importData?: ParsedRecipe } | null)?.importData;
 
@@ -99,28 +95,22 @@ export function RecipeFormPage() {
         {isEditing ? 'Edit Recipe' : 'New Recipe'}
       </h1>
 
-      {isEditing && unknownIngredients.length > 0 && !classifying && (
-        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-6">
+      {isEditing && unknownIngredients.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-6 space-y-1">
           <p className="text-xs text-amber-800">
             {unknownIngredients.length} ingredient{unknownIngredients.length > 1 ? 's' : ''} not in catalog — dietary info may be incomplete.
           </p>
-          <button
-            type="button"
-            onClick={() => setClassifying(true)}
-            className="text-xs font-medium text-amber-700 hover:text-amber-900 underline ml-2 shrink-0"
-          >
-            Classify
-          </button>
-        </div>
-      )}
-
-      {isEditing && classifying && (
-        <div className="mb-6">
-          <ClassifyIngredientsPanel
-            unknownIngredients={unknownIngredients}
-            onSaved={() => queryClient.invalidateQueries({ queryKey: ['recipe-dietary', id] })}
-            onDone={() => setClassifying(false)}
-          />
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+            {unknownIngredients.map((name) => (
+              <a
+                key={name}
+                href={`#ing-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                className="text-xs font-medium text-amber-700 hover:text-amber-900 underline"
+              >
+                {name}
+              </a>
+            ))}
+          </div>
         </div>
       )}
 

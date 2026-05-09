@@ -11,6 +11,7 @@ import { CookModePage } from './pages/CookModePage';
 import { ImportPage } from './pages/ImportPage';
 import { RecipeVersionHistoryPage } from './pages/RecipeVersionHistoryPage';
 import { SubstitutionsPage } from './pages/SubstitutionsPage';
+import { IngredientsPage } from './pages/IngredientsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,7 @@ export default function App() {
           <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />
           <Route path="/import" element={<ImportPage />} />
           <Route path="/substitutions" element={<SubstitutionsPage />} />
+          <Route path="/ingredients" element={<IngredientsPage />} />
         </Route>
       </Routes>
     </QueryClientProvider>

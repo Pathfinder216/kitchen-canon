@@ -104,7 +104,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
     }
   }
 
-  type IngredientFormItem = IngredientInput & { amountText: string };
+  type IngredientFormItem = IngredientInput & { amountText: string; internalId: string };
 
   const [ingredients, setIngredients] = useState<IngredientFormItem[]>(
     seed?.ingredients.map((ing, i) => ({
@@ -169,7 +169,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
     setIngredients((prev) => prev.filter((_, i) => i !== index).map((ing, i) => ({ ...ing, orderIndex: i })));
   }
 
-  function updateIngredient(index: number, field: keyof IngredientInput, value: unknown) {
+  function updateIngredient(index: number, field: keyof IngredientFormItem, value: unknown) {
     setIngredients((prev) => prev.map((ing, i) => (i === index ? { ...ing, [field]: value } : ing)));
   }
 
@@ -443,7 +443,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
     const usage = getRefUsage();
     return ingredients
       .filter((ing) => ing.name)
-      .map((ing, i) => {
+      .map((_, i) => {
         const name = ingredients[i].name;
         const total = ingredients.filter((x) => x.name === name).length;
         let rank = 1;

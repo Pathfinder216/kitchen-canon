@@ -58,10 +58,10 @@ router.patch(
   validate(updateSchema),
   asyncHandler(async (req, res) => {
     const { allergens, diets } = req.body as z.infer<typeof updateSchema>;
-    const existing = await prisma.ingredientCatalog.findUnique({ where: { id: req.params.id } });
+    const existing = await prisma.ingredientCatalog.findUnique({ where: { id: req.params.id as string } });
     if (!existing) throw new AppError(404, 'Ingredient not found');
     const entry = await prisma.ingredientCatalog.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
       data: { allergens, diets },
     });
     res.json(entry);

@@ -43,7 +43,7 @@ router.post(
 router.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    await substitutionService.deleteSubstitution(req.params.id);
+    await substitutionService.deleteSubstitution(req.params.id as string);
     res.status(204).send();
   }),
 );

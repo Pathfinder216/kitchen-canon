@@ -50,7 +50,7 @@ router.post(
       return;
     }
 
-    const recipe = await prisma.recipe.findUnique({ where: { id: req.params.id } });
+    const recipe = await prisma.recipe.findUnique({ where: { id: req.params.id as string } });
     if (!recipe) {
       fs.unlinkSync(req.file.path);
       throw new AppError(404, 'Recipe not found');
@@ -61,7 +61,7 @@ router.post(
       data: {
         type,
         path: `/media/${req.file.filename}`,
-        recipeId: req.params.id,
+        recipeId: req.params.id as string,
         orderIndex: 0,
       },
     });
@@ -74,11 +74,11 @@ router.post(
 router.get(
   '/recipes/:id/media',
   asyncHandler(async (req, res) => {
-    const recipe = await prisma.recipe.findUnique({ where: { id: req.params.id } });
+    const recipe = await prisma.recipe.findUnique({ where: { id: req.params.id as string } });
     if (!recipe) throw new AppError(404, 'Recipe not found');
 
     const media = await prisma.media.findMany({
-      where: { recipeId: req.params.id },
+      where: { recipeId: req.params.id as string },
       orderBy: { orderIndex: 'asc' },
     });
     res.json(media);
@@ -90,7 +90,7 @@ router.delete(
   '/recipes/:id/media/:mediaId',
   asyncHandler(async (req, res) => {
     const media = await prisma.media.findFirst({
-      where: { id: req.params.mediaId, recipeId: req.params.id },
+      where: { id: req.params.mediaId as string, recipeId: req.params.id as string },
     });
     if (!media) throw new AppError(404, 'Media not found');
 
@@ -117,14 +117,14 @@ router.post(
       return;
     }
 
-    const step = await prisma.step.findUnique({ where: { id: req.params.stepId } });
+    const step = await prisma.step.findUnique({ where: { id: req.params.stepId as string } });
     if (!step) {
       fs.unlinkSync(req.file.path);
       throw new AppError(404, 'Step not found');
     }
 
     // Replace any existing media for this step (one slot per step)
-    const existing = await prisma.media.findFirst({ where: { stepId: req.params.stepId } });
+    const existing = await prisma.media.findFirst({ where: { stepId: req.params.stepId as string } });
     if (existing) {
       const oldPath = path.join(config.MEDIA_STORAGE_PATH, path.basename(existing.path));
       try { fs.unlinkSync(oldPath); } catch { /* ignore */ }
@@ -136,7 +136,7 @@ router.post(
       data: {
         type,
         path: `/media/${req.file.filename}`,
-        stepId: req.params.stepId,
+        stepId: req.params.stepId as string,
         orderIndex: 0,
       },
     });
@@ -149,10 +149,10 @@ router.post(
 router.get(
   '/steps/:stepId/media',
   asyncHandler(async (req, res) => {
-    const step = await prisma.step.findUnique({ where: { id: req.params.stepId } });
+    const step = await prisma.step.findUnique({ where: { id: req.params.stepId as string } });
     if (!step) throw new AppError(404, 'Step not found');
 
-    const media = await prisma.media.findFirst({ where: { stepId: req.params.stepId } });
+    const media = await prisma.media.findFirst({ where: { stepId: req.params.stepId as string } });
     res.json(media ?? null);
   }),
 );
@@ -162,7 +162,7 @@ router.delete(
   '/steps/:stepId/media/:mediaId',
   asyncHandler(async (req, res) => {
     const media = await prisma.media.findFirst({
-      where: { id: req.params.mediaId, stepId: req.params.stepId },
+      where: { id: req.params.mediaId as string, stepId: req.params.stepId as string },
     });
     if (!media) throw new AppError(404, 'Media not found');
 

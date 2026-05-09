@@ -28,7 +28,7 @@ router.get(
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const recipe = await recipeService.getRecipe(req.params.id);
+    const recipe = await recipeService.getRecipe(req.params.id as string);
     res.json(recipe);
   }),
 );
@@ -48,7 +48,7 @@ router.patch(
   '/:id',
   validate(updateRecipeSchema),
   asyncHandler(async (req, res) => {
-    const recipe = await recipeService.updateRecipe(req.params.id, req.body);
+    const recipe = await recipeService.updateRecipe(req.params.id as string, req.body);
     res.json(recipe);
   }),
 );
@@ -57,7 +57,7 @@ router.patch(
 router.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    const recipe = await recipeService.archiveRecipe(req.params.id);
+    const recipe = await recipeService.archiveRecipe(req.params.id as string);
     res.json(recipe);
   }),
 );
@@ -66,7 +66,7 @@ router.delete(
 router.delete(
   '/:id/permanent',
   asyncHandler(async (req, res) => {
-    await recipeService.deleteRecipePermanently(req.params.id);
+    await recipeService.deleteRecipePermanently(req.params.id as string);
     res.status(204).send();
   }),
 );
@@ -75,7 +75,7 @@ router.delete(
 router.get(
   '/:id/dietary-info',
   asyncHandler(async (req, res) => {
-    const recipe = await recipeService.getRecipe(req.params.id);
+    const recipe = await recipeService.getRecipe(req.params.id as string);
     const info = await computeDietaryInfo(recipe.ingredients);
     res.json(info);
   }),
@@ -85,7 +85,7 @@ router.get(
 router.get(
   '/:id/substitutions',
   asyncHandler(async (req, res) => {
-    const substitutions = await substitutionService.getSubstitutionsForRecipe(req.params.id);
+    const substitutions = await substitutionService.getSubstitutionsForRecipe(req.params.id as string);
     res.json(substitutions);
   }),
 );
@@ -94,7 +94,7 @@ router.get(
 router.get(
   '/:id/versions',
   asyncHandler(async (req, res) => {
-    const versions = await recipeService.getRecipeVersions(req.params.id);
+    const versions = await recipeService.getRecipeVersions(req.params.id as string);
     res.json(versions);
   }),
 );
@@ -103,12 +103,12 @@ router.get(
 router.post(
   '/:id/restore/:version',
   asyncHandler(async (req, res) => {
-    const version = parseInt(req.params.version, 10);
+    const version = parseInt(req.params.version as string, 10);
     if (isNaN(version)) {
       res.status(400).json({ error: 'Invalid version number' });
       return;
     }
-    const recipe = await recipeService.restoreRecipeVersion(req.params.id, version);
+    const recipe = await recipeService.restoreRecipeVersion(req.params.id as string, version);
     res.json(recipe);
   }),
 );

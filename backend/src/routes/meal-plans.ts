@@ -34,7 +34,7 @@ router.post(
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const mealPlan = await mealPlanService.getMealPlan(req.params.id);
+    const mealPlan = await mealPlanService.getMealPlan(req.params.id as string);
     res.json(mealPlan);
   }),
 );
@@ -44,7 +44,7 @@ router.patch(
   '/:id',
   validate(updateMealPlanSchema),
   asyncHandler(async (req, res) => {
-    const mealPlan = await mealPlanService.updateMealPlan(req.params.id, req.body);
+    const mealPlan = await mealPlanService.updateMealPlan(req.params.id as string, req.body);
     res.json(mealPlan);
   }),
 );
@@ -55,8 +55,8 @@ router.patch(
   validate(updateGroceryItemSchema),
   asyncHandler(async (req, res) => {
     const item = await mealPlanService.updateGroceryItem(
-      req.params.id,
-      req.params.itemId,
+      req.params.id as string,
+      req.params.itemId as string,
       req.body.purchased,
     );
     res.json(item);
@@ -67,7 +67,7 @@ router.patch(
 router.post(
   '/:id/remake',
   asyncHandler(async (req, res) => {
-    const mealPlan = await mealPlanService.remakeMealPlan(req.params.id);
+    const mealPlan = await mealPlanService.remakeMealPlan(req.params.id as string);
     res.status(201).json(mealPlan);
   }),
 );

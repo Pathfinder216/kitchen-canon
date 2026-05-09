@@ -107,7 +107,7 @@ export async function createMealPlan(input: CreateMealPlanInput) {
       date: input.date,
       time: input.time,
       notes: input.notes,
-      dietaryInfo,
+      dietaryInfo: dietaryInfo as object,
       recipes: {
         create: input.recipes.map((r, index) => ({
           recipeId: r.recipeId,
@@ -175,7 +175,7 @@ export async function updateMealPlan(id: string, input: UpdateMealPlanInput) {
           ...(input.date !== undefined && { date: input.date }),
           ...(input.time !== undefined && { time: input.time }),
           ...(input.notes !== undefined && { notes: input.notes }),
-          dietaryInfo,
+          dietaryInfo: dietaryInfo as object,
           recipes: {
             create: input.recipes.map((r, index) => ({
               recipeId: r.recipeId,

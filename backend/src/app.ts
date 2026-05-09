@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
 import { config } from './config.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import recipesRouter from './routes/recipes.js';
@@ -18,7 +19,7 @@ export function createApp() {
   const app = express();
 
   // Middleware
-  app.use(helmet());
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors());
   app.use(express.json({ limit: '10mb' }));
 
@@ -46,6 +47,16 @@ export function createApp() {
   app.use('/api/substitutions', substitutionsRouter);
   app.use('/api/ingredients', ingredientsRouter);
   app.use('/api', mediaRouter);
+
+  // Serve frontend in production
+  if (config.NODE_ENV === 'production') {
+    const frontendDist = path.resolve('../frontend/dist');
+    app.use(express.static(frontendDist));
+    // SPA fallback for client-side routes (not API/media)
+    app.get(/^(?!\/api(\/|$)|\/media(\/|$))/, (_req, res) => {
+      res.sendFile(path.join(frontendDist, 'index.html'));
+    });
+  }
 
   // Error handler (must be last)
   app.use(errorHandler);

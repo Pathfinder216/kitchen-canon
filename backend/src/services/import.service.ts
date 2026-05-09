@@ -387,7 +387,8 @@ export async function importFromDocx(buffer: Buffer): Promise<ParsedRecipe> {
 // ---------------------------------------------------------------------------
 
 export async function importFromPdf(buffer: Buffer): Promise<ParsedRecipe> {
-  const pdfParse = (await import('pdf-parse')).default;
+  const mod = await import('pdf-parse') as unknown as { default: (buf: Buffer) => Promise<{ text: string }> };
+  const pdfParse = mod.default;
   const data = await pdfParse(buffer);
   return parseTextRecipe(data.text);
 }

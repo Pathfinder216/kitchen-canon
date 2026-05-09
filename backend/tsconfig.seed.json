@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": ["prisma/seed.ts", "src/constants/ingredientCatalog.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -49,8 +49,15 @@ export function ImportPage() {
         servings: preview.servings,
         source: preview.source ?? undefined,
         authorNotes: preview.authorNotes ?? undefined,
-        ingredients: preview.ingredients,
-        steps: preview.steps,
+        ingredients: preview.ingredients.map(({ amount, unit, ...rest }) => ({
+          ...rest,
+          amount: amount ?? undefined,
+          unit: unit ?? undefined,
+        })),
+        steps: preview.steps.map(({ timeMinutes, ...rest }) => ({
+          ...rest,
+          timeMinutes: timeMinutes ?? undefined,
+        })),
       });
       navigate(`/recipes/${recipe.id}`);
     } catch (err) {

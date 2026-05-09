@@ -4,6 +4,7 @@ const navItems = [
   { path: '/', label: 'Recipes' },
   { path: '/meal-plans', label: 'Meal Plans' },
   { path: '/substitutions', label: 'Substitutions' },
+  { path: '/ingredients', label: 'Ingredients' },
   { path: '/import', label: 'Import' },
 ];
 

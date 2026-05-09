@@ -58,7 +58,7 @@ router.post(
   '/recipes/:id/labels',
   validate(assignLabelsSchema),
   asyncHandler(async (req, res) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { labelIds } = req.body;
 
     const recipe = await prisma.recipe.findUnique({ where: { id } });
@@ -92,7 +92,7 @@ router.post(
   '/recipes/:id/courses',
   validate(assignCoursesSchema),
   asyncHandler(async (req, res) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { courseTypes } = req.body;
 
     const recipe = await prisma.recipe.findUnique({ where: { id } });

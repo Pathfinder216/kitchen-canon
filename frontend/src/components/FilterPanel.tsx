@@ -27,7 +27,7 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
   const { data: courses } = useQuery({ queryKey: ['courses'], queryFn: fetchCourses });
   const { data: allLabels } = useQuery({ queryKey: ['labels'], queryFn: () => fetchLabels() });
 
-  const otherLabels = allLabels?.filter((l) => l.type !== 'dietary' && l.type !== 'allergen') ?? [];
+  const otherLabels = allLabels?.filter((l) => l.type === 'manual') ?? [];
 
   useEffect(() => {
     const timer = setTimeout(() => {

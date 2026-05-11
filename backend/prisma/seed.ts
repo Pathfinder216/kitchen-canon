@@ -9,10 +9,10 @@ const adapter = new PrismaLibSql({ url: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 const STANDARD_LABELS: { type: string; name: string }[] = [
-  { type: 'makeAhead', name: 'Make-ahead' },
-  { type: 'makeAhead', name: 'Freezable' },
-  { type: 'makeAhead', name: 'Quick' },
-  { type: 'makeAhead', name: 'Budget-friendly' },
+  { type: 'manual', name: 'Make-ahead' },
+  { type: 'manual', name: 'Freezable' },
+  { type: 'manual', name: 'Quick' },
+  { type: 'manual', name: 'Budget-friendly' },
 ];
 
 async function main() {
@@ -28,12 +28,18 @@ async function main() {
 
   console.log(`Seeded ${INGREDIENT_CATALOG.length} catalog entries.`);
 
+  // Migrate old label types to 'manual'
+  await prisma.label.updateMany({
+    where: { type: { in: ['makeAhead', 'equipment'] } },
+    data: { type: 'manual' },
+  });
+
   console.log('Seeding standard labels…');
   for (const { type, name } of STANDARD_LABELS) {
     await prisma.label.upsert({
       where: { type_name: { type, name } },
       update: {},
-      create: { type, name, autoDetectable: false },
+      create: { type, name },
     });
   }
   console.log(`Seeded ${STANDARD_LABELS.length} standard labels.`);

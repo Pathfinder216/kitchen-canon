@@ -188,7 +188,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
     const name = newLabelName.trim();
     if (!name) return;
     try {
-      const created = await createLabel({ type: 'makeAhead', name });
+      const created = await createLabel({ type: 'manual', name });
       queryClient.invalidateQueries({ queryKey: ['labels'] });
       setSelectedLabelIds((prev) => [...prev, created.id]);
       setNewLabelName('');

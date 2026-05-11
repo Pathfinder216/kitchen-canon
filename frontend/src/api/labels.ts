@@ -4,14 +4,13 @@ export interface Label {
   id: string;
   type: string;
   name: string;
-  autoDetectable: boolean;
 }
 
 export function fetchLabels(type?: string): Promise<Label[]> {
   return apiGet<Label[]>('/labels', type ? { type } : undefined);
 }
 
-export function createLabel(data: { type: string; name: string; autoDetectable?: boolean }): Promise<Label> {
+export function createLabel(data: { type: string; name: string }): Promise<Label> {
   return apiPost<Label>('/labels', data);
 }
 

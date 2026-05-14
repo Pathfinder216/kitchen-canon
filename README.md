@@ -84,7 +84,7 @@ From your development machine (requires Git Bash or any bash-compatible shell):
 ./scripts/deploy-to-pi.sh <user>@<ip-address>
 ```
 
-This syncs the source code to the Pi and runs `docker compose up --build -d`. The app will be available at `http://<ip-address>:3000`.
+This syncs the source code to the Pi and runs `docker compose up --build -d`. The app will be available at `http://<ip-address>:8080`.
 
 Subsequent deploys use the same command — Docker rebuilds the image and restarts the container with zero downtime for the database (persisted in a named Docker volume).
 

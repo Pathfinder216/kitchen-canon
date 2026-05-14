@@ -20,4 +20,4 @@ echo "==> Building and starting containers..."
 ssh "$PI_HOST" "cd ~/let-them-cook && docker compose up --build -d"
 
 echo ""
-echo "Deployed! App is live at http://$(echo "$PI_HOST" | cut -d@ -f2):3000"
+echo "Deployed! App is live at http://$(echo "$PI_HOST" | cut -d@ -f2):8080"

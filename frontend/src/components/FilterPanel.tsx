@@ -52,7 +52,7 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
     setSelectedCourses([]);
   }
 
-  function toggle<T>(setter: React.Dispatch<React.SetStateAction<T[]>>, value: T) {
+  function toggle(setter: React.Dispatch<React.SetStateAction<string[]>>, value: string) {
     setter((prev) => (prev.includes(value) ? prev.filter((x) => x !== value) : [...prev, value]));
   }
 

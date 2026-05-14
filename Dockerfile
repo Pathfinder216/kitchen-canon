@@ -12,6 +12,7 @@ WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm ci
 COPY backend/ ./
+RUN npx prisma generate
 RUN npm run build
 
 # ── Stage 3: Production image ─────────────────────────────────────────────────
@@ -25,6 +26,7 @@ RUN npm ci --omit=dev
 # Compiled backend + seed
 COPY --from=backend-build /app/backend/dist ./dist
 COPY --from=backend-build /app/backend/prisma ./prisma
+COPY backend/prisma.config.ts ./
 
 # Generate Prisma client for this platform
 RUN npx prisma generate

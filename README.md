@@ -61,6 +61,33 @@ A personal recipe management app for collecting, organizing, and cooking from yo
 
    The API server starts on `http://localhost:3000`. The frontend server is probably accessible in your browser at `http://localhost:5173` (see terminal output to confirm address).
 
+## Deploying to a Raspberry Pi
+
+The app can be self-hosted on a Raspberry Pi 5 (or any arm64 Linux machine) using Docker.
+
+### First-time Pi setup
+
+SSH into the Pi and install Docker:
+
+```bash
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+```
+
+Log out and back in for the Docker group to take effect.
+
+### Deploying
+
+From your development machine (requires Git Bash or any bash-compatible shell):
+
+```bash
+./scripts/deploy-to-pi.sh <user>@<ip-address>
+```
+
+This syncs the source code to the Pi and runs `docker compose up --build -d`. The app will be available at `http://<ip-address>:3000`.
+
+Subsequent deploys use the same command — Docker rebuilds the image and restarts the container with zero downtime for the database (persisted in a named Docker volume).
+
 ## Running tests
 
 ```bash

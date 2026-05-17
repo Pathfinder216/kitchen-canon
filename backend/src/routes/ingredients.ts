@@ -31,7 +31,6 @@ router.get(
     const entries = await prisma.ingredientCatalog.findMany({
       where,
       orderBy: { name: 'asc' },
-      take: 200,
     });
     res.json(entries);
   }),
@@ -44,7 +43,14 @@ router.post(
   asyncHandler(async (req, res) => {
     const { name, allergens, diets } = req.body as z.infer<typeof createSchema>;
     const existing = await prisma.ingredientCatalog.findUnique({ where: { name } });
-    if (existing) throw new AppError(409, `Ingredient "${name}" already exists`);
+    if (existing) {
+      const entry = await prisma.ingredientCatalog.update({
+        where: { name },
+        data: { allergens, diets },
+      });
+      res.json(entry);
+      return;
+    }
     const entry = await prisma.ingredientCatalog.create({
       data: { name, allergens, diets, isUserAdded: true },
     });

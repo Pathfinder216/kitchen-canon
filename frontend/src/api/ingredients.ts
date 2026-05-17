@@ -1,11 +1,17 @@
 import { apiGet, apiPost, apiPatch } from './client';
 
+export interface CatalogAlias {
+  id: string;
+  alias: string;
+}
+
 export interface CatalogEntry {
   id: string;
-  name: string;
+  displayAlias: string;
   allergens: string[];
   diets: string[];
   isUserAdded: boolean;
+  aliases: CatalogAlias[];
 }
 
 export function fetchIngredients(q?: string): Promise<CatalogEntry[]> {

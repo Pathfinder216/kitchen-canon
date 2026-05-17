@@ -143,12 +143,20 @@ model MealPlan {
 }
 
 model IngredientCatalog {
-  id          String   @id @default(uuid())
-  name        String   @unique // lowercase canonical name
-  allergens   Json     @default("[]") // string[]
-  diets       Json     @default("[]") // string[] — diets this ingredient is compatible with
-  isUserAdded Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id           String            @id @default(uuid())
+  displayAlias String            // Human-readable display name shown in UI
+  allergens    Json              @default("[]") // string[]
+  diets        Json              @default("[]") // string[] — diets this ingredient is compatible with
+  isUserAdded  Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  aliases      IngredientAlias[]
+}
+
+model IngredientAlias {
+  id        String            @id @default(uuid())
+  alias     String            @unique // lowercase; covers display name, synonyms, and stem variants
+  catalogId String
+  catalog   IngredientCatalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
 }
 
 model MealRecipe {

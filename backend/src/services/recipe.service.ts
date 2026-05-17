@@ -4,53 +4,26 @@ import { prisma } from '../db.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { config } from '../config.js';
 import type { CreateRecipeInput, UpdateRecipeInput, RecipeQueryInput } from '../schemas/recipe.schema.js';
-import { getAliasGroup } from '../utils/ingredientAliases.js';
 import { updateRecipeDietaryLabels } from './dietary.service.js';
+import { stemVariants } from '../utils/stemVariants.js';
 
 type WithSteps = { steps: { timeMinutes: number | null; isActiveTime: boolean }[] };
 
-/** Returns singular/plural variants for ingredient matching */
-function stemVariants(word: string): string[] {
-  const w = word.toLowerCase();
-  const variants = new Set([w]);
-
-  // Determine base (singular) form
-  let base = w;
-  if (w.endsWith('ies') && w.length > 4) {
-    base = w.slice(0, -3) + 'y';  // berries → berry
-  } else if (w.endsWith('ves') && w.length > 4) {
-    base = w.slice(0, -3) + 'f';  // halves → half
-    variants.add(w.slice(0, -3) + 'fe'); // knives → knife
-  } else if (w.endsWith('es') && w.length > 4) {
-    base = w.slice(0, -2);         // tomatoes → tomato
-  } else if (w.endsWith('s') && w.length > 3) {
-    base = w.slice(0, -1);         // lemons → lemon
-  }
-  variants.add(base);
-
-  // Also expand base into common plural forms
-  variants.add(base + 's');                            // lemon → lemons
-  if (base.endsWith('y')) variants.add(base.slice(0, -1) + 'ies'); // berry → berries
-  if (base.endsWith('f')) variants.add(base.slice(0, -1) + 'ves'); // half → halves
-  if (base.endsWith('fe')) variants.add(base.slice(0, -2) + 'ves'); // knife → knives
-  if (base.endsWith('o')) variants.add(base + 'es');  // tomato → tomatoes
-
-  return [...variants];
-}
-
 /**
- * Returns all DB-matchable name variants for an ingredient search term:
- * stem variants of the term itself, plus stem variants of every alias.
+ * Returns all recipe-ingredient name variants to search for a given term.
+ * Looks up the term in the alias table to find all synonyms; falls back to
+ * stem variants of the input alone if no catalog entry is found.
  */
-function ingredientSearchVariants(name: string): string[] {
-  const aliases = getAliasGroup(name);
-  const all = new Set<string>();
-  for (const alias of aliases) {
-    for (const v of stemVariants(alias)) {
-      all.add(v);
-    }
+async function ingredientSearchVariants(name: string): Promise<string[]> {
+  const lower = name.toLowerCase().trim();
+  const match = await prisma.ingredientAlias.findUnique({
+    where: { alias: lower },
+    include: { catalog: { include: { aliases: true } } },
+  });
+  if (match) {
+    return match.catalog.aliases.map((a) => a.alias);
   }
-  return [...all];
+  return stemVariants(lower);
 }
 
 function withComputedTimes<T extends WithSteps>(recipe: T): T & { totalTime: number | null; activeTime: number | null } {
@@ -81,27 +54,29 @@ export async function listRecipes(query: RecipeQueryInput) {
     where.title = { contains: search };
   }
 
-  // Filter: must contain these ingredients (word-boundary match, handles plurals)
+  // Filter: must contain these ingredients (alias-aware, handles plurals)
   if (includeIngredients) {
     const ingredientNames = includeIngredients.split(',').map((s) => s.trim().toLowerCase());
+    const variants = await Promise.all(ingredientNames.map(ingredientSearchVariants));
     where.AND = [
       ...(where.AND || []),
-      ...ingredientNames.map((name) => ({
+      ...variants.map((vs) => ({
         ingredients: {
-          some: { OR: ingredientSearchVariants(name).map((v) => ({ name: { equals: v } })) },
+          some: { OR: vs.map((v) => ({ name: { equals: v } })) },
         },
       })),
     ];
   }
 
-  // Filter: must NOT contain these ingredients (word-boundary match, handles plurals)
+  // Filter: must NOT contain these ingredients (alias-aware, handles plurals)
   if (excludeIngredients) {
     const excludeNames = excludeIngredients.split(',').map((s) => s.trim().toLowerCase());
+    const variants = await Promise.all(excludeNames.map(ingredientSearchVariants));
     where.AND = [
       ...(where.AND || []),
-      ...excludeNames.map((name) => ({
+      ...variants.map((vs) => ({
         ingredients: {
-          none: { OR: ingredientSearchVariants(name).map((v) => ({ name: { equals: v } })) },
+          none: { OR: vs.map((v) => ({ name: { equals: v } })) },
         },
       })),
     ];

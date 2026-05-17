@@ -1,5 +1,4 @@
 import { prisma } from '../db.js';
-import { getAliasGroup } from '../utils/ingredientAliases.js';
 import { DIETS } from '../constants/dietaryTags.js';
 
 interface IngredientInput {
@@ -13,42 +12,18 @@ export interface DietaryInfo {
   unknownIngredients: string[];
 }
 
-function stemVariants(word: string): string[] {
-  const w = word.toLowerCase();
-  const variants = new Set([w]);
-  let base = w;
-  if (w.endsWith('ies') && w.length > 4) base = w.slice(0, -3) + 'y';
-  else if (w.endsWith('ves') && w.length > 4) { base = w.slice(0, -3) + 'f'; variants.add(w.slice(0, -3) + 'fe'); }
-  else if (w.endsWith('es') && w.length > 4) base = w.slice(0, -2);
-  else if (w.endsWith('s') && w.length > 3) base = w.slice(0, -1);
-  variants.add(base);
-  variants.add(base + 's');
-  if (base.endsWith('y')) variants.add(base.slice(0, -1) + 'ies');
-  if (base.endsWith('f')) variants.add(base.slice(0, -1) + 'ves');
-  if (base.endsWith('o')) variants.add(base + 'es');
-  return [...variants];
-}
-
 async function findCatalogEntry(name: string) {
-  const candidates = new Set<string>();
   const lower = name.toLowerCase().trim();
-  candidates.add(lower);
-  for (const alias of getAliasGroup(lower)) {
-    for (const v of stemVariants(alias)) candidates.add(v);
-  }
-  for (const v of stemVariants(lower)) candidates.add(v);
-
-  for (const candidate of candidates) {
-    const entry = await prisma.ingredientCatalog.findUnique({ where: { name: candidate } });
-    if (entry) return entry;
-  }
-  return null;
+  const match = await prisma.ingredientAlias.findUnique({
+    where: { alias: lower },
+    include: { catalog: true },
+  });
+  return match?.catalog ?? null;
 }
 
 export async function computeDietaryInfo(ingredients: IngredientInput[]): Promise<DietaryInfo> {
   const nonOptional = ingredients.filter((i) => !i.isOptional);
   const allergenSet = new Set<string>();
-  // Start with all diets possible; intersect down as we find incompatibilities
   let compatibleDiets = new Set<string>(DIETS);
   const unknownIngredients: string[] = [];
   let hasAnyUnknown = false;
@@ -63,13 +38,11 @@ export async function computeDietaryInfo(ingredients: IngredientInput[]): Promis
     const allergens = entry.allergens as string[];
     const diets = entry.diets as string[];
     for (const a of allergens) allergenSet.add(a);
-    // Remove diets that this ingredient is NOT compatible with
     for (const d of [...compatibleDiets]) {
       if (!diets.includes(d)) compatibleDiets.delete(d);
     }
   }
 
-  // Unknown ingredients make diet claims unreliable — remove all diets
   if (hasAnyUnknown) compatibleDiets = new Set();
 
   return {

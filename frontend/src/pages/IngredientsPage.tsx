@@ -107,11 +107,19 @@ function IngredientRow({ entry, isEditing, onEdit, onDone }: {
   onEdit: () => void;
   onDone: () => void;
 }) {
+  // Show aliases that differ from the displayAlias (exclude stem variants — keep only meaningful synonyms)
+  const synonyms = entry.aliases
+    .map((a) => a.alias)
+    .filter((a) => a !== entry.displayAlias && !a.startsWith(entry.displayAlias));
+
   return (
     <div>
       <div className="flex items-center gap-3 px-4 py-3 pr-6">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900">{entry.name}</p>
+          <p className="text-sm font-medium text-gray-900">{entry.displayAlias}</p>
+          {synonyms.length > 0 && (
+            <p className="text-xs text-gray-400 mt-0.5">{synonyms.join(' · ')}</p>
+          )}
           <div className="flex flex-wrap gap-1 mt-1">
             {entry.allergens.map((a) => (
               <span key={a} className="text-xs px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-100">
@@ -156,7 +164,10 @@ export function IngredientsPage() {
 
   const searchLower = search.toLowerCase();
   const filtered = search
-    ? entries.filter((e) => e.name.includes(searchLower))
+    ? entries.filter((e) =>
+        e.displayAlias.includes(searchLower) ||
+        e.aliases.some((a) => a.alias.includes(searchLower))
+      )
     : entries;
 
   const unclassifiedCount = entries.filter(
@@ -183,7 +194,7 @@ export function IngredientsPage() {
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search ingredients..."
+        placeholder="Search ingredients…"
         className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
       />
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createIngredientEntry, fetchIngredients } from '../api/ingredients';
+import { createIngredientEntry } from '../api/ingredients';
 import { ALLERGENS, DIETS, ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
 
 interface ClassifyFormState {
@@ -41,9 +41,6 @@ export function ClassifyIngredientsPanel({ unknownIngredients, onSaved, onDone }
     setError(null);
     try {
       for (const name of unknownIngredients) {
-        const existing = await fetchIngredients(name);
-        const match = existing.find((e) => e.name === name.toLowerCase().trim());
-        if (match) continue;
         await createIngredientEntry({ name, ...forms[name] });
       }
       await queryClient.invalidateQueries({ queryKey: ['ingredients'] });

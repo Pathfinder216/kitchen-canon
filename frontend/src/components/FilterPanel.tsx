@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchCourses } from '../api/courses';
 import { fetchLabels } from '../api/labels';
 import { ALLERGENS, ALLERGEN_LABELS, DIETS, DIET_LABELS } from '../constants/dietaryTags';
+import { useIngredientNames } from '../hooks/useIngredients';
+import { ComboInput } from './ComboInput';
 
 interface FilterPanelProps {
   onFilterChange: (filters: {
@@ -15,10 +17,108 @@ interface FilterPanelProps {
   }) => void;
 }
 
+function IngredientPillInput({
+  pills,
+  onChange,
+  suggestions,
+  placeholder,
+}: {
+  pills: string[];
+  onChange: (pills: string[]) => void;
+  suggestions: string[];
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState('');
+  const [activePillIndex, setActivePillIndex] = useState(-1);
+
+  function add(name: string) {
+    const t = name.trim().toLowerCase();
+    if (!t || pills.includes(t)) { setDraft(''); return; }
+    onChange([...pills, t]);
+    setDraft('');
+    setActivePillIndex(-1);
+  }
+
+  function remove(index: number) {
+    const newPills = pills.filter((_, i) => i !== index);
+    onChange(newPills);
+    setActivePillIndex(
+      newPills.length === 0 ? -1 : Math.min(index, newPills.length - 1),
+    );
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (activePillIndex >= 0) {
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setActivePillIndex(Math.max(0, activePillIndex - 1));
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (activePillIndex >= pills.length - 1) {
+          setActivePillIndex(-1);
+        } else {
+          setActivePillIndex(activePillIndex + 1);
+        }
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        e.preventDefault();
+        remove(activePillIndex);
+      } else if (e.key === 'Escape') {
+        setActivePillIndex(-1);
+      } else if (e.key.length === 1) {
+        // Printable key — drop back to input and let the character be typed
+        setActivePillIndex(-1);
+      }
+    } else {
+      if (e.key === 'ArrowLeft' && draft === '' && pills.length > 0) {
+        e.preventDefault();
+        setActivePillIndex(pills.length - 1);
+      } else if (e.key === 'Backspace' && draft === '' && pills.length > 0) {
+        onChange(pills.slice(0, -1));
+      }
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-1 rounded border border-gray-300 px-2 py-1 min-h-[30px] focus-within:ring-1 focus-within:ring-orange-500 focus-within:border-orange-500 bg-white cursor-text">
+      {pills.map((p, i) => (
+        <span
+          key={p}
+          className={`flex items-center gap-0.5 text-xs px-2 py-0.5 rounded-full shrink-0 transition-colors ${
+            i === activePillIndex
+              ? 'bg-orange-300 text-orange-900'
+              : 'bg-orange-100 text-orange-800'
+          }`}
+        >
+          {p}
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); remove(i); }}
+            className={`leading-none ml-0.5 ${i === activePillIndex ? 'text-orange-700 hover:text-orange-900' : 'text-orange-500 hover:text-orange-700'}`}
+            aria-label={`Remove ${p}`}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+      <ComboInput
+        value={draft}
+        onChange={(v) => { setDraft(v); if (activePillIndex >= 0) setActivePillIndex(-1); }}
+        onSubmit={add}
+        onKeyDown={handleKeyDown}
+        suggestions={suggestions}
+        placeholder={pills.length === 0 ? placeholder : undefined}
+        wrapperClassName="flex-1 min-w-[80px]"
+        className="border-none shadow-none outline-none focus:ring-0 focus:border-none text-sm py-0 px-0 bg-transparent"
+        minInputLength={1}
+      />
+    </div>
+  );
+}
+
 export function FilterPanel({ onFilterChange }: FilterPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [includeIng, setIncludeIng] = useState('');
-  const [excludeIng, setExcludeIng] = useState('');
+  const [includeIngs, setIncludeIngs] = useState<string[]>([]);
+  const [excludeIngs, setExcludeIngs] = useState<string[]>([]);
   const [selectedDiets, setSelectedDiets] = useState<string[]>([]);
   const [selectedAllergens, setSelectedAllergens] = useState<string[]>([]);
   const [selectedLabels, setSelectedLabels] = useState<string[]>([]);
@@ -26,14 +126,15 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
 
   const { data: courses } = useQuery({ queryKey: ['courses'], queryFn: fetchCourses });
   const { data: allLabels } = useQuery({ queryKey: ['labels'], queryFn: () => fetchLabels() });
+  const ingredientNames = useIngredientNames();
 
   const otherLabels = allLabels?.filter((l) => l.type === 'manual') ?? [];
 
   useEffect(() => {
     const timer = setTimeout(() => {
       onFilterChange({
-        includeIngredients: includeIng || undefined,
-        excludeIngredients: excludeIng || undefined,
+        includeIngredients: includeIngs.length > 0 ? includeIngs.join(',') : undefined,
+        excludeIngredients: excludeIngs.length > 0 ? excludeIngs.join(',') : undefined,
         labels: selectedLabels.length > 0 ? selectedLabels.join(',') : undefined,
         diets: selectedDiets.length > 0 ? selectedDiets.join(',') : undefined,
         freeFrom: selectedAllergens.length > 0 ? selectedAllergens.join(',') : undefined,
@@ -41,11 +142,11 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [includeIng, excludeIng, selectedDiets, selectedAllergens, selectedLabels, selectedCourses]);
+  }, [includeIngs, excludeIngs, selectedDiets, selectedAllergens, selectedLabels, selectedCourses]);
 
   function clearFilters() {
-    setIncludeIng('');
-    setExcludeIng('');
+    setIncludeIngs([]);
+    setExcludeIngs([]);
     setSelectedDiets([]);
     setSelectedAllergens([]);
     setSelectedLabels([]);
@@ -57,8 +158,8 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
   }
 
   const hasActiveFilters =
-    includeIng ||
-    excludeIng ||
+    includeIngs.length > 0 ||
+    excludeIngs.length > 0 ||
     selectedDiets.length > 0 ||
     selectedAllergens.length > 0 ||
     selectedLabels.length > 0 ||
@@ -81,22 +182,20 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Must include ingredients</label>
-              <input
-                type="text"
-                value={includeIng}
-                onChange={(e) => setIncludeIng(e.target.value)}
-                placeholder="e.g., chicken, rice"
-                className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+              <IngredientPillInput
+                pills={includeIngs}
+                onChange={setIncludeIngs}
+                suggestions={ingredientNames}
+                placeholder="Add ingredient…"
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Exclude ingredients</label>
-              <input
-                type="text"
-                value={excludeIng}
-                onChange={(e) => setExcludeIng(e.target.value)}
-                placeholder="e.g., mushrooms"
-                className="w-full rounded border border-gray-300 px-2 py-1 text-sm"
+              <IngredientPillInput
+                pills={excludeIngs}
+                onChange={setExcludeIngs}
+                suggestions={ingredientNames}
+                placeholder="Add ingredient…"
               />
             </div>
           </div>
@@ -166,7 +265,7 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
             </div>
           )}
 
-          {/* Other labels (equipment, makeAhead, etc.) */}
+          {/* Other labels */}
           {otherLabels.length > 0 && (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Labels</label>

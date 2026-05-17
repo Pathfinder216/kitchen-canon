@@ -13,6 +13,11 @@ interface ComboInputProps {
   required?: boolean;
   /** Minimum input length before suggestions appear. Default 1. Pass 0 to show all on focus. */
   minInputLength?: number;
+  /** Called when a suggestion is confirmed (selected from dropdown or Enter with no highlight).
+   *  When provided, onChange is NOT called for confirmed selections — only for typing. */
+  onSubmit?: (value: string) => void;
+  /** Extra keydown handler called before ComboInput's own handling. */
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
 }
 
 export function ComboInput({
@@ -25,6 +30,8 @@ export function ComboInput({
   id,
   required,
   minInputLength = 1,
+  onSubmit,
+  onKeyDown: onKeyDownProp,
 }: ComboInputProps) {
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(-1);
@@ -38,7 +45,11 @@ export function ComboInput({
   const showDropdown = open && filtered.length > 0;
 
   function select(suggestion: string) {
-    onChange(suggestion);
+    if (onSubmit) {
+      onSubmit(suggestion);
+    } else {
+      onChange(suggestion);
+    }
     setOpen(false);
     setHighlighted(0);
   }
@@ -49,29 +60,37 @@ export function ComboInput({
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    onKeyDownProp?.(e);
+
     if (e.key === 'Escape') {
       closeDropdown();
       return;
     }
-    if (!showDropdown) return;
 
     if (e.key === 'ArrowDown') {
+      if (!showDropdown) return;
       e.preventDefault();
       setHighlighted((i) => Math.min(i + 1, filtered.length - 1));
     } else if (e.key === 'ArrowUp') {
+      if (!showDropdown) return;
       e.preventDefault();
       setHighlighted((i) => Math.max(i - 1, -1));
     } else if (e.key === 'Tab') {
+      if (!showDropdown) return;
       if (!e.shiftKey && highlighted >= 0) {
-        // Select highlighted suggestion and move to next field
         select(filtered[highlighted]);
       } else {
-        // No selection or Shift+Tab: just close and let browser move focus
         closeDropdown();
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (highlighted >= 0) select(filtered[highlighted]);
+      if (showDropdown && highlighted >= 0) {
+        select(filtered[highlighted]);
+      } else if (onSubmit && value.trim()) {
+        onSubmit(value.trim());
+        setOpen(false);
+        setHighlighted(0);
+      }
     }
   }
 

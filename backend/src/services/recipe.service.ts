@@ -9,21 +9,35 @@ import { stemVariants } from '../utils/stemVariants.js';
 
 type WithSteps = { steps: { timeMinutes: number | null; isActiveTime: boolean }[] };
 
-/**
- * Returns all recipe-ingredient name variants to search for a given term.
- * Looks up the term in the alias table to find all synonyms; falls back to
- * stem variants of the input alone if no catalog entry is found.
- */
-async function ingredientSearchVariants(name: string): Promise<string[]> {
+/** Resolves an ingredient name to its catalog entry ID, or null if not in the catalog. */
+async function resolveCatalogId(name: string): Promise<string | null> {
   const lower = name.toLowerCase().trim();
-  const match = await prisma.ingredientAlias.findUnique({
+  const alias = await prisma.ingredientAlias.findUnique({
     where: { alias: lower },
-    include: { catalog: { include: { aliases: true } } },
+    select: { catalogId: true },
   });
-  if (match) {
-    return match.catalog.aliases.map((a) => a.alias);
-  }
-  return stemVariants(lower);
+  return alias?.catalogId ?? null;
+}
+
+/** Adds catalogId to each ingredient input by looking up the alias table. */
+async function withCatalogIds<T extends { name: string }>(
+  ingredients: T[],
+): Promise<(T & { catalogId: string | null })[]> {
+  return Promise.all(
+    ingredients.map(async (ing) => ({ ...ing, catalogId: await resolveCatalogId(ing.name) })),
+  );
+}
+
+type IngredientFilter =
+  | { catalogId: string }
+  | { OR: { name: { equals: string } }[] };
+
+/** Builds a Prisma ingredient filter for a search term.
+ *  Uses catalogId when the term maps to a catalog entry; falls back to name variants. */
+async function resolveIngredientFilter(name: string): Promise<IngredientFilter> {
+  const catalogId = await resolveCatalogId(name);
+  if (catalogId) return { catalogId };
+  return { OR: stemVariants(name.toLowerCase().trim()).map((v) => ({ name: { equals: v } })) };
 }
 
 function withComputedTimes<T extends WithSteps>(recipe: T): T & { totalTime: number | null; activeTime: number | null } {
@@ -54,31 +68,23 @@ export async function listRecipes(query: RecipeQueryInput) {
     where.title = { contains: search };
   }
 
-  // Filter: must contain these ingredients (alias-aware, handles plurals)
+  // Filter: must contain these ingredients
   if (includeIngredients) {
-    const ingredientNames = includeIngredients.split(',').map((s) => s.trim().toLowerCase());
-    const variants = await Promise.all(ingredientNames.map(ingredientSearchVariants));
+    const names = includeIngredients.split(',').map((s) => s.trim().toLowerCase());
+    const filters = await Promise.all(names.map(resolveIngredientFilter));
     where.AND = [
       ...(where.AND || []),
-      ...variants.map((vs) => ({
-        ingredients: {
-          some: { OR: vs.map((v) => ({ name: { equals: v } })) },
-        },
-      })),
+      ...filters.map((f) => ({ ingredients: { some: f } })),
     ];
   }
 
-  // Filter: must NOT contain these ingredients (alias-aware, handles plurals)
+  // Filter: must NOT contain these ingredients
   if (excludeIngredients) {
-    const excludeNames = excludeIngredients.split(',').map((s) => s.trim().toLowerCase());
-    const variants = await Promise.all(excludeNames.map(ingredientSearchVariants));
+    const names = excludeIngredients.split(',').map((s) => s.trim().toLowerCase());
+    const filters = await Promise.all(names.map(resolveIngredientFilter));
     where.AND = [
       ...(where.AND || []),
-      ...variants.map((vs) => ({
-        ingredients: {
-          none: { OR: vs.map((v) => ({ name: { equals: v } })) },
-        },
-      })),
+      ...filters.map((f) => ({ ingredients: { none: f } })),
     ];
   }
 
@@ -163,7 +169,7 @@ export async function createRecipe(input: CreateRecipeInput) {
       version: 1,
       isLatest: true,
       ingredients: {
-        create: ingredients,
+        create: await withCatalogIds(ingredients),
       },
       steps: {
         create: steps,
@@ -192,6 +198,11 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
 
   const { ingredients, steps, ...recipeData } = input;
 
+  // Resolve catalog IDs before the transaction to avoid timeout from N async lookups inside it
+  const ingredientData = ingredients
+    ? await withCatalogIds(ingredients)
+    : existing.ingredients.map(({ id: _id, recipeId: _rid, ...ing }) => ing);
+
   // Create new version with updated data
   const newRecipe = await prisma.$transaction(async (tx) => {
     // Mark old version as not latest
@@ -213,7 +224,7 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
         parentId: existing.id,
         isLatest: true,
         ingredients: {
-          create: ingredients ?? existing.ingredients.map(({ id: _id, recipeId: _rid, ...ing }) => ing),
+          create: ingredientData,
         },
         steps: {
           create: steps ?? existing.steps.map(({ id: _id, recipeId: _rid, ...step }) => step),

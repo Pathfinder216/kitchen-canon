@@ -36,15 +36,17 @@ model Recipe {
 }
 
 model Ingredient {
-  id           String  @id @default(uuid())
+  id           String             @id @default(uuid())
   recipeId     String
-  recipe       Recipe  @relation(fields: [recipeId], references: [id], onDelete: Cascade)
-  name         String  // Standardized name
-  originalName String? // Original name from source
+  recipe       Recipe             @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  name         String             // Standardized name
+  originalName String?            // Original name from source
   amount       Float?
   unit         String?
-  isOptional   Boolean @default(false)
-  orderIndex   Int     // Display order
+  isOptional   Boolean            @default(false)
+  orderIndex   Int                // Display order
+  catalogId    String?
+  catalog      IngredientCatalog? @relation(fields: [catalogId], references: [id], onDelete: SetNull)
 }
 
 model Step {
@@ -150,6 +152,7 @@ model IngredientCatalog {
   isUserAdded  Boolean           @default(false)
   createdAt    DateTime          @default(now())
   aliases      IngredientAlias[]
+  ingredients  Ingredient[]
 }
 
 model IngredientAlias {

@@ -14,7 +14,8 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:backup": "tsx scripts/backup.ts",
-    "db:restore": "tsx scripts/restore.ts"
+    "db:restore": "tsx scripts/restore.ts",
+    "db:backfill": "tsx scripts/backfill-catalog-ids.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

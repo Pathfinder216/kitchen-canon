@@ -101,4 +101,15 @@ router.patch(
   }),
 );
 
+// DELETE /api/ingredients/:id — remove a catalog entry and its aliases
+router.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const existing = await prisma.ingredientCatalog.findUnique({ where: { id: req.params.id as string } });
+    if (!existing) throw new AppError(404, 'Ingredient not found');
+    await prisma.ingredientCatalog.delete({ where: { id: req.params.id as string } });
+    res.status(204).end();
+  }),
+);
+
 export default router;

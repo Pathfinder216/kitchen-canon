@@ -63,6 +63,15 @@ router.patch(
   }),
 );
 
+// POST /api/meal-plans/:id/recalculate — recompute dietaryInfo from current catalog
+router.post(
+  '/:id/recalculate',
+  asyncHandler(async (req, res) => {
+    const mealPlan = await mealPlanService.recalculateDietaryInfo(req.params.id as string);
+    res.json(mealPlan);
+  }),
+);
+
 // POST /api/meal-plans/:id/remake
 router.post(
   '/:id/remake',

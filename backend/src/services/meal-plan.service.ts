@@ -38,6 +38,22 @@ export async function getMealPlan(id: string) {
   });
 
   if (!mealPlan) throw new AppError(404, 'Meal plan not found');
+
+  const stored = mealPlan.dietaryInfo as { unknownIngredients?: string[] } | null;
+  if (stored?.unknownIngredients && stored.unknownIngredients.length > 0) {
+    const recipeInputs = mealPlan.recipes.map((mr) => ({
+      recipeId: mr.recipeId,
+      servings: mr.servings,
+      substitutions: mr.substitutions ? (mr.substitutions as Record<string, { toIngredient: string; ratio: number }>) : undefined,
+    }));
+    const recipes = mealPlan.recipes.map((mr) => mr.recipe);
+    const freshInfo = await computeDietaryInfo(effectiveIngredients(recipeInputs, recipes));
+    if (freshInfo.unknownIngredients.length !== stored.unknownIngredients.length) {
+      await prisma.mealPlan.update({ where: { id }, data: { dietaryInfo: freshInfo as object } });
+      return { ...mealPlan, dietaryInfo: freshInfo };
+    }
+  }
+
   return mealPlan;
 }
 
@@ -214,6 +230,35 @@ export async function updateGroceryItem(mealPlanId: string, itemId: string, purc
   return prisma.groceryItem.update({
     where: { id: itemId },
     data: { purchased },
+  });
+}
+
+export async function recalculateDietaryInfo(id: string) {
+  const mealPlan = await prisma.mealPlan.findUnique({
+    where: { id },
+    include: {
+      recipes: {
+        include: {
+          recipe: { include: { ingredients: true } },
+        },
+      },
+    },
+  });
+
+  if (!mealPlan) throw new AppError(404, 'Meal plan not found');
+
+  const recipeInputs = mealPlan.recipes.map((mr) => ({
+    recipeId: mr.recipeId,
+    servings: mr.servings,
+    substitutions: mr.substitutions ? (mr.substitutions as Record<string, { toIngredient: string; ratio: number }>) : undefined,
+  }));
+  const recipes = mealPlan.recipes.map((mr) => mr.recipe);
+  const dietaryInfo = await computeDietaryInfo(effectiveIngredients(recipeInputs, recipes));
+
+  return prisma.mealPlan.update({
+    where: { id },
+    data: { dietaryInfo: dietaryInfo as object },
+    include: mealPlanInclude,
   });
 }
 

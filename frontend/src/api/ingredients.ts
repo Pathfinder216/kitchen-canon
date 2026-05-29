@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPatch } from './client';
+import { apiGet, apiPost, apiPatch, apiDelete } from './client';
 
 export interface CatalogAlias {
   id: string;
@@ -24,4 +24,8 @@ export function createIngredientEntry(data: { name: string; allergens: string[];
 
 export function updateIngredientEntry(id: string, data: { allergens: string[]; diets: string[] }): Promise<CatalogEntry> {
   return apiPatch<CatalogEntry>(`/ingredients/${id}`, data);
+}
+
+export function deleteIngredientEntry(id: string): Promise<void> {
+  return apiDelete(`/ingredients/${id}`);
 }

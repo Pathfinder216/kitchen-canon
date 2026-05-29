@@ -28,3 +28,7 @@ export async function toggleGroceryItem(
 export async function remakeMealPlan(id: string): Promise<MealPlanDetail> {
   return apiPost<MealPlanDetail>(`/meal-plans/${id}/remake`, {});
 }
+
+export async function recalculateMealPlanDietaryInfo(id: string): Promise<MealPlanDetail> {
+  return apiPost<MealPlanDetail>(`/meal-plans/${id}/recalculate`, {});
+}

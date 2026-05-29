@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { GroceryList } from '../components/GroceryList';
 import { ClassifyIngredientsPanel } from '../components/ClassifyIngredientsPanel';
 import { useMealPlan, useToggleGroceryItem } from '../hooks/useMealPlans';
+import { recalculateMealPlanDietaryInfo } from '../api/meal-plans';
 import { ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
 import type { DietaryInfo } from '../types/meal-plan';
 
@@ -73,6 +74,23 @@ function DietaryInfoSection({
 }) {
   const queryClient = useQueryClient();
   const [classifying, setClassifying] = useState(false);
+  const [pendingUnknowns, setPendingUnknowns] = useState<string[]>([]);
+
+  async function handleSaved() {
+    const updated = await recalculateMealPlanDietaryInfo(planId);
+    queryClient.setQueryData(['meal-plans', planId], updated);
+    const stillUnknown = (updated.dietaryInfo as DietaryInfo | null)?.unknownIngredients ?? [];
+    if (stillUnknown.length === 0) {
+      setClassifying(false);
+    } else {
+      setPendingUnknowns(stillUnknown);
+    }
+  }
+
+  function handleClassifyClick() {
+    setPendingUnknowns(info.unknownIngredients);
+    setClassifying(true);
+  }
 
   return (
     <section className="space-y-3">
@@ -115,7 +133,7 @@ function DietaryInfoSection({
           </p>
           <button
             type="button"
-            onClick={() => setClassifying(true)}
+            onClick={handleClassifyClick}
             className="text-xs font-medium text-amber-700 hover:text-amber-900 underline ml-2 shrink-0"
           >
             Classify
@@ -123,10 +141,10 @@ function DietaryInfoSection({
         </div>
       )}
 
-      {classifying && (
+      {classifying && pendingUnknowns.length > 0 && (
         <ClassifyIngredientsPanel
-          unknownIngredients={info.unknownIngredients}
-          onSaved={() => queryClient.invalidateQueries({ queryKey: ['meal-plan', planId] })}
+          unknownIngredients={pendingUnknowns}
+          onSaved={handleSaved}
           onDone={() => setClassifying(false)}
         />
       )}

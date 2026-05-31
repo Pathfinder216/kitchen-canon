@@ -25,14 +25,20 @@ const updateSchema = z.object({
   diets: z.array(z.enum(DIETS)),
 });
 
-// GET /api/ingredients?q= — typeahead / full list
+// GET /api/ingredients?q= — typeahead / full list (global catalog plus the user's own)
 router.get(
   '/',
   asyncHandler(async (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.toLowerCase().trim() : '';
+    const ownership = { OR: [{ userId: null }, { userId: req.userId }] };
     const where = q
-      ? { OR: [{ displayAlias: { contains: q } }, { aliases: { some: { alias: { contains: q } } } }] }
-      : {};
+      ? {
+          AND: [
+            ownership,
+            { OR: [{ displayAlias: { contains: q } }, { aliases: { some: { alias: { contains: q } } } }] },
+          ],
+        }
+      : ownership;
     const entries = await prisma.ingredientCatalog.findMany({
       where,
       orderBy: { displayAlias: 'asc' },
@@ -42,21 +48,22 @@ router.get(
   }),
 );
 
-// POST /api/ingredients — add or update a catalog entry by name
+// POST /api/ingredients — add or update the user's own catalog entry by name
 router.post(
   '/',
   validate(createSchema),
   asyncHandler(async (req, res) => {
     const { name, allergens, diets } = req.body as z.infer<typeof createSchema>;
+    const userId = req.userId!;
 
-    // If this name is already an alias, update the entry it points to
-    const existingAlias = await prisma.ingredientAlias.findUnique({
-      where: { alias: name },
+    // If this name is already one of the user's own aliases, update that private entry.
+    const ownAlias = await prisma.ingredientAlias.findFirst({
+      where: { alias: name, userId },
       include: { catalog: true },
     });
-    if (existingAlias) {
+    if (ownAlias) {
       const entry = await prisma.ingredientCatalog.update({
-        where: { id: existingAlias.catalogId },
+        where: { id: ownAlias.catalogId },
         data: { allergens, diets },
         include: aliasInclude,
       });
@@ -64,17 +71,18 @@ router.post(
       return;
     }
 
-    // New entry — create with stem-variant aliases
+    // New private entry — create with stem-variant aliases scoped to the user. This may shadow a
+    // global entry of the same name; resolution prefers the user's own entry.
     const entry = await prisma.ingredientCatalog.create({
-      data: { displayAlias: name, allergens, diets, isUserAdded: true },
+      data: { displayAlias: name, allergens, diets, isUserAdded: true, userId },
     });
     const variants = [...new Set(stemVariants(name))];
     for (const alias of variants) {
-      await prisma.ingredientAlias.upsert({
-        where: { alias },
-        update: {},
-        create: { alias, catalogId: entry.id },
-      });
+      // Dedupe against the user's existing private aliases (null-userId globals don't conflict).
+      const exists = await prisma.ingredientAlias.findFirst({ where: { alias, userId } });
+      if (!exists) {
+        await prisma.ingredientAlias.create({ data: { alias, catalogId: entry.id, userId } });
+      }
     }
     const result = await prisma.ingredientCatalog.findUniqueOrThrow({
       where: { id: entry.id },
@@ -84,13 +92,15 @@ router.post(
   }),
 );
 
-// PATCH /api/ingredients/:id — update tags for an existing entry
+// PATCH /api/ingredients/:id — update tags for one of the user's own entries
 router.patch(
   '/:id',
   validate(updateSchema),
   asyncHandler(async (req, res) => {
     const { allergens, diets } = req.body as z.infer<typeof updateSchema>;
-    const existing = await prisma.ingredientCatalog.findUnique({ where: { id: req.params.id as string } });
+    const existing = await prisma.ingredientCatalog.findFirst({
+      where: { id: req.params.id as string, userId: req.userId },
+    });
     if (!existing) throw new AppError(404, 'Ingredient not found');
     const entry = await prisma.ingredientCatalog.update({
       where: { id: req.params.id as string },
@@ -101,11 +111,13 @@ router.patch(
   }),
 );
 
-// DELETE /api/ingredients/:id — remove a catalog entry and its aliases
+// DELETE /api/ingredients/:id — remove one of the user's own entries and its aliases
 router.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    const existing = await prisma.ingredientCatalog.findUnique({ where: { id: req.params.id as string } });
+    const existing = await prisma.ingredientCatalog.findFirst({
+      where: { id: req.params.id as string, userId: req.userId },
+    });
     if (!existing) throw new AppError(404, 'Ingredient not found');
     await prisma.ingredientCatalog.delete({ where: { id: req.params.id as string } });
     res.status(204).end();

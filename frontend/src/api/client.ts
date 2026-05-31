@@ -12,8 +12,27 @@ export class ApiError extends Error {
   }
 }
 
+/** Read a cookie value by name (used for the JS-readable CSRF token cookie). */
+function readCookie(name: string): string | undefined {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : undefined;
+}
+
+/** Headers for a mutating request: JSON content type + the double-submit CSRF token. */
+function mutationHeaders(hasBody: boolean): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (hasBody) headers['Content-Type'] = 'application/json';
+  const csrf = readCookie('ltc_csrf');
+  if (csrf) headers['x-csrf-token'] = csrf;
+  return headers;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    // A 401 means our session expired / is missing — notify the app to redirect to login.
+    if (response.status === 401) {
+      window.dispatchEvent(new Event('auth:unauthorized'));
+    }
     const body = await response.json().catch(() => ({}));
     throw new ApiError(
       response.status,
@@ -36,14 +55,15 @@ export async function apiGet<T>(path: string, params?: Record<string, string | n
       }
     });
   }
-  const response = await fetch(url.toString());
+  const response = await fetch(url.toString(), { credentials: 'include' });
   return handleResponse<T>(response);
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    headers: mutationHeaders(body !== undefined),
     body: body ? JSON.stringify(body) : undefined,
   });
   return handleResponse<T>(response);
@@ -52,7 +72,8 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
 export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    headers: mutationHeaders(true),
     body: JSON.stringify(body),
   });
   return handleResponse<T>(response);
@@ -61,6 +82,8 @@ export async function apiPatch<T>(path: string, body: unknown): Promise<T> {
 export async function apiDelete<T>(path: string): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, {
     method: 'DELETE',
+    credentials: 'include',
+    headers: mutationHeaders(false),
   });
   return handleResponse<T>(response);
 }

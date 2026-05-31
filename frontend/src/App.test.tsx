@@ -3,14 +3,33 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import App from './App';
 
-// Mock fetch to prevent actual API calls
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+// Route-aware fetch mock. `authed` controls whether /auth/me succeeds.
+let authed = true;
+
 beforeEach(() => {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify({ recipes: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    }),
-  );
+  authed = true;
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    if (url.includes('/api/auth/me')) {
+      return authed ? jsonResponse({ id: 'u1', email: 'user@example.com' }) : jsonResponse({ error: 'Not authenticated' }, 401);
+    }
+    if (url.includes('/api/auth/csrf')) return jsonResponse({ csrfToken: 'test-token' });
+    if (url.includes('/api/recipes')) {
+      return jsonResponse({ recipes: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } });
+    }
+    // List endpoints consumed by FilterPanel / forms expect arrays.
+    if (url.includes('/api/labels') || url.includes('/api/ingredients') || url.includes('/api/courses')) {
+      return jsonResponse([]);
+    }
+    return jsonResponse({});
+  });
 });
 
 function renderApp(initialPath = '/') {
@@ -21,29 +40,37 @@ function renderApp(initialPath = '/') {
   );
 }
 
-describe('App', () => {
-  it('renders the app title', () => {
+describe('App (authenticated)', () => {
+  it('renders the app title', async () => {
     renderApp();
-    expect(screen.getByText('Let Them Cook')).toBeInTheDocument();
+    expect(await screen.findByText('Let Them Cook')).toBeInTheDocument();
   });
 
-  it('renders the recipe list page by default', () => {
+  it('renders the recipe list page by default', async () => {
     renderApp();
-    expect(screen.getByText('My Recipes')).toBeInTheDocument();
+    expect(await screen.findByText('My Recipes')).toBeInTheDocument();
   });
 
-  it('renders navigation', () => {
+  it('renders navigation', async () => {
     renderApp();
-    expect(screen.getByRole('link', { name: 'Recipes' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Recipes' })).toBeInTheDocument();
   });
 
-  it('renders the new recipe page', () => {
+  it('renders the new recipe page', async () => {
     renderApp('/recipes/new');
-    expect(screen.getByText('New Recipe')).toBeInTheDocument();
+    expect(await screen.findByText('New Recipe')).toBeInTheDocument();
   });
 
-  it('renders the new recipe button on the list page', () => {
+  it('renders the new recipe button on the list page', async () => {
     renderApp();
-    expect(screen.getByRole('link', { name: '+ New Recipe' })).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: '+ New Recipe' })).toBeInTheDocument();
+  });
+});
+
+describe('App (unauthenticated)', () => {
+  it('redirects to the login page', async () => {
+    authed = false;
+    renderApp('/');
+    expect(await screen.findByText('Log in to your account')).toBeInTheDocument();
   });
 });

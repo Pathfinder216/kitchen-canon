@@ -1,25 +1,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import request from 'supertest';
 import { createApp } from '../app.js';
-import { prisma } from '../db.js';
+import { createAuthedApi, cleanupUsers, type AuthedApi } from './helpers/auth.js';
 
 const app = createApp();
+let api: AuthedApi;
 
 let recipe1Id: string;
 let recipe2Id: string;
 
 beforeEach(async () => {
-  await prisma.groceryItem.deleteMany();
-  await prisma.mealRecipe.deleteMany();
-  await prisma.mealPlan.deleteMany();
-  await prisma.recipeLabel.deleteMany();
-  await prisma.recipeCourse.deleteMany();
-  await prisma.step.deleteMany();
-  await prisma.ingredient.deleteMany();
-  await prisma.recipe.deleteMany();
+  await cleanupUsers();
+  api = await createAuthedApi(app);
 
   // Create test recipes
-  const r1 = await request(app).post('/api/recipes').send({
+  const r1 = await api.post('/api/recipes').send({
     title: 'Pasta',
     servings: 4,
     ingredients: [
@@ -34,7 +28,7 @@ beforeEach(async () => {
   });
   recipe1Id = r1.body.id;
 
-  const r2 = await request(app).post('/api/recipes').send({
+  const r2 = await api.post('/api/recipes').send({
     title: 'Salad',
     servings: 2,
     ingredients: [
@@ -50,7 +44,7 @@ beforeEach(async () => {
 
 describe('POST /api/meal-plans', () => {
   it('creates a meal plan with recipes and grocery list', async () => {
-    const res = await request(app).post('/api/meal-plans').send({
+    const res = await api.post('/api/meal-plans').send({
       name: 'Tuesday Dinner',
       recipes: [
         { recipeId: recipe1Id, servings: 4 },
@@ -73,7 +67,7 @@ describe('POST /api/meal-plans', () => {
   });
 
   it('scales grocery list when servings differ from recipe default', async () => {
-    const res = await request(app).post('/api/meal-plans').send({
+    const res = await api.post('/api/meal-plans').send({
       recipes: [
         { recipeId: recipe1Id, servings: 8 }, // double the pasta
       ],
@@ -87,7 +81,7 @@ describe('POST /api/meal-plans', () => {
   });
 
   it('rejects invalid recipe IDs', async () => {
-    const res = await request(app).post('/api/meal-plans').send({
+    const res = await api.post('/api/meal-plans').send({
       recipes: [{ recipeId: 'non-existent', servings: 4 }],
     });
 
@@ -95,7 +89,7 @@ describe('POST /api/meal-plans', () => {
   });
 
   it('rejects empty recipes array', async () => {
-    const res = await request(app).post('/api/meal-plans').send({
+    const res = await api.post('/api/meal-plans').send({
       recipes: [],
     });
 
@@ -105,16 +99,16 @@ describe('POST /api/meal-plans', () => {
 
 describe('GET /api/meal-plans', () => {
   it('lists meal plans', async () => {
-    await request(app).post('/api/meal-plans').send({
+    await api.post('/api/meal-plans').send({
       name: 'Meal 1',
       recipes: [{ recipeId: recipe1Id, servings: 4 }],
     });
-    await request(app).post('/api/meal-plans').send({
+    await api.post('/api/meal-plans').send({
       name: 'Meal 2',
       recipes: [{ recipeId: recipe2Id, servings: 2 }],
     });
 
-    const res = await request(app).get('/api/meal-plans');
+    const res = await api.get('/api/meal-plans');
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(2);
   });
@@ -122,14 +116,14 @@ describe('GET /api/meal-plans', () => {
 
 describe('GET /api/meal-plans/:id', () => {
   it('returns meal plan with full recipe data', async () => {
-    const createRes = await request(app).post('/api/meal-plans').send({
+    const createRes = await api.post('/api/meal-plans').send({
       recipes: [
         { recipeId: recipe1Id, servings: 4 },
         { recipeId: recipe2Id, servings: 2 },
       ],
     });
 
-    const res = await request(app).get(`/api/meal-plans/${createRes.body.id}`);
+    const res = await api.get(`/api/meal-plans/${createRes.body.id}`);
     expect(res.status).toBe(200);
     expect(res.body.recipes[0].recipe.ingredients).toHaveLength(3);
     expect(res.body.recipes[0].recipe.steps).toHaveLength(2);
@@ -138,13 +132,13 @@ describe('GET /api/meal-plans/:id', () => {
 
 describe('PATCH /api/meal-plans/:id/grocery/:itemId', () => {
   it('toggles grocery item purchased status', async () => {
-    const createRes = await request(app).post('/api/meal-plans').send({
+    const createRes = await api.post('/api/meal-plans').send({
       recipes: [{ recipeId: recipe1Id, servings: 4 }],
     });
 
     const itemId = createRes.body.groceryList[0].id;
 
-    const res = await request(app)
+    const res = await api
       .patch(`/api/meal-plans/${createRes.body.id}/grocery/${itemId}`)
       .send({ purchased: true });
 
@@ -152,7 +146,7 @@ describe('PATCH /api/meal-plans/:id/grocery/:itemId', () => {
     expect(res.body.purchased).toBe(true);
 
     // Toggle back
-    const res2 = await request(app)
+    const res2 = await api
       .patch(`/api/meal-plans/${createRes.body.id}/grocery/${itemId}`)
       .send({ purchased: false });
 
@@ -162,7 +156,7 @@ describe('PATCH /api/meal-plans/:id/grocery/:itemId', () => {
 
 describe('POST /api/meal-plans/:id/remake', () => {
   it('creates a new meal plan from an existing one', async () => {
-    const createRes = await request(app).post('/api/meal-plans').send({
+    const createRes = await api.post('/api/meal-plans').send({
       name: 'Original Meal',
       recipes: [
         { recipeId: recipe1Id, servings: 4 },
@@ -170,7 +164,7 @@ describe('POST /api/meal-plans/:id/remake', () => {
       ],
     });
 
-    const res = await request(app).post(`/api/meal-plans/${createRes.body.id}/remake`);
+    const res = await api.post(`/api/meal-plans/${createRes.body.id}/remake`);
 
     expect(res.status).toBe(201);
     expect(res.body.id).not.toBe(createRes.body.id);

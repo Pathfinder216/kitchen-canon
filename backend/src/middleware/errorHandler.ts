@@ -30,6 +30,14 @@ export function errorHandler(
     return;
   }
 
+  // http-errors style errors (e.g. the CSRF library's invalid-token error) carry a statusCode.
+  const status = (err as { statusCode?: number; status?: number }).statusCode
+    ?? (err as { status?: number }).status;
+  if (typeof status === 'number' && status >= 400 && status < 600) {
+    res.status(status).json({ error: err.message || 'Request failed' });
+    return;
+  }
+
   console.error('Unhandled error:', err);
   res.status(500).json({ error: 'Internal server error' });
 }

@@ -133,10 +133,11 @@
   - Use regex patterns for ingredients/steps
   - ML/LLM enhancement opportunity in future
 
-#### Authentication (Future)
-- **Passport.js** with JWT - When multi-user support is added
-  - Local strategy for username/password
-  - OAuth providers (Google, GitHub) for easier onboarding
+#### Authentication (Implemented)
+- **Cookie-based sessions** (no external auth library) — see the "Authentication & Multi-User Accounts" section below for the full design.
+  - `bcryptjs` for password hashing
+  - Server-side `Session` rows in SQLite, referenced by an opaque id in a signed httpOnly cookie
+  - `csrf-csrf` double-submit CSRF protection on state-changing requests
 
 #### Validation
 - **Zod** - Schema validation
@@ -325,6 +326,36 @@ model UserPreferences {
   // Future: dietary restrictions, allergens to flag, etc.
 }
 ```
+
+---
+
+## Authentication & Multi-User Accounts
+
+The app is multi-tenant: every user has their own private data, behind a login. Self-service signup is open.
+
+### Session & credential model
+- **Passwords**: hashed with `bcryptjs` (cost 12). Login returns an identical 401 for unknown-email and wrong-password to avoid account enumeration.
+- **Sessions**: server-side. A `Session` row (`id`, `userId`, `expiresAt`) is created on login/register; the opaque `id` is stored in a **signed, httpOnly** cookie (`ltc_session`). `requireAuth` middleware looks the session up, verifies it is live, and derives `req.userId` from it — the client never sends or can forge a user id. Expired sessions are dropped lazily on lookup, plus opportunistic cleanup on login. Cookie `secure` flag follows `COOKIE_SECURE` (defaults to true in production).
+- **CSRF**: `csrf-csrf` double-submit token. A JS-readable `ltc_csrf` cookie is issued by `GET /api/auth/csrf`; the SPA echoes it in an `x-csrf-token` header on POST/PATCH/DELETE. `sameSite=lax` on both cookies. Login/register are exempt (no session yet).
+
+### Auth endpoints (`/api/auth`, public)
+- `POST /register` — `{email, password}` → creates user + session, sets cookies
+- `POST /login` — `{email, password}` → sets cookies; 401 on bad credentials
+- `POST /logout` — destroys the session, clears the cookie
+- `GET /me` — current user, or 401
+- `GET /csrf` — issues a CSRF token
+
+All other `/api` routes sit behind `requireAuth` (and CSRF for mutations); `/media` is also gated. The auth routes are mounted before those gates.
+
+### Data ownership
+Two patterns scope data by user:
+- **Private-only trees** — `Recipe` and `MealPlan` carry a non-null `userId`. Their children (`Ingredient`, `Step`, `Media`, `RecipeCourse`, `RecipeLabel`, `MealRecipe`, `GroceryItem`) inherit isolation through the parent. Reads use `where: { id, userId }` and return **404** (not 403) on a miss, so other users' data isn't even revealed to exist. Every version row in a recipe's version chain shares one owner.
+- **Global-base + private-supplement** — `IngredientCatalog`, `IngredientAlias`, `Label`, `LocalizationMapping`, and `IngredientSubstitution` carry a **nullable** owner (`userId`, or `createdBy`/`isOfficial` for substitutions). `null` = global/seeded and visible to everyone; non-null = that user's private addition. Reads use `where: { OR: [{ userId: null }, { userId }] }`; the user's own entry is preferred on a tie (e.g. ingredient → catalog resolution). Because SQLite treats `NULL` as distinct in unique indexes, the composite uniques (e.g. `IngredientAlias @@unique([alias, userId])`) don't dedupe globals — global uniqueness relies on the controlled seed plus an app-level check before a private insert.
+
+New models: `User` (email unique + lowercased, `passwordHash`) and `Session`. `UserPreferences` now has a unique `userId`. Deleting a user cascades their sessions, recipes, meal plans, and private supplement rows.
+
+### Service pattern
+`userId` is threaded as the first argument into the owning service/route functions (e.g. `recipeService.getRecipe(userId, id)`), set from `req.userId` after `requireAuth`. This keeps scoping uniform rather than scattered, and is backed by isolation tests in `backend/src/__tests__/isolation.test.ts`.
 
 ---
 
@@ -912,19 +943,22 @@ Options when ready to scale or need more reliability:
 
 ## Security Considerations
 
-### Current (Single-User)
-- Local network only (no authentication needed initially)
+### Current (Multi-User)
+- Cookie-based authentication with server-side sessions (see "Authentication & Multi-User Accounts")
+- Password hashing with `bcryptjs`
+- CSRF protection (double-submit token) on state-changing requests
+- Per-user data isolation enforced in the service layer
+- CORS configured with credentials; explicit allowed origin via `CORS_ORIGIN`
 - Input validation via Zod
 - Parameterized queries via Prisma (SQL injection protection)
 - File upload validation (file type, size limits)
 
-### Future (Multi-User)
-- JWT-based authentication
-- Password hashing (bcrypt)
-- Rate limiting (express-rate-limit)
-- CORS configuration
-- HTTPS required
-- CSP (Content Security Policy) headers
+### Future hardening
+- Rate limiting on auth endpoints (express-rate-limit)
+- HTTPS in production (set `COOKIE_SECURE=true` behind a TLS proxy)
+- CSP (Content Security Policy) headers (helmet CSP currently disabled)
+- OAuth providers (Google, GitHub) for easier onboarding
+- Email verification / password reset
 
 ---
 

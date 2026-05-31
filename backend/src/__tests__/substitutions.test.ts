@@ -1,17 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import request from 'supertest';
 import { createApp } from '../app.js';
+import { prisma } from '../db.js';
+import { createAuthedApi, cleanupUsers, type AuthedApi } from './helpers/auth.js';
 
 const app = createApp();
+let api: AuthedApi;
 
 beforeEach(async () => {
-  const { prisma } = await import('../db.js');
   await prisma.ingredientSubstitution.deleteMany();
+  await cleanupUsers();
+  api = await createAuthedApi(app);
 });
 
 describe('Substitutions API', () => {
   it('creates a substitution', async () => {
-    const res = await request(app).post('/api/substitutions').send({
+    const res = await api.post('/api/substitutions').send({
       fromIngredient: 'butter',
       toIngredient: 'coconut oil',
       ratio: 0.8,
@@ -24,39 +27,39 @@ describe('Substitutions API', () => {
   });
 
   it('lists all substitutions', async () => {
-    await request(app).post('/api/substitutions').send({ fromIngredient: 'butter', toIngredient: 'margarine', ratio: 1 });
-    await request(app).post('/api/substitutions').send({ fromIngredient: 'milk', toIngredient: 'oat milk', ratio: 1 });
-    const res = await request(app).get('/api/substitutions');
+    await api.post('/api/substitutions').send({ fromIngredient: 'butter', toIngredient: 'margarine', ratio: 1 });
+    await api.post('/api/substitutions').send({ fromIngredient: 'milk', toIngredient: 'oat milk', ratio: 1 });
+    const res = await api.get('/api/substitutions');
     expect(res.status).toBe(200);
     expect(res.body.length).toBe(2);
   });
 
   it('filters by fromIngredient', async () => {
-    await request(app).post('/api/substitutions').send({ fromIngredient: 'butter', toIngredient: 'margarine', ratio: 1 });
-    await request(app).post('/api/substitutions').send({ fromIngredient: 'milk', toIngredient: 'oat milk', ratio: 1 });
-    const res = await request(app).get('/api/substitutions?from=butter');
+    await api.post('/api/substitutions').send({ fromIngredient: 'butter', toIngredient: 'margarine', ratio: 1 });
+    await api.post('/api/substitutions').send({ fromIngredient: 'milk', toIngredient: 'oat milk', ratio: 1 });
+    const res = await api.get('/api/substitutions?from=butter');
     expect(res.status).toBe(200);
     expect(res.body.length).toBe(1);
     expect(res.body[0].toIngredient).toBe('margarine');
   });
 
   it('deletes a substitution', async () => {
-    const create = await request(app).post('/api/substitutions').send({ fromIngredient: 'eggs', toIngredient: 'flax egg', ratio: 1 });
+    const create = await api.post('/api/substitutions').send({ fromIngredient: 'eggs', toIngredient: 'flax egg', ratio: 1 });
     const id = create.body.id;
-    const del = await request(app).delete(`/api/substitutions/${id}`);
+    const del = await api.delete(`/api/substitutions/${id}`);
     expect(del.status).toBe(204);
-    const list = await request(app).get('/api/substitutions');
+    const list = await api.get('/api/substitutions');
     expect(list.body.length).toBe(0);
   });
 
   it('returns 404 for deleting non-existent substitution', async () => {
-    const res = await request(app).delete('/api/substitutions/nonexistent');
+    const res = await api.delete('/api/substitutions/nonexistent');
     expect(res.status).toBe(404);
   });
 
   it('gets substitutions for a recipe', async () => {
     // Create a recipe with butter
-    const recipe = await request(app).post('/api/recipes').send({
+    const recipe = await api.post('/api/recipes').send({
       title: 'Butter Cake',
       servings: 4,
       ingredients: [
@@ -64,10 +67,10 @@ describe('Substitutions API', () => {
         { name: 'sugar', amount: 1, unit: 'cup', orderIndex: 1 },
       ],
     });
-    await request(app).post('/api/substitutions').send({ fromIngredient: 'butter', toIngredient: 'coconut oil', ratio: 0.8 });
-    await request(app).post('/api/substitutions').send({ fromIngredient: 'flour', toIngredient: 'almond flour', ratio: 1 });
+    await api.post('/api/substitutions').send({ fromIngredient: 'butter', toIngredient: 'coconut oil', ratio: 0.8 });
+    await api.post('/api/substitutions').send({ fromIngredient: 'flour', toIngredient: 'almond flour', ratio: 1 });
 
-    const res = await request(app).get(`/api/recipes/${recipe.body.id}/substitutions`);
+    const res = await api.get(`/api/recipes/${recipe.body.id}/substitutions`);
     expect(res.status).toBe(200);
     expect(res.body.length).toBe(1); // only butter (not flour, which isn't in the recipe)
     expect(res.body[0].toIngredient).toBe('coconut oil');

@@ -19,7 +19,7 @@ router.get(
   '/',
   asyncHandler(async (req, res) => {
     const query = recipeQuerySchema.parse(req.query);
-    const result = await recipeService.listRecipes(query);
+    const result = await recipeService.listRecipes(req.userId!, query);
     res.json(result);
   }),
 );
@@ -28,7 +28,7 @@ router.get(
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const recipe = await recipeService.getRecipe(req.params.id as string);
+    const recipe = await recipeService.getRecipe(req.userId!, req.params.id as string);
     res.json(recipe);
   }),
 );
@@ -38,7 +38,7 @@ router.post(
   '/',
   validate(createRecipeSchema),
   asyncHandler(async (req, res) => {
-    const recipe = await recipeService.createRecipe(req.body);
+    const recipe = await recipeService.createRecipe(req.userId!, req.body);
     res.status(201).json(recipe);
   }),
 );
@@ -48,7 +48,7 @@ router.patch(
   '/:id',
   validate(updateRecipeSchema),
   asyncHandler(async (req, res) => {
-    const recipe = await recipeService.updateRecipe(req.params.id as string, req.body);
+    const recipe = await recipeService.updateRecipe(req.userId!, req.params.id as string, req.body);
     res.json(recipe);
   }),
 );
@@ -57,7 +57,7 @@ router.patch(
 router.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    const recipe = await recipeService.archiveRecipe(req.params.id as string);
+    const recipe = await recipeService.archiveRecipe(req.userId!, req.params.id as string);
     res.json(recipe);
   }),
 );
@@ -66,7 +66,7 @@ router.delete(
 router.delete(
   '/:id/permanent',
   asyncHandler(async (req, res) => {
-    await recipeService.deleteRecipePermanently(req.params.id as string);
+    await recipeService.deleteRecipePermanently(req.userId!, req.params.id as string);
     res.status(204).send();
   }),
 );
@@ -75,8 +75,8 @@ router.delete(
 router.get(
   '/:id/dietary-info',
   asyncHandler(async (req, res) => {
-    const recipe = await recipeService.getRecipe(req.params.id as string);
-    const info = await computeDietaryInfo(recipe.ingredients);
+    const recipe = await recipeService.getRecipe(req.userId!, req.params.id as string);
+    const info = await computeDietaryInfo(recipe.ingredients, req.userId!);
     res.json(info);
   }),
 );
@@ -85,7 +85,7 @@ router.get(
 router.get(
   '/:id/substitutions',
   asyncHandler(async (req, res) => {
-    const substitutions = await substitutionService.getSubstitutionsForRecipe(req.params.id as string);
+    const substitutions = await substitutionService.getSubstitutionsForRecipe(req.userId!, req.params.id as string);
     res.json(substitutions);
   }),
 );
@@ -94,7 +94,7 @@ router.get(
 router.get(
   '/:id/versions',
   asyncHandler(async (req, res) => {
-    const versions = await recipeService.getRecipeVersions(req.params.id as string);
+    const versions = await recipeService.getRecipeVersions(req.userId!, req.params.id as string);
     res.json(versions);
   }),
 );
@@ -108,7 +108,7 @@ router.post(
       res.status(400).json({ error: 'Invalid version number' });
       return;
     }
-    const recipe = await recipeService.restoreRecipeVersion(req.params.id as string, version);
+    const recipe = await recipeService.restoreRecipeVersion(req.userId!, req.params.id as string, version);
     res.json(recipe);
   }),
 );

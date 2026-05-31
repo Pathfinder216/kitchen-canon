@@ -6,6 +6,35 @@ datasource db {
   provider = "sqlite"
 }
 
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique // stored lowercased
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  recipes       Recipe[]
+  mealPlans     MealPlan[]
+  substitutions IngredientSubstitution[] @relation("UserSubstitutions")
+  preferences   UserPreferences?
+  sessions      Session[]
+  catalogItems  IngredientCatalog[]
+  aliases       IngredientAlias[]
+  labels        Label[]
+  localizations LocalizationMapping[]
+}
+
+model Session {
+  id        String   @id @default(uuid()) // opaque id placed in the cookie
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
 model Recipe {
   id            String   @id @default(uuid())
   title         String
@@ -14,6 +43,9 @@ model Recipe {
   archived      Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Versioning
   version    Int      @default(1)
@@ -33,6 +65,8 @@ model Recipe {
   courses     RecipeCourse[]
   labels      RecipeLabel[]
   mealRecipes MealRecipe[]
+
+  @@index([userId])
 }
 
 model Ingredient {
@@ -97,9 +131,12 @@ model Label {
   id      String        @id @default(uuid())
   type    String        // 'dietary', 'allergen', 'manual'
   name    String
+  userId  String?       // null = global/seeded, non-null = user's private label
+  user    User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   recipes RecipeLabel[]
 
-  @@unique([type, name])
+  @@unique([type, name, userId])
+  @@index([userId])
 }
 
 model RecipeLabel {
@@ -117,8 +154,11 @@ model IngredientSubstitution {
   toIngredient   String  // Substitute ingredient name
   ratio          Float   // Conversion ratio
   notes          String?
-  createdBy      String? // Future: user ID
+  createdBy      String? // null = official/global, non-null = owning user id
+  user           User?   @relation("UserSubstitutions", fields: [createdBy], references: [id], onDelete: Cascade)
   isOfficial     Boolean @default(false)
+
+  @@index([createdBy])
 }
 
 model LocalizationMapping {
@@ -126,8 +166,11 @@ model LocalizationMapping {
   locale        String // e.g., "en-US", "en-GB"
   originalName  String
   localizedName String
+  userId        String? // null = global/seeded, non-null = user's private mapping
+  user          User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([locale, originalName])
+  @@unique([locale, originalName, userId])
+  @@index([userId])
 }
 
 model MealPlan {
@@ -140,8 +183,12 @@ model MealPlan {
   updatedAt   DateTime  @default(now()) @updatedAt
   cookedAt    DateTime?
   dietaryInfo Json?     // { allergens: string[], diets: string[], unknownIngredients: string[] }
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   recipes     MealRecipe[]
   groceryList GroceryItem[]
+
+  @@index([userId])
 }
 
 model IngredientCatalog {
@@ -151,15 +198,24 @@ model IngredientCatalog {
   diets        Json              @default("[]") // string[] — diets this ingredient is compatible with
   isUserAdded  Boolean           @default(false)
   createdAt    DateTime          @default(now())
+  userId       String?           // null = global/seeded, non-null = user's private ingredient
+  user         User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   aliases      IngredientAlias[]
   ingredients  Ingredient[]
+
+  @@index([userId])
 }
 
 model IngredientAlias {
   id        String            @id @default(uuid())
-  alias     String            @unique // lowercase; covers display name, synonyms, and stem variants
+  alias     String            // lowercase; covers display name, synonyms, and stem variants
   catalogId String
   catalog   IngredientCatalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  userId    String?           // null = global/seeded, non-null = user's private alias
+  user      User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([alias, userId])
+  @@index([userId])
 }
 
 model MealRecipe {
@@ -186,6 +242,8 @@ model GroceryItem {
 
 model UserPreferences {
   id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   locale String @default("en-US")
   theme  String @default("light")
 }

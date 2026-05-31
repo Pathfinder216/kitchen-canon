@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import request from 'supertest';
 import { createApp } from '../app.js';
-import { prisma } from '../db.js';
+import { createAuthedApi, cleanupUsers, type AuthedApi } from './helpers/auth.js';
 
 const app = createApp();
+let api: AuthedApi;
 
 const sampleRecipe = {
   title: 'Scrambled Eggs',
@@ -25,15 +25,14 @@ const sampleRecipe = {
 };
 
 beforeEach(async () => {
-  // Clean database before each test
-  await prisma.step.deleteMany();
-  await prisma.ingredient.deleteMany();
-  await prisma.recipe.deleteMany();
+  // Clean database before each test (cascades recipes/steps/ingredients), then start a session
+  await cleanupUsers();
+  api = await createAuthedApi(app);
 });
 
 describe('POST /api/recipes', () => {
   it('creates a recipe with ingredients and steps', async () => {
-    const res = await request(app).post('/api/recipes').send(sampleRecipe);
+    const res = await api.post('/api/recipes').send(sampleRecipe);
 
     expect(res.status).toBe(201);
     expect(res.body.title).toBe('Scrambled Eggs');
@@ -47,7 +46,7 @@ describe('POST /api/recipes', () => {
   });
 
   it('creates a minimal recipe with just a title', async () => {
-    const res = await request(app).post('/api/recipes').send({ title: 'Quick Salad' });
+    const res = await api.post('/api/recipes').send({ title: 'Quick Salad' });
 
     expect(res.status).toBe(201);
     expect(res.body.title).toBe('Quick Salad');
@@ -57,14 +56,14 @@ describe('POST /api/recipes', () => {
   });
 
   it('rejects a recipe without a title', async () => {
-    const res = await request(app).post('/api/recipes').send({ servings: 2 });
+    const res = await api.post('/api/recipes').send({ servings: 2 });
 
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('Validation failed');
   });
 
   it('rejects a recipe with invalid servings', async () => {
-    const res = await request(app).post('/api/recipes').send({ title: 'Test', servings: -1 });
+    const res = await api.post('/api/recipes').send({ title: 'Test', servings: -1 });
 
     expect(res.status).toBe(400);
   });
@@ -72,7 +71,7 @@ describe('POST /api/recipes', () => {
 
 describe('GET /api/recipes', () => {
   it('returns an empty list initially', async () => {
-    const res = await request(app).get('/api/recipes');
+    const res = await api.get('/api/recipes');
 
     expect(res.status).toBe(200);
     expect(res.body.recipes).toHaveLength(0);
@@ -80,10 +79,10 @@ describe('GET /api/recipes', () => {
   });
 
   it('returns created recipes', async () => {
-    await request(app).post('/api/recipes').send(sampleRecipe);
-    await request(app).post('/api/recipes').send({ title: 'Toast' });
+    await api.post('/api/recipes').send(sampleRecipe);
+    await api.post('/api/recipes').send({ title: 'Toast' });
 
-    const res = await request(app).get('/api/recipes');
+    const res = await api.get('/api/recipes');
 
     expect(res.status).toBe(200);
     expect(res.body.recipes).toHaveLength(2);
@@ -92,48 +91,48 @@ describe('GET /api/recipes', () => {
 
   it('supports pagination', async () => {
     // Create 3 recipes
-    await request(app).post('/api/recipes').send({ title: 'Recipe 1' });
-    await request(app).post('/api/recipes').send({ title: 'Recipe 2' });
-    await request(app).post('/api/recipes').send({ title: 'Recipe 3' });
+    await api.post('/api/recipes').send({ title: 'Recipe 1' });
+    await api.post('/api/recipes').send({ title: 'Recipe 2' });
+    await api.post('/api/recipes').send({ title: 'Recipe 3' });
 
-    const res = await request(app).get('/api/recipes?page=1&limit=2');
+    const res = await api.get('/api/recipes?page=1&limit=2');
 
     expect(res.status).toBe(200);
     expect(res.body.recipes).toHaveLength(2);
     expect(res.body.pagination.total).toBe(3);
     expect(res.body.pagination.totalPages).toBe(2);
 
-    const res2 = await request(app).get('/api/recipes?page=2&limit=2');
+    const res2 = await api.get('/api/recipes?page=2&limit=2');
     expect(res2.body.recipes).toHaveLength(1);
   });
 
   it('supports search by title', async () => {
-    await request(app).post('/api/recipes').send({ title: 'Chicken Soup' });
-    await request(app).post('/api/recipes').send({ title: 'Tomato Soup' });
-    await request(app).post('/api/recipes').send({ title: 'Grilled Chicken' });
+    await api.post('/api/recipes').send({ title: 'Chicken Soup' });
+    await api.post('/api/recipes').send({ title: 'Tomato Soup' });
+    await api.post('/api/recipes').send({ title: 'Grilled Chicken' });
 
-    const res = await request(app).get('/api/recipes?search=Chicken');
+    const res = await api.get('/api/recipes?search=Chicken');
 
     expect(res.status).toBe(200);
     expect(res.body.recipes).toHaveLength(2);
   });
 
   it('excludes archived recipes by default', async () => {
-    const createRes = await request(app).post('/api/recipes').send({ title: 'To Archive' });
-    await request(app).delete(`/api/recipes/${createRes.body.id}`);
+    const createRes = await api.post('/api/recipes').send({ title: 'To Archive' });
+    await api.delete(`/api/recipes/${createRes.body.id}`);
 
-    const res = await request(app).get('/api/recipes');
+    const res = await api.get('/api/recipes');
     expect(res.body.recipes).toHaveLength(0);
 
-    const resArchived = await request(app).get('/api/recipes?archived=true');
+    const resArchived = await api.get('/api/recipes?archived=true');
     expect(resArchived.body.recipes).toHaveLength(1);
   });
 
   it('only returns latest versions', async () => {
-    const createRes = await request(app).post('/api/recipes').send(sampleRecipe);
-    await request(app).patch(`/api/recipes/${createRes.body.id}`).send({ title: 'Updated Eggs' });
+    const createRes = await api.post('/api/recipes').send(sampleRecipe);
+    await api.patch(`/api/recipes/${createRes.body.id}`).send({ title: 'Updated Eggs' });
 
-    const res = await request(app).get('/api/recipes');
+    const res = await api.get('/api/recipes');
     expect(res.body.recipes).toHaveLength(1);
     expect(res.body.recipes[0].title).toBe('Updated Eggs');
   });
@@ -141,8 +140,8 @@ describe('GET /api/recipes', () => {
 
 describe('GET /api/recipes/:id', () => {
   it('returns a recipe by ID', async () => {
-    const createRes = await request(app).post('/api/recipes').send(sampleRecipe);
-    const res = await request(app).get(`/api/recipes/${createRes.body.id}`);
+    const createRes = await api.post('/api/recipes').send(sampleRecipe);
+    const res = await api.get(`/api/recipes/${createRes.body.id}`);
 
     expect(res.status).toBe(200);
     expect(res.body.title).toBe('Scrambled Eggs');
@@ -151,7 +150,7 @@ describe('GET /api/recipes/:id', () => {
   });
 
   it('returns 404 for non-existent recipe', async () => {
-    const res = await request(app).get('/api/recipes/non-existent-id');
+    const res = await api.get('/api/recipes/non-existent-id');
 
     expect(res.status).toBe(404);
     expect(res.body.error).toBe('Recipe not found');
@@ -160,10 +159,10 @@ describe('GET /api/recipes/:id', () => {
 
 describe('PATCH /api/recipes/:id', () => {
   it('updates a recipe and creates a new version', async () => {
-    const createRes = await request(app).post('/api/recipes').send(sampleRecipe);
+    const createRes = await api.post('/api/recipes').send(sampleRecipe);
     const originalId = createRes.body.id;
 
-    const updateRes = await request(app)
+    const updateRes = await api
       .patch(`/api/recipes/${originalId}`)
       .send({ title: 'Creamy Scrambled Eggs', personalNotes: 'Even better with cream cheese' });
 
@@ -178,14 +177,14 @@ describe('PATCH /api/recipes/:id', () => {
   });
 
   it('updates ingredients when provided', async () => {
-    const createRes = await request(app).post('/api/recipes').send(sampleRecipe);
+    const createRes = await api.post('/api/recipes').send(sampleRecipe);
 
     const newIngredients = [
       { name: 'eggs', amount: 6, unit: 'large', isOptional: false, orderIndex: 0 },
       { name: 'cream', amount: 2, unit: 'tbsp', isOptional: false, orderIndex: 1 },
     ];
 
-    const updateRes = await request(app)
+    const updateRes = await api
       .patch(`/api/recipes/${createRes.body.id}`)
       .send({ ingredients: newIngredients });
 
@@ -194,49 +193,49 @@ describe('PATCH /api/recipes/:id', () => {
   });
 
   it('returns 404 for non-existent recipe', async () => {
-    const res = await request(app).patch('/api/recipes/non-existent').send({ title: 'Test' });
+    const res = await api.patch('/api/recipes/non-existent').send({ title: 'Test' });
     expect(res.status).toBe(404);
   });
 });
 
 describe('DELETE /api/recipes/:id (archive toggle)', () => {
   it('archives a recipe', async () => {
-    const createRes = await request(app).post('/api/recipes').send(sampleRecipe);
-    const res = await request(app).delete(`/api/recipes/${createRes.body.id}`);
+    const createRes = await api.post('/api/recipes').send(sampleRecipe);
+    const res = await api.delete(`/api/recipes/${createRes.body.id}`);
 
     expect(res.status).toBe(200);
     expect(res.body.archived).toBe(true);
   });
 
   it('unarchives an archived recipe', async () => {
-    const createRes = await request(app).post('/api/recipes').send(sampleRecipe);
-    await request(app).delete(`/api/recipes/${createRes.body.id}`);
-    const res = await request(app).delete(`/api/recipes/${createRes.body.id}`);
+    const createRes = await api.post('/api/recipes').send(sampleRecipe);
+    await api.delete(`/api/recipes/${createRes.body.id}`);
+    const res = await api.delete(`/api/recipes/${createRes.body.id}`);
 
     expect(res.status).toBe(200);
     expect(res.body.archived).toBe(false);
   });
 
   it('returns 404 for non-existent recipe', async () => {
-    const res = await request(app).delete('/api/recipes/non-existent');
+    const res = await api.delete('/api/recipes/non-existent');
     expect(res.status).toBe(404);
   });
 });
 
 describe('GET /api/recipes/:id/versions', () => {
   it('returns version history for a recipe', async () => {
-    const createRes = await request(app).post('/api/recipes').send(sampleRecipe);
+    const createRes = await api.post('/api/recipes').send(sampleRecipe);
     const v1Id = createRes.body.id;
 
-    const updateRes = await request(app)
+    const updateRes = await api
       .patch(`/api/recipes/${v1Id}`)
       .send({ title: 'Updated Eggs' });
     const v2Id = updateRes.body.id;
 
-    await request(app).patch(`/api/recipes/${v2Id}`).send({ title: 'Final Eggs' });
+    await api.patch(`/api/recipes/${v2Id}`).send({ title: 'Final Eggs' });
 
     // Can get versions from any version ID in the chain
-    const res = await request(app).get(`/api/recipes/${v1Id}/versions`);
+    const res = await api.get(`/api/recipes/${v1Id}/versions`);
 
     expect(res.status).toBe(200);
     expect(res.body).toHaveLength(3);
@@ -251,10 +250,10 @@ describe('GET /api/recipes/:id/versions', () => {
 
 describe('POST /api/recipes/:id/restore/:version', () => {
   it('restores an old version as a new version', async () => {
-    const createRes = await request(app).post('/api/recipes').send(sampleRecipe);
+    const createRes = await api.post('/api/recipes').send(sampleRecipe);
     const v1Id = createRes.body.id;
 
-    const updateRes = await request(app)
+    const updateRes = await api
       .patch(`/api/recipes/${v1Id}`)
       .send({
         title: 'Changed Eggs',
@@ -264,7 +263,7 @@ describe('POST /api/recipes/:id/restore/:version', () => {
       });
 
     // Restore v1 (should create v3 with v1's data)
-    const restoreRes = await request(app).post(`/api/recipes/${v1Id}/restore/1`);
+    const restoreRes = await api.post(`/api/recipes/${v1Id}/restore/1`);
 
     expect(restoreRes.status).toBe(200);
     expect(restoreRes.body.version).toBe(3);
@@ -273,13 +272,13 @@ describe('POST /api/recipes/:id/restore/:version', () => {
     expect(restoreRes.body.ingredients).toHaveLength(4);
 
     // Verify old v2 is no longer latest
-    const v2 = await request(app).get(`/api/recipes/${updateRes.body.id}`);
+    const v2 = await api.get(`/api/recipes/${updateRes.body.id}`);
     expect(v2.body.isLatest).toBe(false);
   });
 
   it('returns 404 for non-existent version', async () => {
-    const createRes = await request(app).post('/api/recipes').send(sampleRecipe);
-    const res = await request(app).post(`/api/recipes/${createRes.body.id}/restore/99`);
+    const createRes = await api.post('/api/recipes').send(sampleRecipe);
+    const res = await api.post(`/api/recipes/${createRes.body.id}/restore/99`);
 
     expect(res.status).toBe(404);
   });

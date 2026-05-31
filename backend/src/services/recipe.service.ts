@@ -9,22 +9,29 @@ import { stemVariants } from '../utils/stemVariants.js';
 
 type WithSteps = { steps: { timeMinutes: number | null; isActiveTime: boolean }[] };
 
-/** Resolves an ingredient name to its catalog entry ID, or null if not in the catalog. */
-async function resolveCatalogId(name: string): Promise<string | null> {
+/**
+ * Resolves an ingredient name to its catalog entry ID, or null if not in the catalog.
+ * Considers both global (userId null) and the user's own private aliases, preferring the
+ * user's own entry when both match.
+ */
+async function resolveCatalogId(name: string, userId: string): Promise<string | null> {
   const lower = name.toLowerCase().trim();
-  const alias = await prisma.ingredientAlias.findUnique({
-    where: { alias: lower },
-    select: { catalogId: true },
+  const aliases = await prisma.ingredientAlias.findMany({
+    where: { alias: lower, OR: [{ userId: null }, { userId }] },
+    select: { catalogId: true, userId: true },
   });
-  return alias?.catalogId ?? null;
+  if (aliases.length === 0) return null;
+  const own = aliases.find((a) => a.userId === userId);
+  return (own ?? aliases[0]).catalogId;
 }
 
-/** Adds catalogId to each ingredient input by looking up the alias table. */
+/** Adds catalogId to each ingredient input by looking up the alias table (scoped to the user). */
 async function withCatalogIds<T extends { name: string }>(
   ingredients: T[],
+  userId: string,
 ): Promise<(T & { catalogId: string | null })[]> {
   return Promise.all(
-    ingredients.map(async (ing) => ({ ...ing, catalogId: await resolveCatalogId(ing.name) })),
+    ingredients.map(async (ing) => ({ ...ing, catalogId: await resolveCatalogId(ing.name, userId) })),
   );
 }
 
@@ -34,8 +41,8 @@ type IngredientFilter =
 
 /** Builds a Prisma ingredient filter for a search term.
  *  Uses catalogId when the term maps to a catalog entry; falls back to name variants. */
-async function resolveIngredientFilter(name: string): Promise<IngredientFilter> {
-  const catalogId = await resolveCatalogId(name);
+async function resolveIngredientFilter(name: string, userId: string): Promise<IngredientFilter> {
+  const catalogId = await resolveCatalogId(name, userId);
   if (catalogId) return { catalogId };
   return { OR: stemVariants(name.toLowerCase().trim()).map((v) => ({ name: { equals: v } })) };
 }
@@ -54,12 +61,13 @@ const recipeInclude = {
   courses: true,
 };
 
-export async function listRecipes(query: RecipeQueryInput) {
+export async function listRecipes(userId: string, query: RecipeQueryInput) {
   const { page, limit, search, archived, includeIngredients, excludeIngredients, labels, diets, freeFrom, courses } = query;
   const skip = (page - 1) * limit;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = {
+    userId,
     isLatest: true,
     archived: archived === 'true',
   };
@@ -71,7 +79,7 @@ export async function listRecipes(query: RecipeQueryInput) {
   // Filter: must contain these ingredients
   if (includeIngredients) {
     const names = includeIngredients.split(',').map((s) => s.trim().toLowerCase());
-    const filters = await Promise.all(names.map(resolveIngredientFilter));
+    const filters = await Promise.all(names.map((n) => resolveIngredientFilter(n, userId)));
     where.AND = [
       ...(where.AND || []),
       ...filters.map((f) => ({ ingredients: { some: f } })),
@@ -81,7 +89,7 @@ export async function listRecipes(query: RecipeQueryInput) {
   // Filter: must NOT contain these ingredients
   if (excludeIngredients) {
     const names = excludeIngredients.split(',').map((s) => s.trim().toLowerCase());
-    const filters = await Promise.all(names.map(resolveIngredientFilter));
+    const filters = await Promise.all(names.map((n) => resolveIngredientFilter(n, userId)));
     where.AND = [
       ...(where.AND || []),
       ...filters.map((f) => ({ ingredients: { none: f } })),
@@ -147,9 +155,9 @@ export async function listRecipes(query: RecipeQueryInput) {
   };
 }
 
-export async function getRecipe(id: string) {
-  const recipe = await prisma.recipe.findUnique({
-    where: { id },
+export async function getRecipe(userId: string, id: string) {
+  const recipe = await prisma.recipe.findFirst({
+    where: { id, userId },
     include: recipeInclude,
   });
 
@@ -160,16 +168,17 @@ export async function getRecipe(id: string) {
   return withComputedTimes(recipe);
 }
 
-export async function createRecipe(input: CreateRecipeInput) {
+export async function createRecipe(userId: string, input: CreateRecipeInput) {
   const { ingredients, steps, ...recipeData } = input;
 
   const recipe = await prisma.recipe.create({
     data: {
       ...recipeData,
+      userId,
       version: 1,
       isLatest: true,
       ingredients: {
-        create: await withCatalogIds(ingredients),
+        create: await withCatalogIds(ingredients, userId),
       },
       steps: {
         create: steps,
@@ -178,13 +187,13 @@ export async function createRecipe(input: CreateRecipeInput) {
     include: recipeInclude,
   });
 
-  await updateRecipeDietaryLabels(recipe.id, recipe.ingredients);
-  return getRecipe(recipe.id);
+  await updateRecipeDietaryLabels(recipe.id, recipe.ingredients, userId);
+  return getRecipe(userId, recipe.id);
 }
 
-export async function updateRecipe(id: string, input: UpdateRecipeInput) {
-  const existing = await prisma.recipe.findUnique({
-    where: { id },
+export async function updateRecipe(userId: string, id: string, input: UpdateRecipeInput) {
+  const existing = await prisma.recipe.findFirst({
+    where: { id, userId },
     include: recipeInclude,
   });
 
@@ -200,7 +209,7 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
 
   // Resolve catalog IDs before the transaction to avoid timeout from N async lookups inside it
   const ingredientData = ingredients
-    ? await withCatalogIds(ingredients)
+    ? await withCatalogIds(ingredients, userId)
     : existing.ingredients.map(({ id: _id, recipeId: _rid, ...ing }) => ing);
 
   // Create new version with updated data
@@ -220,6 +229,7 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
         authorNotes: recipeData.authorNotes !== undefined ? recipeData.authorNotes : existing.authorNotes,
         personalNotes: recipeData.personalNotes !== undefined ? recipeData.personalNotes : existing.personalNotes,
         archived: existing.archived,
+        userId: existing.userId,
         version: existing.version + 1,
         parentId: existing.id,
         isLatest: true,
@@ -268,12 +278,12 @@ export async function updateRecipe(id: string, input: UpdateRecipeInput) {
     return created;
   });
 
-  await updateRecipeDietaryLabels(newRecipe.id, newRecipe.ingredients);
-  return getRecipe(newRecipe.id);
+  await updateRecipeDietaryLabels(newRecipe.id, newRecipe.ingredients, userId);
+  return getRecipe(userId, newRecipe.id);
 }
 
-export async function archiveRecipe(id: string) {
-  const existing = await prisma.recipe.findUnique({ where: { id } });
+export async function archiveRecipe(userId: string, id: string) {
+  const existing = await prisma.recipe.findFirst({ where: { id, userId } });
 
   if (!existing) {
     throw new AppError(404, 'Recipe not found');
@@ -288,9 +298,10 @@ export async function archiveRecipe(id: string) {
   return withComputedTimes(recipe);
 }
 
-export async function getRecipeVersions(id: string) {
-  // Find the recipe and trace its version chain
-  const recipe = await prisma.recipe.findUnique({ where: { id } });
+export async function getRecipeVersions(userId: string, id: string) {
+  // Find the recipe and trace its version chain (entry must be owned by the user; all
+  // versions in a chain share the same owner).
+  const recipe = await prisma.recipe.findFirst({ where: { id, userId } });
   if (!recipe) {
     throw new AppError(404, 'Recipe not found');
   }
@@ -339,9 +350,9 @@ export async function getRecipeVersions(id: string) {
   return allVersions.sort((a, b) => b.version - a.version).map((v) => withComputedTimes(v as any));
 }
 
-export async function restoreRecipeVersion(id: string, version: number) {
+export async function restoreRecipeVersion(userId: string, id: string, version: number) {
   // Find the latest version in this recipe's chain
-  const versions = await getRecipeVersions(id);
+  const versions = await getRecipeVersions(userId, id);
   const latestVersion = versions.find((v) => v.isLatest);
   const targetVersion = versions.find((v) => v.version === version);
 
@@ -368,6 +379,7 @@ export async function restoreRecipeVersion(id: string, version: number) {
         authorNotes: targetVersion.authorNotes,
         personalNotes: targetVersion.personalNotes,
         archived: latestVersion.archived,
+        userId: latestVersion.userId,
         version: latestVersion.version + 1,
         parentId: latestVersion.id,
         isLatest: true,
@@ -384,13 +396,13 @@ export async function restoreRecipeVersion(id: string, version: number) {
     });
   });
 
-  await updateRecipeDietaryLabels(restored.id, restored.ingredients);
-  return getRecipe(restored.id);
+  await updateRecipeDietaryLabels(restored.id, restored.ingredients, userId);
+  return getRecipe(userId, restored.id);
 }
 
-export async function deleteRecipePermanently(id: string) {
-  // Collect all versions in the chain
-  const versions = await getRecipeVersions(id);
+export async function deleteRecipePermanently(userId: string, id: string) {
+  // Collect all versions in the chain (ownership enforced by getRecipeVersions)
+  const versions = await getRecipeVersions(userId, id);
   const allIds = versions.map((v) => v.id);
   const steps = await prisma.step.findMany({ where: { recipeId: { in: allIds } }, select: { id: true } });
   const allStepIds = steps.map((s) => s.id);

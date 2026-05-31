@@ -14,8 +14,8 @@ function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => P
 // GET /api/meal-plans
 router.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const mealPlans = await mealPlanService.listMealPlans();
+  asyncHandler(async (req, res) => {
+    const mealPlans = await mealPlanService.listMealPlans(req.userId!);
     res.json(mealPlans);
   }),
 );
@@ -25,7 +25,7 @@ router.post(
   '/',
   validate(createMealPlanSchema),
   asyncHandler(async (req, res) => {
-    const mealPlan = await mealPlanService.createMealPlan(req.body);
+    const mealPlan = await mealPlanService.createMealPlan(req.userId!, req.body);
     res.status(201).json(mealPlan);
   }),
 );
@@ -34,7 +34,7 @@ router.post(
 router.get(
   '/:id',
   asyncHandler(async (req, res) => {
-    const mealPlan = await mealPlanService.getMealPlan(req.params.id as string);
+    const mealPlan = await mealPlanService.getMealPlan(req.userId!, req.params.id as string);
     res.json(mealPlan);
   }),
 );
@@ -44,7 +44,7 @@ router.patch(
   '/:id',
   validate(updateMealPlanSchema),
   asyncHandler(async (req, res) => {
-    const mealPlan = await mealPlanService.updateMealPlan(req.params.id as string, req.body);
+    const mealPlan = await mealPlanService.updateMealPlan(req.userId!, req.params.id as string, req.body);
     res.json(mealPlan);
   }),
 );
@@ -55,6 +55,7 @@ router.patch(
   validate(updateGroceryItemSchema),
   asyncHandler(async (req, res) => {
     const item = await mealPlanService.updateGroceryItem(
+      req.userId!,
       req.params.id as string,
       req.params.itemId as string,
       req.body.purchased,
@@ -67,7 +68,7 @@ router.patch(
 router.post(
   '/:id/recalculate',
   asyncHandler(async (req, res) => {
-    const mealPlan = await mealPlanService.recalculateDietaryInfo(req.params.id as string);
+    const mealPlan = await mealPlanService.recalculateDietaryInfo(req.userId!, req.params.id as string);
     res.json(mealPlan);
   }),
 );
@@ -76,7 +77,7 @@ router.post(
 router.post(
   '/:id/remake',
   asyncHandler(async (req, res) => {
-    const mealPlan = await mealPlanService.remakeMealPlan(req.params.id as string);
+    const mealPlan = await mealPlanService.remakeMealPlan(req.userId!, req.params.id as string);
     res.status(201).json(mealPlan);
   }),
 );

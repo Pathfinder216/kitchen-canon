@@ -19,8 +19,9 @@ const mealPlanInclude = {
   groceryList: true,
 };
 
-export async function listMealPlans() {
+export async function listMealPlans(userId: string) {
   return prisma.mealPlan.findMany({
+    where: { userId },
     include: {
       recipes: {
         include: { recipe: { select: { id: true, title: true, servings: true } } },
@@ -31,9 +32,9 @@ export async function listMealPlans() {
   });
 }
 
-export async function getMealPlan(id: string) {
-  const mealPlan = await prisma.mealPlan.findUnique({
-    where: { id },
+export async function getMealPlan(userId: string, id: string) {
+  const mealPlan = await prisma.mealPlan.findFirst({
+    where: { id, userId },
     include: mealPlanInclude,
   });
 
@@ -47,7 +48,7 @@ export async function getMealPlan(id: string) {
       substitutions: mr.substitutions ? (mr.substitutions as Record<string, { toIngredient: string; ratio: number }>) : undefined,
     }));
     const recipes = mealPlan.recipes.map((mr) => mr.recipe);
-    const freshInfo = await computeDietaryInfo(effectiveIngredients(recipeInputs, recipes));
+    const freshInfo = await computeDietaryInfo(effectiveIngredients(recipeInputs, recipes), userId);
     if (freshInfo.unknownIngredients.length !== stored.unknownIngredients.length) {
       await prisma.mealPlan.update({ where: { id }, data: { dietaryInfo: freshInfo as object } });
       return { ...mealPlan, dietaryInfo: freshInfo };
@@ -80,11 +81,11 @@ function effectiveIngredients(
   return result;
 }
 
-export async function createMealPlan(input: CreateMealPlanInput) {
-  // Verify all recipes exist and get their data
+export async function createMealPlan(userId: string, input: CreateMealPlanInput) {
+  // Verify all recipes exist AND belong to the user
   const recipeIds = input.recipes.map((r) => r.recipeId);
   const recipes = await prisma.recipe.findMany({
-    where: { id: { in: recipeIds } },
+    where: { id: { in: recipeIds }, userId },
     include: { ingredients: true },
   });
 
@@ -114,7 +115,7 @@ export async function createMealPlan(input: CreateMealPlanInput) {
     }),
   );
 
-  const dietaryInfo = await computeDietaryInfo(effectiveIngredients(input.recipes, recipes));
+  const dietaryInfo = await computeDietaryInfo(effectiveIngredients(input.recipes, recipes), userId);
 
   // Create meal plan with recipes and grocery list
   const mealPlan = await prisma.mealPlan.create({
@@ -123,6 +124,7 @@ export async function createMealPlan(input: CreateMealPlanInput) {
       date: input.date,
       time: input.time,
       notes: input.notes,
+      userId,
       dietaryInfo: dietaryInfo as object,
       recipes: {
         create: input.recipes.map((r, index) => ({
@@ -143,15 +145,15 @@ export async function createMealPlan(input: CreateMealPlanInput) {
   return mealPlan;
 }
 
-export async function updateMealPlan(id: string, input: UpdateMealPlanInput) {
-  const existing = await prisma.mealPlan.findUnique({ where: { id } });
+export async function updateMealPlan(userId: string, id: string, input: UpdateMealPlanInput) {
+  const existing = await prisma.mealPlan.findFirst({ where: { id, userId } });
   if (!existing) throw new AppError(404, 'Meal plan not found');
 
   if (input.recipes) {
     // Recipes changed — recalculate grocery list inside a transaction
     const recipeIds = input.recipes.map((r) => r.recipeId);
     const recipes = await prisma.recipe.findMany({
-      where: { id: { in: recipeIds } },
+      where: { id: { in: recipeIds }, userId },
       include: { ingredients: true },
     });
     if (recipes.length !== recipeIds.length) {
@@ -179,7 +181,7 @@ export async function updateMealPlan(id: string, input: UpdateMealPlanInput) {
       }),
     );
 
-    const dietaryInfo = await computeDietaryInfo(effectiveIngredients(input.recipes, recipes));
+    const dietaryInfo = await computeDietaryInfo(effectiveIngredients(input.recipes, recipes), userId);
 
     await prisma.$transaction([
       prisma.mealRecipe.deleteMany({ where: { mealPlanId: id } }),
@@ -217,12 +219,12 @@ export async function updateMealPlan(id: string, input: UpdateMealPlanInput) {
     });
   }
 
-  return getMealPlan(id);
+  return getMealPlan(userId, id);
 }
 
-export async function updateGroceryItem(mealPlanId: string, itemId: string, purchased: boolean) {
+export async function updateGroceryItem(userId: string, mealPlanId: string, itemId: string, purchased: boolean) {
   const item = await prisma.groceryItem.findFirst({
-    where: { id: itemId, mealPlanId },
+    where: { id: itemId, mealPlanId, mealPlan: { userId } },
   });
 
   if (!item) throw new AppError(404, 'Grocery item not found');
@@ -233,9 +235,9 @@ export async function updateGroceryItem(mealPlanId: string, itemId: string, purc
   });
 }
 
-export async function recalculateDietaryInfo(id: string) {
-  const mealPlan = await prisma.mealPlan.findUnique({
-    where: { id },
+export async function recalculateDietaryInfo(userId: string, id: string) {
+  const mealPlan = await prisma.mealPlan.findFirst({
+    where: { id, userId },
     include: {
       recipes: {
         include: {
@@ -253,7 +255,7 @@ export async function recalculateDietaryInfo(id: string) {
     substitutions: mr.substitutions ? (mr.substitutions as Record<string, { toIngredient: string; ratio: number }>) : undefined,
   }));
   const recipes = mealPlan.recipes.map((mr) => mr.recipe);
-  const dietaryInfo = await computeDietaryInfo(effectiveIngredients(recipeInputs, recipes));
+  const dietaryInfo = await computeDietaryInfo(effectiveIngredients(recipeInputs, recipes), userId);
 
   return prisma.mealPlan.update({
     where: { id },
@@ -262,9 +264,9 @@ export async function recalculateDietaryInfo(id: string) {
   });
 }
 
-export async function remakeMealPlan(id: string) {
-  const original = await prisma.mealPlan.findUnique({
-    where: { id },
+export async function remakeMealPlan(userId: string, id: string) {
+  const original = await prisma.mealPlan.findFirst({
+    where: { id, userId },
     include: {
       recipes: true,
       groceryList: true,
@@ -284,5 +286,5 @@ export async function remakeMealPlan(id: string) {
     })),
   };
 
-  return createMealPlan(input);
+  return createMealPlan(userId, input);
 }

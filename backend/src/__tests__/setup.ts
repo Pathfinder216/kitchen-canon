@@ -15,6 +15,7 @@ const testDbPath = path.join(testDbDir, testDbName);
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = `file:${testDbPath}`;
 process.env.MEDIA_STORAGE_PATH = path.join(testDbDir, 'media');
+process.env.SESSION_SECRET = 'test-session-secret-at-least-32-characters-long';
 
 beforeAll(() => {
   // Ensure test-data directory exists

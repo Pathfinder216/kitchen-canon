@@ -26,28 +26,37 @@ const assignCoursesSchema = z.object({
   courseTypes: z.array(z.nativeEnum(CourseType)),
 });
 
-// GET /api/labels
+// GET /api/labels — global labels plus the user's own
 router.get(
   '/',
   asyncHandler(async (req, res) => {
     const type = req.query.type as string | undefined;
-    const where = type ? { type } : {};
     const labels = await prisma.label.findMany({
-      where,
+      where: {
+        ...(type ? { type } : {}),
+        OR: [{ userId: null }, { userId: req.userId }],
+      },
       orderBy: [{ type: 'asc' }, { name: 'asc' }],
     });
     res.json(labels);
   }),
 );
 
-// POST /api/labels
+// POST /api/labels — create a user's own manual label (reusing a matching global/own label)
 router.post(
   '/',
   validate(createLabelSchema),
   asyncHandler(async (req, res) => {
-    const label = await prisma.label.create({
-      data: req.body,
+    const { type, name } = req.body as { type: string; name: string };
+    // Reuse an existing global or own label with the same type+name instead of duplicating.
+    const existing = await prisma.label.findFirst({
+      where: { type, name, OR: [{ userId: null }, { userId: req.userId }] },
     });
+    if (existing) {
+      res.status(200).json(existing);
+      return;
+    }
+    const label = await prisma.label.create({ data: { type, name, userId: req.userId } });
     res.status(201).json(label);
   }),
 );
@@ -60,11 +69,24 @@ router.post(
     const id = req.params.id as string;
     const { labelIds } = req.body;
 
-    const recipe = await prisma.recipe.findUnique({ where: { id } });
+    const recipe = await prisma.recipe.findFirst({ where: { id, userId: req.userId } });
     if (!recipe) throw new AppError(404, 'Recipe not found');
 
+    // Only allow attaching global or own labels.
+    if (labelIds.length > 0) {
+      const allowed = await prisma.label.count({
+        where: { id: { in: labelIds }, OR: [{ userId: null }, { userId: req.userId }] },
+      });
+      if (allowed !== labelIds.length) throw new AppError(400, 'One or more labels not found');
+    }
+
     // Replace manually-assigned labels; preserve dietary/allergen labels computed from ingredients
-    const manualLabelIds = (await prisma.label.findMany({ where: { type: 'manual' }, select: { id: true } })).map((l) => l.id);
+    const manualLabelIds = (
+      await prisma.label.findMany({
+        where: { type: 'manual', OR: [{ userId: null }, { userId: req.userId }] },
+        select: { id: true },
+      })
+    ).map((l) => l.id);
     await prisma.$transaction([
       prisma.recipeLabel.deleteMany({ where: { recipeId: id, labelId: { in: manualLabelIds } } }),
       ...labelIds.map((labelId: string) =>
@@ -93,7 +115,7 @@ router.post(
     const id = req.params.id as string;
     const { courseTypes } = req.body;
 
-    const recipe = await prisma.recipe.findUnique({ where: { id } });
+    const recipe = await prisma.recipe.findFirst({ where: { id, userId: req.userId } });
     if (!recipe) throw new AppError(404, 'Recipe not found');
 
     await prisma.$transaction([

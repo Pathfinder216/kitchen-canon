@@ -16,7 +16,6 @@ const createSchema = z.object({
   toIngredient: z.string().min(1).max(200),
   ratio: z.number().positive(),
   notes: z.string().max(500).optional(),
-  isOfficial: z.boolean().optional(),
 });
 
 // GET /api/substitutions?from=butter
@@ -24,7 +23,7 @@ router.get(
   '/',
   asyncHandler(async (req, res) => {
     const from = req.query.from as string | undefined;
-    const substitutions = await substitutionService.listSubstitutions(from);
+    const substitutions = await substitutionService.listSubstitutions(req.userId!, from);
     res.json(substitutions);
   }),
 );
@@ -34,7 +33,7 @@ router.post(
   '/',
   validate(createSchema),
   asyncHandler(async (req, res) => {
-    const sub = await substitutionService.createSubstitution(req.body);
+    const sub = await substitutionService.createSubstitution(req.userId!, req.body);
     res.status(201).json(sub);
   }),
 );
@@ -43,7 +42,7 @@ router.post(
 router.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    await substitutionService.deleteSubstitution(req.params.id as string);
+    await substitutionService.deleteSubstitution(req.userId!, req.params.id as string);
     res.status(204).send();
   }),
 );

@@ -108,17 +108,19 @@ async function main() {
     }
   }
 
-  // Insert alias records
+  // Insert alias records. Dedupe globally across catalog entries (first entry wins for a
+  // shared alias) — the [alias, userId] unique can't dedupe via skipDuplicates because SQLite
+  // treats null userId as distinct, so we dedupe here. Seeded aliases are global (userId null).
+  const aliasToCatalog = new Map<string, string>();
   for (const [canonical, aliases] of entryAliases) {
     const catalogId = catalogIds.get(canonical)!;
     for (const alias of aliases) {
-      await prisma.ingredientAlias.upsert({
-        where: { alias },
-        update: {},
-        create: { alias, catalogId },
-      });
+      if (!aliasToCatalog.has(alias)) aliasToCatalog.set(alias, catalogId);
     }
   }
+  await prisma.ingredientAlias.createMany({
+    data: Array.from(aliasToCatalog, ([alias, catalogId]) => ({ alias, catalogId })),
+  });
 
   console.log(`Seeded ${catalogIds.size} catalog entries.`);
 
@@ -130,11 +132,12 @@ async function main() {
 
   console.log('Seeding standard labels…');
   for (const { type, name } of STANDARD_LABELS) {
-    await prisma.label.upsert({
-      where: { type_name: { type, name } },
-      update: {},
-      create: { type, name },
-    });
+    // Global labels have userId = null; null can't be used in a compound-unique where, so
+    // look up explicitly and create if absent.
+    const existing = await prisma.label.findFirst({ where: { type, name, userId: null } });
+    if (!existing) {
+      await prisma.label.create({ data: { type, name } });
+    }
   }
   console.log(`Seeded ${STANDARD_LABELS.length} standard labels.`);
 }

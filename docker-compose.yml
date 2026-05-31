@@ -9,6 +9,13 @@ services:
       NODE_ENV: production
       DATABASE_URL: file:/app/data/database.db
       MEDIA_STORAGE_PATH: /app/data/media
+      # Auth: SESSION_SECRET is required — compose reads it from a .env file next to this one
+      # (see .env.example). The deploy script generates one on the Pi if absent.
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set (see .env.example)}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-720}
+      # The Pi is served over plain HTTP on the LAN, so secure cookies must be off by default.
+      # Set to true if you put the app behind HTTPS (reverse proxy).
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
     restart: unless-stopped
 
 volumes:

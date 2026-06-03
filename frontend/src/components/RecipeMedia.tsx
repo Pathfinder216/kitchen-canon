@@ -9,8 +9,14 @@ interface MediaItem {
   orderIndex: number | null;
 }
 
+/** CSRF header for mutating raw fetches (these don't go through the apiClient helpers). */
+function csrfHeaders(): Record<string, string> {
+  const match = document.cookie.match(/(?:^|; )ltc_csrf=([^;]*)/);
+  return match ? { 'x-csrf-token': decodeURIComponent(match[1]) } : {};
+}
+
 async function fetchCoverPhoto(recipeId: string): Promise<MediaItem | null> {
-  const res = await fetch(`/api/recipes/${recipeId}/media`);
+  const res = await fetch(`/api/recipes/${recipeId}/media`, { credentials: 'include' });
   if (!res.ok) throw new ApiError(res.status, 'Failed to load media');
   const items: MediaItem[] = await res.json();
   return items.find((m) => m.type === 'image') ?? null;
@@ -19,7 +25,12 @@ async function fetchCoverPhoto(recipeId: string): Promise<MediaItem | null> {
 async function uploadCoverPhoto(recipeId: string, file: File): Promise<MediaItem> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(`/api/recipes/${recipeId}/media`, { method: 'POST', body: form });
+  const res = await fetch(`/api/recipes/${recipeId}/media`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: csrfHeaders(),
+    body: form,
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new ApiError(res.status, body.error || 'Upload failed');
@@ -28,7 +39,11 @@ async function uploadCoverPhoto(recipeId: string, file: File): Promise<MediaItem
 }
 
 async function deleteCoverPhoto(recipeId: string, mediaId: string): Promise<void> {
-  const res = await fetch(`/api/recipes/${recipeId}/media/${mediaId}`, { method: 'DELETE' });
+  const res = await fetch(`/api/recipes/${recipeId}/media/${mediaId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: csrfHeaders(),
+  });
   if (!res.ok) throw new ApiError(res.status, 'Delete failed');
 }
 

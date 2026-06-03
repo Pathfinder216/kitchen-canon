@@ -8,8 +8,14 @@ interface MediaItem {
   path: string;
 }
 
+/** CSRF header for mutating raw fetches (these don't go through the apiClient helpers). */
+function csrfHeaders(): Record<string, string> {
+  const match = document.cookie.match(/(?:^|; )ltc_csrf=([^;]*)/);
+  return match ? { 'x-csrf-token': decodeURIComponent(match[1]) } : {};
+}
+
 async function fetchStepMedia(stepId: string): Promise<MediaItem | null> {
-  const res = await fetch(`/api/steps/${stepId}/media`);
+  const res = await fetch(`/api/steps/${stepId}/media`, { credentials: 'include' });
   if (!res.ok) throw new ApiError(res.status, 'Failed to load media');
   return res.json(); // null or MediaItem
 }
@@ -17,7 +23,12 @@ async function fetchStepMedia(stepId: string): Promise<MediaItem | null> {
 async function uploadStepMedia(stepId: string, file: File): Promise<MediaItem> {
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(`/api/steps/${stepId}/media`, { method: 'POST', body: form });
+  const res = await fetch(`/api/steps/${stepId}/media`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: csrfHeaders(),
+    body: form,
+  });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new ApiError(res.status, body.error || 'Upload failed');
@@ -26,7 +37,11 @@ async function uploadStepMedia(stepId: string, file: File): Promise<MediaItem> {
 }
 
 async function deleteStepMedia(stepId: string, mediaId: string): Promise<void> {
-  const res = await fetch(`/api/steps/${stepId}/media/${mediaId}`, { method: 'DELETE' });
+  const res = await fetch(`/api/steps/${stepId}/media/${mediaId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: csrfHeaders(),
+  });
   if (!res.ok) throw new ApiError(res.status, 'Delete failed');
 }
 

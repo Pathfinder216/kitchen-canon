@@ -8,6 +8,17 @@ Sources: the 2026-06-11 code review, the project TODO notes, and the unfinished 
 `specification.md` §8. When a plan ships, update the spec's Implementation Status section
 (and architecture.md for new models/routes/deps) — each plan's acceptance section says so.
 
+## 🔴 Security (urgent — the app is internet-facing; these jump the queue)
+
+From an external security review: the app is exposed to the internet over plain HTTP with open
+signup and an SSRF-able URL importer. 43 and 42 are pure code and can land today; 41 needs the
+Pi; 44 is defense-in-depth after the first three.
+
+- [ ] [41 — HTTPS via reverse proxy + secure cookies](41-https-tls.md) (M) — cleartext credentials/cookies; **fix first**
+- [ ] [42 — Rate limiting + gated signup](42-auth-rate-limit-signup.md) (S-M) — brute force + open registration
+- [ ] [43 — Fix SSRF in import-from-URL](43-ssrf-import-url.md) (S-M) — internal network probing; pure code fix
+- [ ] [44 — Enable CSP + non-root container](44-csp-container-hardening.md) (S-M) — defense-in-depth
+
 ## Foundation & quality (do roughly in order)
 
 - [ ] [01 — Fix the 12 failing frontend tests](01-fix-frontend-tests.md) (S) — blocks 02 and all refactors
@@ -65,9 +76,11 @@ Sources: the 2026-06-11 code review, the project TODO notes, and the unfinished 
 ```
 01 → 02            05 → 06,07,08,09,26      18 → 19 → 32       20 → 34 → 35
 04 → 36 → 37       30 → 39                  08 → 14            18 → 27
+41 → 17 (wake lock needs HTTPS)             41/42 share the trust-proxy line
 ```
 
 Everything else is independent. Decisions already made (don't re-litigate inside a task):
 Headless UI + react-easy-crop for UI deps; USDA FoodData Central live API for nutrition;
 LocalizationMapping is implemented, not deleted; sync keeps the server as relay + replica;
-PDF = print stylesheet; OCR is client-side.
+PDF = print stylesheet; OCR is client-side; TLS via Caddy (compose service if the Pi's 443 is
+free, else a vhost on the existing 443 server); signup gated by `SIGNUP_INVITE_CODE`.

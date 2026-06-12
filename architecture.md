@@ -9,20 +9,27 @@ implemented are explicitly marked **(planned)** — if something isn't marked, i
 - **Frontend**: React SPA with PWA install/caching support, built by Vite
 - **Backend**: Node.js + Express REST API; in production it also serves the built frontend and media
 - **Database**: SQLite via Prisma ORM (single-file DB, easy backups)
-- **Hosting**: Docker Compose on a Raspberry Pi (LAN); development happens on a Windows 11 PC
+- **Hosting**: Docker Compose on a Raspberry Pi, fronted by host nginx for HTTPS; development happens on a Windows 11 PC
 - **Accounts**: Multi-user with cookie-based sessions and per-user data isolation
 
 ```
 ┌─────────────────────────────────────┐
-│        Phone / Browser (LAN)        │
+│        Phone / Browser              │
 │  React PWA (service worker caches  │
 │  app shell + selected API reads)   │
 └───────────────┬─────────────────────┘
-                │ HTTP :8080
+                │ HTTPS :443 (DuckDNS hostname)
 ┌───────────────▼─────────────────────┐
-│      Raspberry Pi — Docker          │
+│      Raspberry Pi                    │
 │  ┌───────────────────────────────┐  │
-│  │  Node.js + Express (1 process)│  │
+│  │  host nginx (TLS termination) │  │
+│  │  - vhost per site (SNI)       │  │
+│  │  - Let's Encrypt via certbot  │  │
+│  └──────────────┬────────────────┘  │
+│                 │ proxy_pass         │
+│                 │ 127.0.0.1:8080     │
+│  ┌──────────────▼────────────────┐  │
+│  │  Docker: Node.js + Express    │  │
 │  │  - /api/* REST endpoints      │  │
 │  │  - /media/* (authed static)   │  │
 │  │  - SPA static files + fallback│  │
@@ -35,8 +42,13 @@ implemented are explicitly marked **(planned)** — if something isn't marked, i
 └─────────────────────────────────────┘
 ```
 
-There is no reverse proxy, PM2, or separate static file server: a single Express process serves
-the API, the built SPA (with client-route fallback to `index.html`), and authenticated media.
+Inside the container a single Express process serves the API, the built SPA (with client-route
+fallback to `index.html`), and authenticated media. The container binds to `127.0.0.1:8080`
+only — it is never exposed to the LAN/WAN directly. **Host nginx** terminates TLS (Let's Encrypt
+via certbot) and reverse-proxies the app on its own DuckDNS hostname, alongside other vhosts on
+the same Pi (name-based/SNI routing). Express runs with `trust proxy = 1` in production so it
+honors nginx's `X-Forwarded-Proto`/`X-Forwarded-For` (needed to issue `Secure` cookies and to
+see real client IPs).
 
 ---
 
@@ -236,7 +248,7 @@ Two patterns scope data by user:
 | `MEDIA_STORAGE_PATH` | `../data/media` | Created on boot if missing |
 | `SESSION_SECRET` | **required, no default** | ≥32 chars; signs session + CSRF cookies |
 | `SESSION_TTL_HOURS` | `720` (30 days) | Session lifetime |
-| `COOKIE_SECURE` | unset → true in prod | Pi deploy sets `false` (plain HTTP on LAN) |
+| `COOKIE_SECURE` | unset → true in prod | App is served over HTTPS via host nginx; stays `true` |
 | `CORS_ORIGIN` | unset | Only needed for split-origin hosting |
 
 ---
@@ -255,10 +267,20 @@ On container start (`backend/docker-entrypoint.sh`):
 3. `exec node dist/server.js`
 
 `docker-compose.yml`:
-- Single `app` service on port **8080**
+- Single `app` service bound to **`127.0.0.1:8080`** (loopback only — reachable solely through
+  the host nginx reverse proxy, never directly from the LAN/WAN)
 - Named volume `data` mounted at `/app/data` (database + media persist across rebuilds)
 - `SESSION_SECRET` is required and read from a `.env` file next to the compose file
-  (see `.env.example`); `COOKIE_SECURE` defaults to `false` for LAN HTTP
+  (see `.env.example`); `COOKIE_SECURE` defaults to `true` (served over HTTPS)
+
+### TLS / reverse proxy (host nginx)
+
+The Pi already runs host nginx terminating HTTPS for another site, so the app is **not** given a
+second `:443` from Docker. Instead a host nginx vhost (see `deploy/nginx/letthemcook.conf`)
+`proxy_pass`es a dedicated **DuckDNS** hostname to `http://127.0.0.1:8080`, with the cert issued
+by `certbot --nginx`. DuckDNS is used (over the router's `*.tplinkdns.com` DDNS) because it is on
+the Public Suffix List, so it gets its own Let's Encrypt rate-limit bucket. Only ports 80/443 are
+forwarded at the router to the Pi; the old `:8080` forward is removed.
 
 ### Deploying: `scripts/deploy-to-pi.sh user@host`
 1. Syncs the source tree to `~/let-them-cook` on the Pi via `tar | ssh`
@@ -270,7 +292,8 @@ On container start (`backend/docker-entrypoint.sh`):
 4. Copies the local dev `data/database.db` and `data/media/` into the running container
    (`docker compose cp`) so local content carries over
 
-App is then live at `http://<pi-ip>:8080`. Updating = re-run the script. Note the data-copy
+App is then live at `https://<APP_DOMAIN>` (the DuckDNS hostname, via the nginx vhost). Updating
+= re-run the script. Note the data-copy
 step overwrites the Pi's database with the local one — appropriate while the dev machine is the
 source of truth, but it should be removed (or guarded) once the Pi copy becomes primary.
 
@@ -354,11 +377,13 @@ move to Postgres if the host's volume story is weak.
 - Authenticated media serving (no public file reads)
 - Zod input validation on every route; Prisma parameterized queries
 - Upload validation (MIME filter, 20 MB limit); helmet headers (CSP currently disabled)
+- **HTTPS in production**: TLS terminated by host nginx (Let's Encrypt/certbot) in front of the
+  loopback-bound container; `COOKIE_SECURE=true`; Express `trust proxy = 1`
 
 ### Future hardening
 - Rate limiting on auth endpoints (express-rate-limit)
-- HTTPS in production (reverse proxy + `COOKIE_SECURE=true`)
 - Enable a CSP via helmet
+- Email verification / password reset; optional OAuth providers
 - Email verification / password reset; optional OAuth providers
 
 ---

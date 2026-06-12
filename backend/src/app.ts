@@ -22,6 +22,14 @@ import fs from 'fs';
 export function createApp() {
   const app = express();
 
+  // In production the app sits behind the Pi's nginx reverse proxy (TLS terminates there; the
+  // container speaks plain HTTP on localhost). Trust the first hop so req.secure / req.ip reflect
+  // the X-Forwarded-* headers nginx sets — required for `secure` cookies to be issued, and for
+  // accurate client IPs (rate limiting). Off in dev/test, where there is no proxy in front.
+  if (config.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
   // Middleware
   app.use(helmet({ contentSecurityPolicy: false }));
   // credentials:true is required for the browser to send/receive auth cookies. In dev the Vite

@@ -2,7 +2,10 @@ services:
   app:
     build: .
     ports:
-      - "8080:8080"
+      # Bind to localhost only: the app is reached exclusively through the host's nginx reverse
+      # proxy (which terminates TLS). This keeps the container off the LAN/WAN directly — drop the
+      # router's 8080 port-forward once nginx is serving the app over 443.
+      - "127.0.0.1:8080:8080"
     volumes:
       - data:/app/data
     environment:
@@ -13,9 +16,9 @@ services:
       # (see .env.example). The deploy script generates one on the Pi if absent.
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set (see .env.example)}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-720}
-      # The Pi is served over plain HTTP on the LAN, so secure cookies must be off by default.
-      # Set to true if you put the app behind HTTPS (reverse proxy).
-      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # The app is served over HTTPS via the host's nginx reverse proxy, so secure cookies are on
+      # by default. Override to false only for a throwaway plain-HTTP test.
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
     restart: unless-stopped
 
 volumes:

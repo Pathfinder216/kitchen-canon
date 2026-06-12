@@ -167,7 +167,8 @@ A recipe management application for collecting, consolidating, using, updating, 
 ### Initial Version (v1)
 - ~~Single-user application~~ → shipped with multi-user accounts and per-user data isolation (pulled forward from stretch goals)
 - Offline-capable (partially met — see Implementation Status below)
-- Self-hosted on Raspberry Pi
+- Self-hosted on Raspberry Pi, served over HTTPS (host nginx + Let's Encrypt in front of the
+  container; secure cookies)
 - All core features listed above except those marked as "future" or "long-term"
 
 ### Stretch Goals

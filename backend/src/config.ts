@@ -11,8 +11,8 @@ const envSchema = z.object({
   // Auth: signing secret for session/CSRF cookies. No default — production must set it.
   SESSION_SECRET: z.string().min(32),
   SESSION_TTL_HOURS: z.coerce.number().default(720), // 30 days
-  // Whether auth cookies require HTTPS. Defaults to true in production; override to false
-  // for LAN-only HTTP deployments.
+  // Whether auth cookies require HTTPS. Defaults to true in production (the app is served behind
+  // an HTTPS reverse proxy); override to false only for a throwaway plain-HTTP test.
   COOKIE_SECURE: z
     .enum(['true', 'false'])
     .optional()

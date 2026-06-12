@@ -14,7 +14,7 @@ From an external security review: the app is exposed to the internet over plain 
 signup and an SSRF-able URL importer. 43 and 42 are pure code and can land today; 41 needs the
 Pi; 44 is defense-in-depth after the first three.
 
-- [ ] [41 — HTTPS via reverse proxy + secure cookies](41-https-tls.md) (M) — cleartext credentials/cookies; **fix first**
+- [x] [41 — HTTPS via reverse proxy + secure cookies](41-https-tls.md) (M) — repo-side landed (trust-proxy, loopback bind, `COOKIE_SECURE=true`, `deploy/nginx/letthemcook.conf`, docs); Pi nginx-vhost + certbot + DuckDNS cutover is the operator runbook (host nginx already owns :443, so no Caddy service)
 - [ ] [42 — Rate limiting + gated signup](42-auth-rate-limit-signup.md) (S-M) — brute force + open registration
 - [ ] [43 — Fix SSRF in import-from-URL](43-ssrf-import-url.md) (S-M) — internal network probing; pure code fix
 - [ ] [44 — Enable CSP + non-root container](44-csp-container-hardening.md) (S-M) — defense-in-depth

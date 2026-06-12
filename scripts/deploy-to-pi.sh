@@ -22,9 +22,11 @@ tar -C "$ROOT" \
 
 echo "==> Ensuring auth secret exists on the Pi..."
 # docker compose reads ~/let-them-cook/.env for SESSION_SECRET. Generate one on first deploy.
+# COOKIE_SECURE=true because the app is fronted by the host's nginx HTTPS reverse proxy.
 ssh "$PI_HOST" 'cd ~/let-them-cook && if [ ! -f .env ]; then \
-  printf "SESSION_SECRET=%s\nCOOKIE_SECURE=false\n" "$(openssl rand -hex 32)" > .env; \
+  printf "SESSION_SECRET=%s\nCOOKIE_SECURE=true\nAPP_DOMAIN=\n" "$(openssl rand -hex 32)" > .env; \
   echo "   Generated a new .env with a random SESSION_SECRET"; \
+  echo "   >>> Set APP_DOMAIN in ~/let-them-cook/.env to the DuckDNS name and configure the nginx vhost + certbot for it."; \
 else echo "   .env already present"; fi'
 
 echo "==> Building and starting containers..."
@@ -43,4 +45,9 @@ if [ -d "$MEDIA_PATH" ]; then
 fi
 
 echo ""
-echo "Deployed! App is live at http://$(echo "$PI_HOST" | cut -d@ -f2):8080"
+APP_DOMAIN="$(ssh "$PI_HOST" 'cd ~/let-them-cook && grep -E "^APP_DOMAIN=" .env 2>/dev/null | cut -d= -f2-')"
+if [ -n "$APP_DOMAIN" ]; then
+  echo "Deployed! App is live at https://$APP_DOMAIN (via the nginx reverse proxy)."
+else
+  echo "Deployed! Set APP_DOMAIN in the Pi's .env and configure the nginx vhost to serve it over HTTPS."
+fi

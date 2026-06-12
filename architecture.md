@@ -387,6 +387,10 @@ move to Postgres if the host's volume story is weak.
   loopback-bound container; `COOKIE_SECURE=true`; Express `trust proxy = 1`
 - **Rate limiting** on auth + import endpoints (`express-rate-limit`, per-IP)
 - **Gated signup** via `SIGNUP_INVITE_CODE` (optional invite code on register)
+- **SSRF protection on URL import**: user-supplied import URLs go through `src/utils/safeFetch.ts`
+  — http(s)-only, no embedded credentials, hostname + DNS-resolution checks against private/
+  reserved ranges (RFC1918, loopback, link-local incl. cloud metadata, CGNAT, ULA, multicast),
+  manual redirect re-validation (max 3 hops), and 10 s / 2 MB / content-type response caps
 
 ### Future hardening
 - Enable a CSP via helmet

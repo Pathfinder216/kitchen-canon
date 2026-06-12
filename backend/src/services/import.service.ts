@@ -1,3 +1,4 @@
+import { safeFetch } from '../utils/safeFetch.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -145,16 +146,8 @@ function addDurations(a: number | null, b: number | null): number | null {
 }
 
 export async function importFromUrl(url: string): Promise<ParsedRecipe> {
-  const response = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LetThemCook/1.0)' },
-    signal: AbortSignal.timeout(10_000),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch URL: ${response.status}`);
-  }
-
-  const html = await response.text();
+  // safeFetch hardens this against SSRF — it only fetches public http(s) URLs.
+  const { body: html } = await safeFetch(url);
   const schema = extractJsonLd(html);
 
   if (schema) {

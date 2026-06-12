@@ -1,0 +1,73 @@
+# Implementation Plans
+
+Task-sized plans, each written to be implemented autonomously. **Start every task by reading
+[00-conventions.md](00-conventions.md)** — it holds the codebase patterns and traps the plans
+assume. Check items off here as they land.
+
+Sources: the 2026-06-11 code review, the project TODO notes, and the unfinished items in
+`specification.md` §8. When a plan ships, update the spec's Implementation Status section
+(and architecture.md for new models/routes/deps) — each plan's acceptance section says so.
+
+## Foundation & quality (do roughly in order)
+
+- [ ] [01 — Fix the 12 failing frontend tests](01-fix-frontend-tests.md) (S) — blocks 02 and all refactors
+- [ ] [02 — GitHub Actions CI](02-ci-github-actions.md) (S)
+- [ ] [03 — Deploy script `--with-data` flag](03-deploy-data-flag.md) (S) — **do before the next Pi deploy**
+- [ ] [04 — Dietary tags served from the API](04-dietary-tags-api.md) (S-M)
+- [ ] [05 — Shared Modal/Menu primitives (Headless UI)](05-ui-primitives.md) (S-M) — blocks 06–09, 26
+- [ ] [06 — Decompose RecipeForm](06-decompose-recipe-form.md) (M-L)
+- [ ] [07 — Decompose CookModePage](07-decompose-cook-mode.md) (M)
+- [ ] [08 — Decompose MealPlanFormPage](08-decompose-meal-plan-form.md) (M)
+- [ ] [09 — Decompose RecipeDetailPage](09-decompose-recipe-detail.md) (M)
+
+## Bugs & small improvements (independent; any order)
+
+- [ ] [10 — Fix stale unclassified-ingredients banner](10-fix-unclassified-banner.md) (S, bug)
+- [ ] [11 — Remove alias names from ingredient list](11-remove-alias-names-from-ingredient-list.md) (S)
+- [ ] [12 — Hours + minutes duration display](12-duration-display-hours.md) (S)
+- [ ] [13 — Hours/minutes input for step times](13-step-time-hm-input.md) (S)
+- [ ] [14 — Empty-able meal plan servings input](14-meal-plan-servings-input.md) (S; after 08 if both queued)
+- [ ] [15 — Read-only global ingredients + Customize flow](15-readonly-global-ingredients.md) (S-M)
+- [ ] [16 — Media visibility toggle](16-media-visibility-toggle.md) (S)
+- [ ] [17 — Cook mode wake lock + swipe navigation](17-wake-lock-swipe.md) (S-M)
+
+## Features
+
+- [ ] [18 — Canonical ingredient units](18-unit-normalization.md) (M) — do before 19, 27
+- [ ] [19 — Import hardening](19-import-hardening.md) (M)
+- [ ] [20 — Fuzzy matching for filtering/search/typeahead](20-fuzzy-matching.md) (M) — do before 34
+- [ ] [21 — Seed global substitutions](21-global-substitutions-seed.md) (S-M)
+- [ ] [22 — Implement LocalizationMapping](22-localization-mappings.md) (M)
+- [ ] [23 — Per-ingredient notes](23-ingredient-notes.md) (M)
+- [ ] [24 — Remaining-percent ingredient refs](24-remaining-percent-refs.md) (M)
+- [ ] [25 — Equipment & make-ahead labels](25-equipment-makeahead-labels.md) (S-M)
+- [ ] [26 — Image crop + natural aspect display](26-image-crop-aspect.md) (M; needs 05)
+- [ ] [27 — Unit conversion (imperial↔metric, temperatures)](27-unit-conversion.md) (M-L; needs 18)
+- [ ] [28 — Grocery aisle grouping](28-grocery-aisles.md) (M)
+- [ ] [29 — Share: native/email/PDF](29-sharing-text-pdf.md) (S-M)
+- [ ] [30 — Shareable links (public token view)](30-share-links.md) (M)
+- [ ] [31 — Bulk export (schema.org + proprietary)](31-schema-org-export.md) (M)
+- [ ] [32 — Photo/OCR import](32-ocr-import.md) (M; needs 19)
+- [ ] [33 — Component recipes](33-component-recipes.md) (L)
+
+## Big systems
+
+- [ ] [34 — Nutrition data (USDA lookup + copy-from-similar)](34-nutrition-data.md) (L; needs 20)
+- [ ] [35 — Nutrition aggregation & display](35-nutrition-display.md) (M; needs 34, 18)
+- [ ] [36 — Offline writes](36-offline-writes.md) (L; needs 01, 04) — blocks 37
+- [ ] [37 — Multi-device sync](37-device-sync.md) (XL, staged milestones; needs 36)
+- [ ] [38 — Cooking timeline](38-cooking-timeline.md) (L)
+- [ ] [39 — Publishing to other users](39-publishing.md) (L; needs 30)
+- [ ] [40 — Complementary recipe suggestions](40-complementary-suggestions.md) (M)
+
+## Dependency highlights
+
+```
+01 → 02            05 → 06,07,08,09,26      18 → 19 → 32       20 → 34 → 35
+04 → 36 → 37       30 → 39                  08 → 14            18 → 27
+```
+
+Everything else is independent. Decisions already made (don't re-litigate inside a task):
+Headless UI + react-easy-crop for UI deps; USDA FoodData Central live API for nutrition;
+LocalizationMapping is implemented, not deleted; sync keeps the server as relay + replica;
+PDF = print stylesheet; OCR is client-side.

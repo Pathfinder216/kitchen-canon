@@ -58,14 +58,14 @@ A recipe management application for collecting, consolidating, using, updating, 
 ### Metadata
 - **Servings**: Display and scale to arbitrary serving sizes (affects ingredient amounts)
 - **Time**: Total time (start to finish) and active time
-- **Categories**: Multiple categories per recipe (e.g., "dinner entrée", "appetizer", "spicy side dish")
+- **Courses**: Multiple courses per recipe, from a fixed taxonomy (appetizer, soup, salad, bread, main, side, dessert, breakfast, snack, drink, topping/condiment). *Design change during development: the original free-form "categories" concept was split into this fixed course enum plus free-form manual labels — courses drive structured filtering and future meal-composition features, while labels absorb everything ad hoc.*
 - **Labels**:
-  - Dietary restrictions (e.g., gluten-free, vegan)
-  - Allergens
-  - Auto-generated based on ingredients, manually editable
+  - Dietary restrictions (e.g., gluten-free, vegan) — auto-generated from the ingredient catalog, manually editable
+  - Allergens — auto-generated from the ingredient catalog
+  - Free-form manual labels for anything else
   - Easy-substitution suggestions (e.g., "can be made gluten-free with 1:1 flour swap")
-  - Make-ahead capability and refrigeration/freezing requirements
-  - Equipment (e.g., slow cooker)
+  - Make-ahead capability and refrigeration/freezing requirements (future: new label type)
+  - Equipment (e.g., slow cooker) (future: new label type)
   - All labeling/categorization is optional
 
 ---
@@ -144,30 +144,53 @@ A recipe management application for collecting, consolidating, using, updating, 
 - Critical for kitchen use with poor signal
 
 ### Data Storage
-- **Initial**: Raspberry Pi SD card
+- **Initial**: Raspberry Pi SD card (SQLite database + media files in a Docker volume)
 - **Requirement**: Abstract data API for easy migration to cloud providers (AWS, GCP, etc.) in future
+  - Database access goes through Prisma, so a Postgres move is low-friction
+  - Media storage is currently direct-filesystem; a storage-provider abstraction is still needed before a cloud move
 
 ### Hosting
-- Self-hosted on Raspberry Pi
-- Designed to run continuously
+- Self-hosted on Raspberry Pi via Docker Compose (single container: API + frontend + media)
+- Deployed with `scripts/deploy-to-pi.sh`; designed to run continuously
 - Must operate within Pi hardware constraints
+
+### Accounts & Security
+*(Added during development — originally a stretch goal, implemented early.)*
+- Multi-user with self-service signup; cookie-based sessions, CSRF protection
+- Per-user data isolation: recipes and meal plans are private to their owner
+- Shared global data (ingredient catalog, official substitutions, seeded labels) with per-user private additions layered on top
 
 ---
 
 ## 8. Scope & Future Enhancements
 
 ### Initial Version (v1)
-- Single-user application
-- Offline-capable
+- ~~Single-user application~~ → shipped with multi-user accounts and per-user data isolation (pulled forward from stretch goals)
+- Offline-capable (partially met — see Implementation Status below)
 - Self-hosted on Raspberry Pi
 - All core features listed above except those marked as "future" or "long-term"
 
 ### Stretch Goals
-- Multi-user platform with recipe sharing
-- User accounts, permissions, privacy controls
+- ~~User accounts~~ — done (sessions, signup, isolation); permissions/privacy controls beyond per-user privacy remain future
+- Recipe sharing between users / publishing (requires public or share-token routes — today every route, including media, is behind login)
 - Copyright and moderation considerations
 - Complementary recipe suggestions
 - Automated cooking timeline generation
+
+### Implementation Status (as of June 2026)
+
+**Implemented**: recipe CRUD with full versioning (view/restore, meal history pins the version cooked); archiving; author + personal notes; import from URL (schema.org JSON-LD + text fallback), .docx, .pdf, .txt; ingredient catalog with aliases, typeahead, and user classification of unknown ingredients; auto dietary/allergen labels; substitutions (official + user-contributed, applied per meal-plan recipe with ratio conversion); optional ingredients; serving scaling with percent-based ingredient references in steps; per-recipe and per-step media; search + include/exclude-ingredient + label/course/diet filtering; meal planning with consolidated editable grocery list (copy to clipboard) and remake; cook mode (step navigation, per-step timers with audio alert, ingredient checklist, multi-recipe plans); per-recipe export to .txt/.json and print layout; PWA install with cached read-only offline viewing; multi-user accounts.
+
+**Specified but not yet implemented** (all fit the current architecture; notes on how):
+- **Offline writes / background sync** — the largest gap vs. section 7. Needs an IndexedDB layer and queued mutations on the frontend; no backend changes required, though replayed mutations must fetch a fresh CSRF token. The current React Query + service-worker setup is compatible with this.
+- **Cook-mode screen wake lock and swipe navigation** — frontend-only additions to `CookModePage`.
+- **Sharing (text/PDF/email, shareable links)** — text export exists; links require new public share-token routes since all routes are login-gated. Fits as an additive route + a `shareToken` column.
+- **schema.org bulk export** — additive backend endpoint; the data model holds everything needed.
+- **Photo/OCR import** — feed OCR text into the existing text parser; client-side OCR preferred given Pi hardware.
+- **Media visibility toggle** — frontend-only display preference.
+- **Equipment and make-ahead labels** — new `Label.type` values; the label system already supports types.
+- **Component recipes** — see section below; additive schema changes.
+- **Cooking timeline** — steps already carry `timeMinutes` + active/passive flags, which is the data the scheduler needs; this remains a pure algorithm + UI layer on top.
 
 ### Component Recipes
 A component recipe is a reusable sub-recipe consumed by other recipes (e.g. pie crust, stock, dough, whipped cream). This is distinct from a standalone recipe with a course of "Topping / Condiment" — a component has no course and is not served on its own.
@@ -188,8 +211,8 @@ A global `IngredientCatalog` table stores canonical ingredient names alongside t
 
 When a meal plan is created or edited, any ingredient not found in the catalog is reported as `unknownIngredients` on the meal plan's `dietaryInfo`. The meal plan detail page prompts the user to classify these ingredients before diet calculations are shown.
 
-**Future: user-scoped ingredient catalog**
-The catalog is currently global (shared across all users). In a multi-user context this creates problems: a user's classification of "sausage" (e.g., vegan soy sausage vs. pork sausage) would affect everyone. When multi-user support is added, `IngredientCatalog` should gain a `userId` field (nullable for official/seed entries), and lookups should prefer the current user's entries over global ones. User-added entries should not be visible to other users by default.
+**User-scoped ingredient catalog (implemented)**
+With multi-user support, `IngredientCatalog` (and `IngredientAlias`) carry a nullable `userId`: null = official/seeded entries visible to everyone, non-null = that user's private additions. Lookups prefer the current user's entry over the global one (so one user's classification of "sausage" as vegan soy doesn't affect anyone else), and user-added entries are not visible to other users.
 
 ### Design Principles
 - Architecture should anticipate multi-user extension

@@ -1,331 +1,176 @@
 # Let Them Cook - Technical Architecture
 
+This document describes the architecture as built. Features that are planned but not yet
+implemented are explicitly marked **(planned)** — if something isn't marked, it exists in the code.
+
 ## Architecture Overview
 
 **Architecture Pattern**: Client-Server with Progressive Web App (PWA)
-- **Frontend**: React-based PWA for mobile-first, offline-capable experience
-- **Backend**: Node.js REST API server
-- **Database**: SQLite with abstraction layer for future migration
-- **Hosting**: Self-hosted on Windows 11 PC (with future migration path to dedicated hardware)
+- **Frontend**: React SPA with PWA install/caching support, built by Vite
+- **Backend**: Node.js + Express REST API; in production it also serves the built frontend and media
+- **Database**: SQLite via Prisma ORM (single-file DB, easy backups)
+- **Hosting**: Docker Compose on a Raspberry Pi (LAN); development happens on a Windows 11 PC
+- **Accounts**: Multi-user with cookie-based sessions and per-user data isolation
+
+```
+┌─────────────────────────────────────┐
+│        Phone / Browser (LAN)        │
+│  React PWA (service worker caches  │
+│  app shell + selected API reads)   │
+└───────────────┬─────────────────────┘
+                │ HTTP :8080
+┌───────────────▼─────────────────────┐
+│      Raspberry Pi — Docker          │
+│  ┌───────────────────────────────┐  │
+│  │  Node.js + Express (1 process)│  │
+│  │  - /api/* REST endpoints      │  │
+│  │  - /media/* (authed static)   │  │
+│  │  - SPA static files + fallback│  │
+│  └──────┬──────────────┬─────────┘  │
+│         │ Prisma       │ fs         │
+│  ┌──────▼─────┐  ┌─────▼─────────┐  │
+│  │ SQLite DB  │  │ media files   │  │
+│  │ (volume)   │  │ (volume)      │  │
+│  └────────────┘  └───────────────┘  │
+└─────────────────────────────────────┘
+```
+
+There is no reverse proxy, PM2, or separate static file server: a single Express process serves
+the API, the built SPA (with client-route fallback to `index.html`), and authenticated media.
 
 ---
 
 ## Technology Stack
 
-### Frontend
+### Frontend (`frontend/`)
 
-#### Core Framework
-- **React 18+** - Component-based UI framework
-  - Excellent mobile support
-  - Large ecosystem
-  - Good PWA tooling
-- **Vite** - Build tool and dev server
-  - Fast development experience
-  - Optimized production builds
-  - Better than Create React App for modern development
+#### Core
+- **React 19** with **Vite 7** (build + dev server with HMR)
+- **React Router 7** — client-side routing; `ProtectedRoute` redirects anonymous users to login
+- **TanStack Query (React Query) 5** — all server state: caching, invalidation on mutation
+- **Tailwind CSS 4** — utility-first styling; all components are hand-rolled (no Headless UI /
+  Radix component library)
+- **TypeScript** throughout
 
-#### PWA & Offline Support
-- **Service Workers** (via Workbox)
-  - Cache-first strategy for app shell
-  - Network-first for API calls with offline fallback
-  - Background sync for recipe edits made offline
-- **IndexedDB** (via Dexie.js)
-  - Local database for offline recipe storage
-  - Stores recipes, meal plans, and meal history
-  - Syncs with server when online
-- **Web App Manifest** - Install to home screen, splash screen
+#### State management
+- **React Query** for server data (recipes, meal plans, labels, ingredients, substitutions)
+- **React Context** for auth only (`src/auth/AuthContext.tsx`: current user, login/logout, CSRF)
+- Component-local `useState` for UI state (filters, cook-mode step/timers). No Zustand — local
+  state has been sufficient so far.
 
-#### UI & Styling
-- **Tailwind CSS** - Utility-first CSS framework
-  - Mobile-first by default
-  - Small bundle size with purging
-  - Fast development
-- **Headless UI** or **Radix UI** - Accessible component primitives
-  - Dialog/modal components
-  - Dropdown menus
-  - Toggle switches
+#### PWA & offline (current status)
+- **vite-plugin-pwa** (Workbox under the hood), `registerType: 'autoUpdate'`
+  - Precaches the app shell (static assets)
+  - Runtime caching of API reads: `/api/recipes*` stale-while-revalidate (7 days),
+    `/api/courses|labels|meal-plans` network-first (1 day)
+- **Web App Manifest** — installable to home screen, standalone display, SVG icons
+- **What works offline today**: viewing previously loaded recipes/meal plans (read-only)
+- **(planned)** Offline *writes*: IndexedDB (e.g. Dexie) + a queued-mutation/background-sync
+  layer so edits made offline sync when connectivity returns. Not implemented; React Query's
+  persistence plus a mutation queue is the likely route. Note that cookie sessions and CSRF
+  tokens need care here (queued mutations must replay with a fresh CSRF token).
 
-#### Key Browser APIs
-- **Screen Wake Lock API** - Prevent screen sleep in cook mode
-- **Web Share API** - Native sharing on mobile
-- **File System Access API** - For importing recipe files (with fallback to file input)
-- **Clipboard API** - Copy grocery lists
+#### Browser APIs
+- **Clipboard API** — copy grocery list (`components/GroceryList.tsx`)
+- **Web Audio API** — cook-mode timer completion beep (`pages/CookModePage.tsx`)
+- **(planned)** Screen Wake Lock in cook mode, Web Share API for sharing recipes
 
-#### State Management
-- **React Query (TanStack Query)** - Server state management
-  - Caching and synchronization
-  - Optimistic updates
-  - Perfect for offline-first apps
-- **Zustand** or **Context API** - Client state management
-  - Current meal plan
-  - UI state (cook mode, filters)
-  - User preferences
+#### Structure
+- `src/pages/` — route-level pages (recipe list/detail/form, version history, cook mode,
+  meal plan form/detail, meal history, import, substitutions, ingredients, login, signup)
+- `src/components/` — RecipeForm, IngredientList, StepList, FilterPanel, GroceryList,
+  RecipeSelector, RecipeMedia, StepMedia, ComboInput, ClassifyIngredientsPanel, etc.
+- `src/api/` — one module per resource; `client.ts` is a fetch wrapper that prepends `/api`,
+  sends credentials, and attaches the `x-csrf-token` header on mutations
+- `src/hooks/` — React Query hooks (`useRecipes`, `useMealPlans`, `useScaling`, `useIngredients`)
+- `src/utils/` — `resolveIngredientRefs` (renders `{ingredient:50%}` step tokens with scaled
+  amounts), `exportRecipe` (.txt/.json download), ingredient alias localization
 
-#### Routing
-- **React Router v6** - Client-side routing
-  - Nested routes for recipe/meal hierarchy
-  - Lazy loading for code splitting
+### Backend (`backend/`)
 
-### Backend
+#### Runtime & framework
+- **Node.js 20** + **Express 4** (TypeScript, compiled with `tsc`; dev uses `tsx watch`)
+- **Prisma ORM** on **SQLite** — type-safe client; schema is the source of truth at
+  `backend/prisma/schema.prisma`. SQLite caveat: no `mode: 'insensitive'` filters — names are
+  normalized to lowercase instead.
+- **Zod** — runtime validation of all request bodies/queries (`src/schemas/`, applied via
+  `src/middleware/validate.ts`); also validates env config (`src/config.ts`)
 
-#### Runtime & Framework
-- **Node.js 20+ LTS** - JavaScript runtime
-  - Cross-platform (Windows, Linux, macOS)
-  - Large ecosystem
-  - Good async I/O for file operations
-- **Express.js** - Web framework
-  - Lightweight and flexible
-  - Extensive middleware ecosystem
-  - RESTful API design
-
-#### API Design
-- **RESTful API** with conventional HTTP methods
-  - `GET /api/recipes` - List recipes
-  - `POST /api/recipes` - Create recipe
-  - `GET /api/recipes/:id` - Get recipe
-  - `PATCH /api/recipes/:id` - Update recipe (creates new version)
-  - `GET /api/recipes/:id/versions` - Get recipe versions
-  - `GET /api/meal-plans` - List meal plans
-  - `POST /api/meal-plans` - Create meal plan
-  - `POST /api/recipes/import` - Import recipe from URL/file
-  - `GET /api/export` - Export all recipes
-
-#### Database & ORM
-- **SQLite** - Embedded database
-  - No separate database server needed
-  - Perfect for single-user applications
-  - Single file database (easy backups)
-  - Supports concurrent reads
-  - Cross-platform (works on Windows, Linux, macOS)
-- **Prisma ORM** - Database toolkit
-  - Type-safe database client
-  - Migration system
-  - Easy to swap databases (SQLite → PostgreSQL) in future
-  - Schema-driven development
-
-#### File Storage
-- **Local Filesystem** - Initial implementation
-  - Store images/videos in organized directory structure
-  - Windows: `C:\Users\benno\Documents\GitHub\let-them-cook\data\media\recipes\{recipeId}\images\`
-  - Cross-platform paths handled by Node.js `path` module
-- **Storage Abstraction Layer** - Interface for future cloud migration
-  ```typescript
-  interface StorageProvider {
-    upload(file: Buffer, path: string): Promise<string>
-    download(path: string): Promise<Buffer>
-    delete(path: string): Promise<void>
-    getUrl(path: string): string
-  }
-  ```
-  - Implement `LocalStorageProvider` initially
-  - Easy to add `S3StorageProvider`, `GCSStorageProvider` later
-
-#### Recipe Parsing & Import
-- **cheerio** - HTML parsing for web scraping
-  - Extract schema.org Recipe structured data
-  - Fallback to custom parsing for common recipe sites
-- **pdf-parse** - Extract text from PDF files
-- **mammoth** - Parse .docx files to extract text
-- **Tesseract.js** - OCR for recipe photos
-  - Extract text from images of recipe cards
-  - May need to run on server or client depending on performance
-- **Custom recipe parser** - Parse extracted text into structured recipe
-  - Use regex patterns for ingredients/steps
-  - ML/LLM enhancement opportunity in future
-
-#### Authentication (Implemented)
-- **Cookie-based sessions** (no external auth library) — see the "Authentication & Multi-User Accounts" section below for the full design.
-  - `bcryptjs` for password hashing
-  - Server-side `Session` rows in SQLite, referenced by an opaque id in a signed httpOnly cookie
-  - `csrf-csrf` double-submit CSRF protection on state-changing requests
-
-#### Validation
-- **Zod** - Schema validation
-  - Runtime type checking for API inputs
-  - Shared schemas between frontend and backend
-
-#### Process Management
-- **PM2** - Production process manager (optional)
-  - Auto-restart on crash
-  - Log management
-  - Works on Windows, Linux, macOS
-  - Can run as Windows service for auto-start on boot
-
-### Database Schema Design
-
-#### Core Tables (via Prisma Schema)
-
-```prisma
-model Recipe {
-  id            String    @id @default(uuid())
-  title         String
-  servings      Int
-  totalTime     Int?      // minutes
-  activeTime    Int?      // minutes
-  source        String?   // Original URL or source name
-  archived      Boolean   @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Versioning
-  version       Int       @default(1)
-  parentId      String?   // ID of previous version
-  parent        Recipe?   @relation("RecipeVersions", fields: [parentId], references: [id])
-  versions      Recipe[]  @relation("RecipeVersions")
-
-  // Relations
-  ingredients   Ingredient[]
-  steps         Step[]
-  media         Media[]
-  categories    RecipeCategory[]
-  labels        RecipeLabel[]
-  authorNotes   String?
-  personalNotes String?
-
-  mealRecipes   MealRecipe[]
-}
-
-model Ingredient {
-  id              String   @id @default(uuid())
-  recipeId        String
-  recipe          Recipe   @relation(fields: [recipeId], references: [id])
-
-  name            String   // Standardized name
-  originalName    String?  // Original name from source
-  amount          Float?
-  unit            String?
-  isOptional      Boolean  @default(false)
-  order           Int      // Display order
-
-  // For percent-based references in steps
-  internalId      String   // e.g., "oil_1" for referencing in steps
-}
-
-model Step {
-  id              String   @id @default(uuid())
-  recipeId        String
-  recipe          Recipe   @relation(fields: [recipeId], references: [id])
-
-  order           Int
-  instruction     String   // Can include {oil_1:50%} for "50% of ingredient 'oil_1'"
-  timeMinutes     Int?
-  isActiveTime    Boolean  @default(true)
-
-  media           Media[]
-}
-
-model Media {
-  id              String   @id @default(uuid())
-  type            String   // 'image' | 'video'
-  path            String   // File path or URL
-  order           Int?
-
-  recipeId        String?
-  recipe          Recipe?  @relation(fields: [recipeId], references: [id])
-
-  stepId          String?
-  step            Step?    @relation(fields: [stepId], references: [id])
-}
-
-model Category {
-  id              String   @id @default(uuid())
-  name            String   @unique // e.g., "dinner", "appetizer", "side"
-  recipes         RecipeCategory[]
-}
-
-model RecipeCategory {
-  recipeId        String
-  categoryId      String
-  recipe          Recipe   @relation(fields: [recipeId], references: [id])
-  category        Category @relation(fields: [categoryId], references: [id])
-
-  @@id([recipeId, categoryId])
-}
-
-model Label {
-  id              String   @id @default(uuid())
-  type            String   // 'dietary', 'allergen', 'equipment', 'makeAhead'
-  name            String   // e.g., "gluten-free", "contains-nuts", "slow-cooker"
-  autoDetectable  Boolean  @default(false)
-
-  recipes         RecipeLabel[]
-}
-
-model RecipeLabel {
-  recipeId        String
-  labelId         String
-  recipe          Recipe   @relation(fields: [recipeId], references: [id])
-  label           Label    @relation(fields: [labelId], references: [id])
-
-  isAutoGenerated Boolean  @default(false)
-
-  @@id([recipeId, labelId])
-}
-
-model IngredientSubstitution {
-  id              String   @id @default(uuid())
-  fromIngredient  String   // Standardized ingredient name
-  toIngredient    String   // Substitute ingredient name
-  ratio           Float    // Conversion ratio (e.g., 1:3 for fresh:dried herbs)
-  notes           String?  // e.g., "Best for baking"
-
-  // User-contributed
-  createdBy       String?  // Future: user ID
-  isOfficial      Boolean  @default(false)
-}
-
-model LocalizationMapping {
-  id              String   @id @default(uuid())
-  locale          String   // e.g., "en-US", "en-GB"
-  originalName    String   // e.g., "coriander"
-  localizedName   String   // e.g., "cilantro"
-
-  @@unique([locale, originalName])
-}
-
-model MealPlan {
-  id              String   @id @default(uuid())
-  name            String?  // Optional name for the meal
-  createdAt       DateTime @default(now())
-  cookedAt        DateTime? // When the meal was actually cooked
-
-  recipes         MealRecipe[]
-  groceryList     GroceryItem[]
-}
-
-model MealRecipe {
-  id              String   @id @default(uuid())
-  mealPlanId      String
-  mealPlan        MealPlan @relation(fields: [mealPlanId], references: [id])
-
-  recipeId        String
-  recipe          Recipe   @relation(fields: [recipeId], references: [id])
-
-  recipeVersion   Int      // Snapshot of version used
-  servings        Int      // May be different from recipe default
-
-  order           Int?     // Order in the meal
-}
-
-model GroceryItem {
-  id              String   @id @default(uuid())
-  mealPlanId      String
-  mealPlan        MealPlan @relation(fields: [mealPlanId], references: [id])
-
-  ingredient      String
-  amount          Float?
-  unit            String?
-  purchased       Boolean  @default(false)
-}
-
-model UserPreferences {
-  id              String   @id @default(uuid())
-  locale          String   @default("en-US")
-  theme           String   @default("light")
-
-  // Future: dietary restrictions, allergens to flag, etc.
-}
+#### Layering
 ```
+routes/  (HTTP: parsing, status codes)  →  services/  (business logic, takes userId first)  →  Prisma
+```
+- `services/`: auth, recipe, meal-plan, grocery (list consolidation), import (parsing),
+  dietary (allergen/diet computation), substitutions
+- Routes stay thin; all ownership scoping lives in services (`userId` is always the first
+  argument), backed by isolation tests.
+
+#### Middleware stack (in order, `src/app.ts`)
+1. `helmet` (CSP disabled for now)
+2. `cors` with `credentials: true` (`CORS_ORIGIN` only needed for split-origin hosting; the dev
+   Vite proxy keeps requests same-origin)
+3. `cookie-parser` signed with `SESSION_SECRET`
+4. `express.json` (10 MB limit)
+5. `morgan` logging (skipped in tests)
+6. Public: `GET /api/health`, then `/api/auth/*` (mounted before the gates)
+7. `/api` → CSRF validation (`csrf-csrf` double-submit) + `requireAuth` (sets `req.userId`)
+8. `/media` → `requireAuth` + `express.static` (media is private to logged-in users)
+9. Resource routers
+10. Production only: static SPA + regex fallback to `index.html` for non-`/api`/`/media` paths
+11. Central error handler (AppError / ZodError aware)
+
+### API Design
+
+RESTful JSON under `/api`. Mutations require the CSRF header; everything except health and auth
+requires a session.
+
+| Area | Endpoints |
+|------|-----------|
+| Health | `GET /api/health` (public) |
+| Auth | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `GET /api/auth/csrf` |
+| Recipes | `GET /api/recipes` (search/filter/pagination), `POST /api/recipes`, `GET /api/recipes/:id`, `PATCH /api/recipes/:id` (creates a new version), `DELETE /api/recipes/:id` (toggle archive), `DELETE /api/recipes/:id/permanent` |
+| Versions | `GET /api/recipes/:id/versions`, `POST /api/recipes/:id/restore/:version` |
+| Recipe extras | `GET /api/recipes/:id/dietary-info`, `GET /api/recipes/:id/substitutions`, `POST /api/recipes/:id/labels`, `POST /api/recipes/:id/courses` |
+| Courses | `GET /api/courses` (static enum list) |
+| Labels | `GET /api/labels`, `POST /api/labels` |
+| Meal plans | `GET /api/meal-plans`, `POST /api/meal-plans`, `GET /api/meal-plans/:id`, `PATCH /api/meal-plans/:id`, `PATCH /api/meal-plans/:id/grocery/:itemId` (toggle purchased), `POST /api/meal-plans/:id/recalculate` (recompute dietary info), `POST /api/meal-plans/:id/remake` (clone) |
+| Import | `POST /api/import/url`, `POST /api/import/file` (multipart: .docx/.pdf/.txt) |
+| Ingredients (catalog) | `GET /api/ingredients?q=` (typeahead), `POST /api/ingredients`, `PATCH /api/ingredients/:id`, `DELETE /api/ingredients/:id` |
+| Substitutions | `GET /api/substitutions?from=`, `POST /api/substitutions`, `DELETE /api/substitutions/:id` |
+| Media | `POST/GET /api/recipes/:id/media`, `DELETE /api/recipes/:id/media/:mediaId`, `POST/GET /api/steps/:stepId/media`, `DELETE /api/steps/:stepId/media/:mediaId`; files served at `GET /media/:filename` (authed) |
+
+**(planned)** `GET /api/export` bulk export (schema.org + proprietary format). Today export is
+client-side per-recipe (.txt/.json) in `frontend/src/utils/exportRecipe.ts`.
+
+### Database Schema
+
+Source of truth: `backend/prisma/schema.prisma`. Summary of models and intent:
+
+| Model | Purpose / key fields |
+|-------|----------------------|
+| `User` | Account: unique lowercased `email`, `passwordHash` (bcrypt). Deleting cascades all owned data. |
+| `Session` | Server-side session: opaque `id` (stored in signed cookie), `userId`, `expiresAt`. |
+| `Recipe` | Owned by `userId`. `title`, `servings`, `source`, `archived`, notes (`authorNotes`/`personalNotes`). Versioning: `version`, `parentId` chain, `isLatest` flag — every edit creates a new row; restore copies an old version forward as the new latest. |
+| `Ingredient` | Per recipe: `name` (standardized), `originalName`, `amount`/`unit`, `isOptional`, `orderIndex`, optional `catalogId` link to `IngredientCatalog`. |
+| `Step` | `orderIndex`, `instruction` (may embed `{ingredientName:50%}` percent-reference tokens), `timeMinutes` (Float), `isActiveTime`. Recipe total/active time is computed from steps. |
+| `Media` | `'image' | 'video'`, `path` (`/media/{uuid}.{ext}`), attached to either a recipe or a step. |
+| `CourseType` (enum) + `RecipeCourse` | Fixed course taxonomy (APPETIZER, SOUP, SALAD, BREAD, MAIN, SIDE, DESSERT, BREAKFAST, SNACK, DRINK, TOPPING) — replaced the earlier free-form `Category` model. Free-form tagging lives in `Label` instead. |
+| `Label` + `RecipeLabel` | `type`: `'dietary' | 'allergen' | 'manual'`. Dietary/allergen labels are auto-computed from the ingredient catalog; manual labels are user-created. Nullable `userId` (null = global/seeded). |
+| `IngredientCatalog` | Canonical ingredients with `allergens` and `diets` JSON arrays; powers dietary auto-labeling and typeahead. Nullable `userId` (null = global seed of ~258 entries; non-null = user's private entry, preferred on lookup). |
+| `IngredientAlias` | Lowercased synonyms/stem variants → catalog entry; how free-text ingredient names resolve to the catalog. Nullable `userId`. |
+| `IngredientSubstitution` | `fromIngredient` → `toIngredient` with `ratio` + notes. `isOfficial`/null `createdBy` = global; user-created rows are private and deletable. |
+| `LocalizationMapping` | Locale-specific ingredient names (e.g. en-GB "coriander" → en-US "cilantro"). Nullable `userId`. |
+| `MealPlan` | Owned by `userId`. `name`, `date`/`time` strings, `notes`, `cookedAt`, `dietaryInfo` JSON (`allergens`, `diets`, `unknownIngredients` — computed across recipes after substitutions; optional ingredients excluded from allergen detection). |
+| `MealRecipe` | Recipe-in-plan: pins `recipeVersion` used, per-plan `servings`, `substitutions` JSON (`Record<ingredientId, { toIngredient, ratio }>`). |
+| `GroceryItem` | Consolidated list rows (`ingredient`, `amount`, `unit`, `purchased`), regenerated from the plan's recipes. |
+| `UserPreferences` | One per user (`locale`, `theme`). |
+
+Notable design points:
+- **`orderIndex`** is the ordering field name everywhere (not `order`, a SQL keyword).
+- **Versioning is row-copy**, not a diff log: simple, and meal plans pin `recipeVersion` so
+  history shows what was actually cooked. All versions in a chain share one owner.
+- The earlier idea of an `internalId` on ingredients for step references was dropped — steps
+  reference ingredients by name token (`{butter:50%}`), resolved at render time on the client.
 
 ---
 
@@ -335,7 +180,7 @@ The app is multi-tenant: every user has their own private data, behind a login. 
 
 ### Session & credential model
 - **Passwords**: hashed with `bcryptjs` (cost 12). Login returns an identical 401 for unknown-email and wrong-password to avoid account enumeration.
-- **Sessions**: server-side. A `Session` row (`id`, `userId`, `expiresAt`) is created on login/register; the opaque `id` is stored in a **signed, httpOnly** cookie (`ltc_session`). `requireAuth` middleware looks the session up, verifies it is live, and derives `req.userId` from it — the client never sends or can forge a user id. Expired sessions are dropped lazily on lookup, plus opportunistic cleanup on login. Cookie `secure` flag follows `COOKIE_SECURE` (defaults to true in production).
+- **Sessions**: server-side. A `Session` row (`id`, `userId`, `expiresAt`) is created on login/register; the opaque `id` is stored in a **signed, httpOnly** cookie (`ltc_session`). `requireAuth` middleware looks the session up, verifies it is live, and derives `req.userId` from it — the client never sends or can forge a user id. Expired sessions are dropped lazily on lookup, plus opportunistic cleanup on login. Cookie `secure` flag follows `COOKIE_SECURE` (defaults to true in production; the Pi deploy sets it false for plain-HTTP LAN serving).
 - **CSRF**: `csrf-csrf` double-submit token. A JS-readable `ltc_csrf` cookie is issued by `GET /api/auth/csrf`; the SPA echoes it in an `x-csrf-token` header on POST/PATCH/DELETE. `sameSite=lax` on both cookies. Login/register are exempt (no session yet).
 
 ### Auth endpoints (`/api/auth`, public)
@@ -352,674 +197,199 @@ Two patterns scope data by user:
 - **Private-only trees** — `Recipe` and `MealPlan` carry a non-null `userId`. Their children (`Ingredient`, `Step`, `Media`, `RecipeCourse`, `RecipeLabel`, `MealRecipe`, `GroceryItem`) inherit isolation through the parent. Reads use `where: { id, userId }` and return **404** (not 403) on a miss, so other users' data isn't even revealed to exist. Every version row in a recipe's version chain shares one owner.
 - **Global-base + private-supplement** — `IngredientCatalog`, `IngredientAlias`, `Label`, `LocalizationMapping`, and `IngredientSubstitution` carry a **nullable** owner (`userId`, or `createdBy`/`isOfficial` for substitutions). `null` = global/seeded and visible to everyone; non-null = that user's private addition. Reads use `where: { OR: [{ userId: null }, { userId }] }`; the user's own entry is preferred on a tie (e.g. ingredient → catalog resolution). Because SQLite treats `NULL` as distinct in unique indexes, the composite uniques (e.g. `IngredientAlias @@unique([alias, userId])`) don't dedupe globals — global uniqueness relies on the controlled seed plus an app-level check before a private insert.
 
-New models: `User` (email unique + lowercased, `passwordHash`) and `Session`. `UserPreferences` now has a unique `userId`. Deleting a user cascades their sessions, recipes, meal plans, and private supplement rows.
-
 ### Service pattern
 `userId` is threaded as the first argument into the owning service/route functions (e.g. `recipeService.getRecipe(userId, id)`), set from `req.userId` after `requireAuth`. This keeps scoping uniform rather than scattered, and is backed by isolation tests in `backend/src/__tests__/isolation.test.ts`.
 
 ---
 
+## File Storage & Media
+
+- Uploads go through **multer** disk storage (20 MB limit, image/video MIME filter) into
+  `MEDIA_STORAGE_PATH` as flat `{uuid}.{ext}` files; the DB stores the public path
+  `/media/{filename}` on the `Media` row.
+- Files are served by `express.static` behind `requireAuth` — media is not publicly readable.
+- Deleting media removes both the DB row and the file.
+- **(planned)** A `StorageProvider` abstraction (upload/download/delete/getUrl) to enable
+  S3/GCS later. Today filesystem access is direct; a cloud move means introducing that
+  interface in `routes/media.ts` first.
+
+## Recipe Parsing & Import (`services/import.service.ts`)
+
+- **URL import**: `fetch` with a 10s timeout → extract **schema.org Recipe JSON-LD** (custom
+  regex extraction — no cheerio dependency) → fall back to stripping HTML and running the text
+  parser.
+- **File import**: `.docx` via **mammoth**, `.pdf` via **pdf-parse**, plain text directly.
+- **Custom text parser**: section-header detection with heuristics for ingredient vs. step
+  lines; ingredient lines parsed by regex (unicode/slash fractions, units, "optional" flag).
+  Two regex gotchas are encoded in tests: bullet-stripping must not eat standalone digits, and
+  slash fractions must be matched before bare integers.
+- **(planned)** OCR import of recipe photos (Tesseract). Given Pi hardware, client-side OCR
+  (tesseract.js in the browser) is the more realistic option, feeding the same text parser.
+
+## Configuration (`backend/src/config.ts`, Zod-validated)
+
+| Env var | Default | Notes |
+|---------|---------|-------|
+| `NODE_ENV` | `development` | `production` enables SPA serving + secure cookies |
+| `PORT` | `8080` | Dev sets `PORT=3000` in `backend/.env` to match the Vite proxy target |
+| `DATABASE_URL` | `file:../data/database.db` | SQLite file (relative to `backend/`) |
+| `MEDIA_STORAGE_PATH` | `../data/media` | Created on boot if missing |
+| `SESSION_SECRET` | **required, no default** | ≥32 chars; signs session + CSRF cookies |
+| `SESSION_TTL_HOURS` | `720` (30 days) | Session lifetime |
+| `COOKIE_SECURE` | unset → true in prod | Pi deploy sets `false` (plain HTTP on LAN) |
+| `CORS_ORIGIN` | unset | Only needed for split-origin hosting |
+
+---
+
 ## Hosting & Deployment
 
-### Windows 11 Setup
+### Production: Docker Compose on Raspberry Pi
 
-#### Prerequisites
-- Windows 11 PC (any modern PC with 4GB+ RAM)
-- Administrator access for installing software
-- ~10GB free disk space (more if storing many recipes with media)
+The only supported production deployment is the container. The image is a 3-stage build
+(`Dockerfile`): build frontend → build backend (tsc + `prisma generate`) → slim runtime image
+with prod deps, compiled backend, and the built frontend copied in.
 
-#### System Dependencies
+On container start (`backend/docker-entrypoint.sh`):
+1. `npx prisma db push` — apply schema to the SQLite file in the volume
+2. `node dist/prisma/seed.js` — seed/refresh the global ingredient catalog
+3. `exec node dist/server.js`
 
-**1. Install Node.js**
-- Download from https://nodejs.org/ (LTS version, currently 20.x)
-- Run installer with default options
-- Verify installation:
-  ```powershell
-  node --version  # Should show v20.x.x
-  npm --version   # Should show 10.x.x
-  ```
+`docker-compose.yml`:
+- Single `app` service on port **8080**
+- Named volume `data` mounted at `/app/data` (database + media persist across rebuilds)
+- `SESSION_SECRET` is required and read from a `.env` file next to the compose file
+  (see `.env.example`); `COOKIE_SECURE` defaults to `false` for LAN HTTP
 
-**2. Install Git** (if not already installed)
-- Download from https://git-scm.com/download/win
-- Use default options during installation
+### Deploying: `scripts/deploy-to-pi.sh user@host`
+1. Syncs the source tree to `~/let-them-cook` on the Pi via `tar | ssh`
+   (excludes `node_modules`, `.git`, build outputs, `data/`, and `.env` so the Pi's secret is
+   never clobbered)
+2. First deploy only: generates a `.env` on the Pi with a random `SESSION_SECRET`
+   (`openssl rand -hex 32`)
+3. `docker compose up --build -d`
+4. Copies the local dev `data/database.db` and `data/media/` into the running container
+   (`docker compose cp`) so local content carries over
 
-**3. Install SQLite CLI** (optional, for database inspection)
-- Download from https://www.sqlite.org/download.html
-- Extract to a folder and add to PATH (optional)
+App is then live at `http://<pi-ip>:8080`. Updating = re-run the script. Note the data-copy
+step overwrites the Pi's database with the local one — appropriate while the dev machine is the
+source of truth, but it should be removed (or guarded) once the Pi copy becomes primary.
 
-**4. Install PM2** (optional, for production-like setup)
-```powershell
-npm install -g pm2
-npm install -g pm2-windows-service
-```
+> `backend/ecosystem.config.cjs` (PM2) is a leftover from a pre-Docker iteration and is not
+> used by anything.
 
-**5. Install Windows Terminal** (recommended)
-- Available in Microsoft Store
-- Better terminal experience than default Command Prompt
-
-### Application Setup
-
-#### Directory Structure
-```
-C:\Users\benno\Documents\GitHub\let-them-cook\
-├── frontend\
-│   ├── src\
-│   ├── dist\              # Built React app (production)
-│   ├── package.json
-│   └── ...
-├── backend\
-│   ├── src\
-│   ├── prisma\
-│   ├── dist\              # Compiled TypeScript (production)
-│   ├── package.json
-│   └── ...
-├── data\
-│   ├── database.db        # SQLite database
-│   └── media\             # Uploaded images/videos
-│       └── recipes\
-│           └── {recipeId}\
-│               ├── images\
-│               └── videos\
-└── logs\                  # Application logs (if using PM2)
-```
-
-### Development Mode (Recommended to Start)
-
-This is the simplest way to run the app for development and personal use:
-
-**1. Install Dependencies**
-```powershell
-# In backend directory
-cd C:\Users\benno\Documents\GitHub\let-them-cook\backend
-npm install
-
-# In frontend directory
-cd C:\Users\benno\Documents\GitHub\let-them-cook\frontend
-npm install
-```
-
-**2. Set Up Database**
-```powershell
-# In backend directory
-npx prisma generate
-npx prisma migrate dev --name init
-```
-
-**3. Create Environment File**
-
-Create `backend\.env`:
-```env
-NODE_ENV=development
-PORT=3000
-DATABASE_URL="file:C:/Users/benno/Documents/GitHub/let-them-cook/data/database.db"
-MEDIA_STORAGE_PATH="C:/Users/benno/Documents/GitHub/let-them-cook/data/media"
-```
-
-**4. Run Development Servers**
-
-Open two terminal windows:
-
-**Terminal 1 - Backend:**
-```powershell
-cd C:\Users\benno\Documents\GitHub\let-them-cook\backend
-npm run dev
-```
-
-**Terminal 2 - Frontend:**
-```powershell
-cd C:\Users\benno\Documents\GitHub\let-them-cook\frontend
-npm run dev
-```
-
-**5. Access the App**
-- On your PC: `http://localhost:5173`
-- On your phone (same WiFi): `http://192.168.1.X:5173`
-  - Find your PC's IP: `ipconfig` in PowerShell, look for "IPv4 Address"
-  - Allow through Windows Firewall when prompted
-
-### Production Mode (Always-On Access)
-
-For running the app 24/7 on your Windows PC:
-
-#### Option 1: Using PM2 (Recommended)
-
-**1. Build the Applications**
-```powershell
-# Build frontend
-cd C:\Users\benno\Documents\GitHub\let-them-cook\frontend
-npm run build
-
-# Build backend
-cd C:\Users\benno\Documents\GitHub\let-them-cook\backend
-npm run build
-```
-
-**2. Create PM2 Configuration**
-
-Create `backend\ecosystem.config.js`:
-```javascript
-module.exports = {
-  apps: [{
-    name: 'let-them-cook-api',
-    script: './dist/index.js',
-    instances: 1,
-    exec_mode: 'fork',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3000,
-      DATABASE_URL: 'file:C:/Users/benno/Documents/GitHub/let-them-cook/data/database.db',
-      MEDIA_STORAGE_PATH: 'C:/Users/benno/Documents/GitHub/let-them-cook/data/media'
-    },
-    error_file: 'C:/Users/benno/Documents/GitHub/let-them-cook/logs/api-error.log',
-    out_file: 'C:/Users/benno/Documents/GitHub/let-them-cook/logs/api-out.log',
-    log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
-  }]
-}
-```
-
-**3. Start PM2**
-```powershell
-cd C:\Users\benno\Documents\GitHub\let-them-cook\backend
-pm2 start ecosystem.config.js
-pm2 save
-```
-
-**4. Install as Windows Service** (starts on boot)
-```powershell
-npm install -g pm2-windows-service
-pm2-service-install
-pm2-service-start
-```
-
-**5. Serve Frontend**
-
-For production, you'll need a web server. Options:
-
-**Option A: Use `serve` package (simple)**
-```powershell
-npm install -g serve
-serve -s C:\Users\benno\Documents\GitHub\let-them-cook\frontend\dist -l 5173
-```
-
-**Option B: Use Nginx for Windows** (more robust)
-- Download from https://nginx.org/en/download.html
-- Extract to `C:\nginx`
-- Configure `C:\nginx\conf\nginx.conf` (see below)
-
-#### Option 2: Using Node.js Windows Service
-
-Alternatively, create a Windows service without PM2:
+### Development (Windows 11 or any OS)
 
 ```powershell
-npm install -g node-windows
+# One-time setup
+cd backend; npm install
+cd ../frontend; npm install
+
+# backend/.env  (SESSION_SECRET is required even in dev)
+# NODE_ENV=development
+# PORT=3000
+# DATABASE_URL="file:../../data/database.db"   # or your preferred location
+# MEDIA_STORAGE_PATH="../data/media"
+# SESSION_SECRET=<any 32+ char string>
+
+cd backend; npm run db:push; npm run db:seed
+
+# Run both servers (root package.json uses concurrently)
+cd ..; npm run dev
 ```
 
-Create a service installer script (run as administrator).
-
-### Nginx for Windows (Optional)
-
-If you want a production-like setup with reverse proxy:
-
-**1. Download & Extract**
-- Download from https://nginx.org/en/download.html
-- Extract to `C:\nginx`
-
-**2. Configure** (`C:\nginx\conf\nginx.conf`)
-```nginx
-worker_processes  1;
-
-events {
-    worker_connections  1024;
-}
-
-http {
-    include       mime.types;
-    default_type  application/octet-stream;
-
-    server {
-        listen       80;
-        server_name  localhost;
-
-        # Frontend (React PWA)
-        root   C:/Users/benno/Documents/GitHub/let-them-cook/frontend/dist;
-        index  index.html;
-
-        # Frontend routes (SPA fallback)
-        location / {
-            try_files $uri $uri/ /index.html;
-        }
-
-        # API proxy
-        location /api/ {
-            proxy_pass http://localhost:3000;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection 'upgrade';
-            proxy_set_header Host $host;
-            proxy_cache_bypass $http_upgrade;
-
-            # File upload size limit
-            client_max_body_size 100M;
-        }
-
-        # Media files
-        location /media/ {
-            alias C:/Users/benno/Documents/GitHub/let-them-cook/data/media/;
-            expires 30d;
-        }
-    }
-}
-```
-
-**3. Run Nginx**
-```powershell
-cd C:\nginx
-start nginx
-```
-
-**4. Manage Nginx**
-```powershell
-# Stop
-nginx -s stop
-
-# Reload config
-nginx -s reload
-```
-
-### Network Configuration
-
-#### Local Network Access
-- Find your PC's IP address:
-  ```powershell
-  ipconfig
-  ```
-  Look for "IPv4 Address" (e.g., 192.168.1.100)
-- Access from phone on same WiFi: `http://192.168.1.100:5173` (dev mode) or `http://192.168.1.100` (with Nginx)
-
-#### Windows Firewall
-Windows will prompt to allow Node.js through the firewall. Click "Allow access".
-
-Or manually configure:
-1. Windows Security → Firewall & network protection
-2. Advanced settings → Inbound Rules → New Rule
-3. Allow TCP ports 3000 (API) and 5173 (Vite dev server) or 80 (Nginx)
-
-#### Power Settings (for 24/7 operation)
-If you want the app always available:
-1. Settings → System → Power
-2. Screen and sleep → Never
-3. (Optional) Disable hibernation: `powercfg /h off` in admin PowerShell
-
-### Updating the Application
-
-```powershell
-# Pull latest changes
-cd C:\Users\benno\Documents\GitHub\let-them-cook
-git pull
-
-# Update backend
-cd backend
-npm install
-npx prisma migrate deploy  # If there are database changes
-npm run build  # If running in production mode
-
-# Update frontend
-cd ..\frontend
-npm install
-npm run build  # If running in production mode
-
-# Restart PM2 (if using)
-pm2 restart all
-```
+- Frontend: Vite on `http://localhost:5173`, proxying `/api` and `/media` to
+  `http://localhost:3000` — so the backend **must** run on 3000 in dev (set `PORT=3000`).
+- Phone testing on the LAN: `http://<pc-ip>:5173` (Vite binds `host: true`); allow Node through
+  the Windows firewall when prompted.
+- Useful backend scripts: `db:push`, `db:seed`, `db:migrate`, `db:backup`, `db:restore`, `test`.
 
 ---
 
-## Data Flow & Architecture Diagrams
+## Testing
 
-### High-Level Architecture
-```
-┌─────────────────────────────────────┐
-│         Mobile Phone / Browser      │
-│                                     │
-│  ┌────────────────────────────┐    │
-│  │     React PWA Frontend     │    │
-│  │                            │    │
-│  │  - Service Worker          │    │
-│  │  - IndexedDB (offline)     │    │
-│  │  - Wake Lock API           │    │
-│  └────────────┬───────────────┘    │
-└───────────────┼────────────────────┘
-                │ HTTP (local network)
-                │
-┌───────────────▼────────────────────┐
-│       Windows 11 PC                │
-│                                    │
-│  ┌──────────────────────────┐     │
-│  │    Nginx (optional) or   │     │
-│  │    Vite Dev Server       │     │
-│  │  - Static file serving   │     │
-│  │  - Reverse proxy         │     │
-│  └──────────┬───────────────┘     │
-│             │                      │
-│  ┌──────────▼───────────────┐     │
-│  │   Node.js + Express API  │     │
-│  │   - Recipe parser        │     │
-│  │   - Business logic       │     │
-│  └──────────┬───────────────┘     │
-│             │                      │
-│  ┌──────────▼───────────────┐     │
-│  │   SQLite Database        │     │
-│  │   (via Prisma ORM)       │     │
-│  └──────────────────────────┘     │
-│                                    │
-│  ┌──────────────────────────┐     │
-│  │   Filesystem Storage     │     │
-│  │   - Images               │     │
-│  │   - Videos               │     │
-│  └──────────────────────────┘     │
-└────────────────────────────────────┘
-```
+### Backend (`backend/src/__tests__/`, Vitest + Supertest)
+- ~92 tests across 9 suites: health, recipes (CRUD/versioning/filtering), categories-labels,
+  meal plans, grocery consolidation, import parsing, substitutions, auth, cross-user isolation.
+- `setup.ts` creates a temp SQLite DB via `prisma db push`; each suite's `beforeEach` cleans
+  tables in FK-safe order.
+- `helpers/auth.ts` provides `createAuthedApi(app)` — an authed supertest agent that
+  auto-attaches the `x-csrf-token` header — and `cleanupUsers()`.
 
-### Offline-First Data Sync Flow
-```
-┌────────────────────────────────┐
-│  User makes change offline    │
-│  (edit recipe, create meal)   │
-└───────────────┬────────────────┘
-                │
-                ▼
-┌────────────────────────────────┐
-│  Store in IndexedDB locally    │
-│  Mark as "pending sync"        │
-└───────────────┬────────────────┘
-                │
-                ▼
-┌────────────────────────────────┐
-│  Service Worker detects        │
-│  network connectivity          │
-└───────────────┬────────────────┘
-                │
-                ▼
-┌────────────────────────────────┐
-│  Background Sync API triggers  │
-│  sync to server                │
-└───────────────┬────────────────┘
-                │
-                ▼
-┌────────────────────────────────┐
-│  Server processes changes      │
-│  Returns updated data          │
-└───────────────┬────────────────┘
-                │
-                ▼
-┌────────────────────────────────┐
-│  Update IndexedDB with         │
-│  server response               │
-└────────────────────────────────┘
-```
+### Frontend (Vitest + React Testing Library, jsdom)
+- Component/page tests under `src/**/*.test.{ts,tsx}`; run with `npm test` (`vitest run`).
 
----
-
-## Development Workflow
-
-### Local Development Environment
-
-#### Prerequisites
-- Node.js 20+ LTS (download from nodejs.org)
-- npm (included with Node.js)
-- Git for Windows
-- SQLite3 CLI (optional, for database inspection)
-- Windows Terminal or PowerShell
-
-#### Project Setup (Windows)
-```powershell
-# Clone repository
-git clone https://github.com/yourusername/let-them-cook.git
-cd let-them-cook
-
-# Backend setup
-cd backend
-npm install
-npx prisma generate
-npx prisma migrate dev --name init
-
-# Create .env file
-@"
-NODE_ENV=development
-PORT=3000
-DATABASE_URL="file:C:/Users/benno/Documents/GitHub/let-them-cook/data/database.db"
-MEDIA_STORAGE_PATH="C:/Users/benno/Documents/GitHub/let-them-cook/data/media"
-"@ | Out-File -FilePath .env -Encoding utf8
-
-# Start backend dev server
-npm run dev  # Runs on http://localhost:3000
-
-# In a new terminal: Frontend setup
-cd ..\frontend
-npm install
-npm run dev  # Runs on http://localhost:5173
-```
-
-#### Development Stack
-- **Backend Dev Server**: `tsx watch` or `nodemon` for hot reload
-- **Frontend Dev Server**: Vite with HMR (Hot Module Replacement)
-- **Database Migrations**: Prisma Migrate
-- **Type Safety**: TypeScript across frontend and backend
-
-#### Accessing from Mobile
-1. Find your PC's IP: `ipconfig` in PowerShell
-2. On phone (same WiFi): `http://192.168.1.X:5173`
-3. Allow through Windows Firewall when prompted
-
-### Production Build (Windows)
-
-To test production build locally:
-
-```powershell
-# Build frontend
-cd C:\Users\benno\Documents\GitHub\let-them-cook\frontend
-npm run build
-
-# Build backend
-cd ..\backend
-npm run build
-
-# Start with PM2 (if installed)
-pm2 start ecosystem.config.js
-
-# Or run directly
-node dist/index.js
-```
+### Gaps
+- No E2E suite (Playwright is the intended tool, especially for PWA/offline behavior).
+- No CI pipeline (`.github/workflows` does not exist) — tests run locally.
 
 ---
 
 ## Future Migration Paths
 
-### Windows PC → Dedicated Hardware (Raspberry Pi, Mini PC)
+### SQLite → PostgreSQL
+1. Change the Prisma datasource provider and `DATABASE_URL`
+2. Export/import data
+3. Revisit SQLite-specific workarounds: lowercase-normalization instead of `mode: 'insensitive'`,
+   and the NULL-in-unique-index behavior that the global/private supplement tables rely on
+   (Postgres `NULLS NOT DISTINCT` could simplify this)
 
-If you decide to move from your Windows PC to always-on dedicated hardware:
+### Filesystem → S3/GCS media
+Requires introducing the storage abstraction first (see File Storage above) — uploads, static
+serving, and deletes all touch the filesystem directly today.
 
-#### Raspberry Pi Deployment
-
-**Hardware Options:**
-- **Raspberry Pi 5** (4GB or 8GB) - Best performance, ~$80-120 with accessories
-- **Raspberry Pi 4** (4GB) - Still excellent, ~$55-80 with accessories
-
-**Migration Steps:**
-
-1. **Set Up Raspberry Pi**
-   ```bash
-   # Update system
-   sudo apt update && sudo apt upgrade -y
-
-   # Install Node.js
-   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-   sudo apt install -y nodejs
-
-   # Install PM2
-   sudo npm install -g pm2
-
-   # Install Nginx
-   sudo apt install -y nginx
-   ```
-
-2. **Transfer Application**
-   ```bash
-   # On Pi: Clone repository
-   cd /home/pi
-   git clone https://github.com/yourusername/let-them-cook.git
-   cd let-them-cook
-
-   # Install dependencies
-   cd backend && npm install --production
-   cd ../frontend && npm install && npm run build
-   ```
-
-3. **Transfer Data**
-   ```bash
-   # From Windows PC, copy database and media files
-   # Option A: Use SCP
-   scp C:\Users\benno\Documents\GitHub\let-them-cook\data\database.db pi@raspberrypi:/home/pi/let-them-cook/data/
-
-   # Option B: Export/import via GitHub or USB drive
-   ```
-
-4. **Configure Nginx** (use the config from earlier Pi deployment section)
-
-5. **Set Up PM2**
-   ```bash
-   cd /home/pi/let-them-cook/backend
-   pm2 start ecosystem.config.js
-   pm2 save
-   pm2 startup  # Auto-start on boot
-   ```
-
-**Key Benefits:**
-- 24/7 availability without keeping PC running
-- Low power consumption (~5-10W vs 50-200W for PC)
-- Dedicated hardware = can restart PC freely
-- ~$1/month electricity vs ~$5-15/month for PC
-
-**Code Changes Required:** None! The application is cross-platform.
-
-**Environment Variable Changes:**
-```bash
-# Update .env to use Linux paths
-DATABASE_URL="file:/home/pi/let-them-cook/data/database.db"
-MEDIA_STORAGE_PATH="/home/pi/let-them-cook/data/media"
-```
-
----
-
-## Additional Migration Paths
-
-### Database Migration (SQLite → PostgreSQL)
-When ready to scale:
-1. Update Prisma schema datasource:
-   ```prisma
-   datasource db {
-     provider = "postgresql"
-     url      = env("DATABASE_URL")
-   }
-   ```
-2. Export SQLite data, import to PostgreSQL
-3. Run `prisma migrate` to update schema
-4. No application code changes needed (thanks to Prisma abstraction)
-
-### Storage Migration (Filesystem → S3)
-1. Implement `S3StorageProvider` class
-2. Update environment configuration to use S3 provider
-3. Migrate existing files to S3
-4. No route changes needed (abstraction layer handles it)
-
-### Hosting Migration (Windows/Pi → Cloud)
-Options when ready to scale or need more reliability:
-- **Railway**, **Fly.io**, **Render** - Simple Node.js deployment ($5-10/month)
-- **AWS EC2** or **DigitalOcean Droplet** - VPS similar to Pi setup ($5-20/month)
-- **Vercel** (frontend) + **Railway** (backend) - Serverless frontend, hosted backend
-- All options work the same way - deploy from GitHub, set environment variables
+### Pi → Cloud hosting
+The container is the unit of deployment, so any Docker host works (Fly.io, Railway, a VPS).
+Put TLS in front and set `COOKIE_SECURE=true`. SQLite-on-volume remains fine for small scale;
+move to Postgres if the host's volume story is weak.
 
 ---
 
 ## Security Considerations
 
-### Current (Multi-User)
-- Cookie-based authentication with server-side sessions (see "Authentication & Multi-User Accounts")
-- Password hashing with `bcryptjs`
-- CSRF protection (double-submit token) on state-changing requests
-- Per-user data isolation enforced in the service layer
-- CORS configured with credentials; explicit allowed origin via `CORS_ORIGIN`
-- Input validation via Zod
-- Parameterized queries via Prisma (SQL injection protection)
-- File upload validation (file type, size limits)
+### Current
+- Cookie-based auth with server-side sessions; signed httpOnly cookies
+- Password hashing with `bcryptjs`; enumeration-safe login
+- CSRF double-submit protection on state-changing requests
+- Per-user data isolation enforced in the service layer (404-on-miss), with test coverage
+- Authenticated media serving (no public file reads)
+- Zod input validation on every route; Prisma parameterized queries
+- Upload validation (MIME filter, 20 MB limit); helmet headers (CSP currently disabled)
 
 ### Future hardening
 - Rate limiting on auth endpoints (express-rate-limit)
-- HTTPS in production (set `COOKIE_SECURE=true` behind a TLS proxy)
-- CSP (Content Security Policy) headers (helmet CSP currently disabled)
-- OAuth providers (Google, GitHub) for easier onboarding
-- Email verification / password reset
+- HTTPS in production (reverse proxy + `COOKIE_SECURE=true`)
+- Enable a CSP via helmet
+- Email verification / password reset; optional OAuth providers
 
 ---
 
-## Performance Considerations
+## Performance Notes
 
-### Backend Optimizations
-- **Image Optimization**: Compress images on upload (sharp library)
-- **Video Handling**:
-  - Store original videos
-  - Consider not transcoding (let browser handle)
-  - Or offload transcoding to client
-- **Database Indexing**: Index frequently queried fields (recipe title, ingredients)
-- **Lazy Loading**: Load images/videos on demand
-- **Pagination**: For recipe lists (e.g., 20 recipes per page)
-
-### Frontend Optimizations
-- **Code Splitting**: Lazy load routes and components
-- **Image Lazy Loading**: Native `loading="lazy"` attribute
-- **Service Worker Caching**: Cache static assets aggressively
-- **Bundle Size**: Monitor with `vite-bundle-visualizer`
-
----
-
-## Testing Strategy
-
-### Frontend
-- **Unit Tests**: Vitest + React Testing Library
-- **E2E Tests**: Playwright (test PWA features, offline mode)
-
-### Backend
-- **Unit Tests**: Vitest or Jest
-- **Integration Tests**: Test API endpoints with supertest
-- **Database Tests**: Use in-memory SQLite for tests
-
-### Manual Testing
-- Test offline mode thoroughly
-- Test on actual mobile devices
-- Test accessing from phone over local WiFi
+- SQLite handles this workload comfortably; indexes exist on the hot foreign keys
+  (`userId`, session lookups)
+- Workbox runtime caching gives instant repeat loads of recipe reads
+- Media is served with no image resizing/compression — adding `sharp` thumbnails on upload is
+  the highest-value performance improvement if media volume grows
+- Recipe list supports pagination server-side
 
 ---
 
 ## Summary of Key Technologies
 
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **Frontend Framework** | React 18+ | UI components |
-| **Build Tool** | Vite | Development and production builds |
-| **Styling** | Tailwind CSS | Responsive, mobile-first design |
-| **State Management** | React Query + Zustand | Server and client state |
-| **Offline Storage** | IndexedDB (Dexie.js) | Local data persistence |
-| **Service Worker** | Workbox | Offline caching and sync |
-| **Backend Runtime** | Node.js 20+ | JavaScript server |
-| **Backend Framework** | Express.js | REST API |
-| **Database** | SQLite | Embedded database |
-| **ORM** | Prisma | Type-safe database access |
-| **Validation** | Zod | Runtime type checking |
-| **Web Scraping** | Cheerio | Recipe import from websites |
-| **PDF Parsing** | pdf-parse | Recipe import from PDFs |
-| **OCR** | Tesseract.js | Recipe import from images |
-| **Process Manager** | PM2 (optional) | Keep Node.js app running |
-| **Web Server** | Nginx (optional) or Vite | Static files and reverse proxy |
-| **Operating System** | Windows 11 | Primary development and hosting platform |
-
-This architecture provides a solid foundation for v1 while maintaining flexibility for future enhancements and scaling.
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Frontend framework | React 19 + TypeScript | SPA |
+| Build tool | Vite 7 | Dev proxy to backend on :3000 |
+| Styling | Tailwind CSS 4 | No component library; custom components |
+| Server state | TanStack Query 5 | All API data |
+| Client state | React Context (auth) + local state | No Zustand |
+| Routing | React Router 7 | `ProtectedRoute` guard |
+| PWA | vite-plugin-pwa (Workbox) | Shell precache + API read caching; offline writes planned |
+| Backend | Node.js 20 + Express 4 | Single process serves API, SPA, media |
+| Database | SQLite + Prisma | Schema at `backend/prisma/schema.prisma` |
+| Validation | Zod | Requests + env config |
+| Auth | bcryptjs + signed cookies + csrf-csrf | Server-side sessions |
+| Uploads | multer | Flat UUID files in `MEDIA_STORAGE_PATH` |
+| Import parsing | JSON-LD extraction, mammoth, pdf-parse, custom text parser | No cheerio/OCR (OCR planned) |
+| Deployment | Docker Compose on Raspberry Pi | `scripts/deploy-to-pi.sh`; data in named volume |
+| Testing | Vitest (+ Supertest, RTL) | No E2E/CI yet |

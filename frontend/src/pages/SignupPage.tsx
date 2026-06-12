@@ -21,6 +21,7 @@ export function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -44,7 +45,7 @@ export function SignupPage() {
 
     setSubmitting(true);
     try {
-      await register(email, password);
+      await register(email, password, inviteCode.trim() || undefined);
       navigate('/', { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Sign up failed');
@@ -95,6 +96,17 @@ export function SignupPage() {
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               required
+            />
+          </div>
+          <div>
+            <label className={labelClass} htmlFor="inviteCode">Invite code</label>
+            <input
+              id="inviteCode"
+              type="text"
+              autoComplete="off"
+              className={inputClass}
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
             />
           </div>
 

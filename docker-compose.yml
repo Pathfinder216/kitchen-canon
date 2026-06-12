@@ -19,6 +19,8 @@ services:
       # The app is served over HTTPS via the host's nginx reverse proxy, so secure cookies are on
       # by default. Override to false only for a throwaway plain-HTTP test.
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      # Optional signup gate. Empty = open registration; set to require an invite code on register.
+      SIGNUP_INVITE_CODE: ${SIGNUP_INVITE_CODE:-}
     restart: unless-stopped
 
 volumes:

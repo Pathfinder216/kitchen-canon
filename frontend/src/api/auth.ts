@@ -13,8 +13,16 @@ export function loginRequest(email: string, password: string): Promise<AuthUser>
   return apiPost<AuthUser>('/auth/login', { email, password });
 }
 
-export function registerRequest(email: string, password: string): Promise<AuthUser> {
-  return apiPost<AuthUser>('/auth/register', { email, password });
+export function registerRequest(
+  email: string,
+  password: string,
+  inviteCode?: string,
+): Promise<AuthUser> {
+  return apiPost<AuthUser>('/auth/register', {
+    email,
+    password,
+    ...(inviteCode ? { inviteCode } : {}),
+  });
 }
 
 export function logoutRequest(): Promise<void> {

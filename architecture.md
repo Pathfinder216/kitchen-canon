@@ -188,7 +188,7 @@ Notable design points:
 
 ## Authentication & Multi-User Accounts
 
-The app is multi-tenant: every user has their own private data, behind a login. Self-service signup is open.
+The app is multi-tenant: every user has their own private data, behind a login. Self-service signup is open by default, or gated behind an invite code when `SIGNUP_INVITE_CODE` is set (recommended for an internet-facing instance).
 
 ### Session & credential model
 - **Passwords**: hashed with `bcryptjs` (cost 12). Login returns an identical 401 for unknown-email and wrong-password to avoid account enumeration.
@@ -196,11 +196,14 @@ The app is multi-tenant: every user has their own private data, behind a login. 
 - **CSRF**: `csrf-csrf` double-submit token. A JS-readable `ltc_csrf` cookie is issued by `GET /api/auth/csrf`; the SPA echoes it in an `x-csrf-token` header on POST/PATCH/DELETE. `sameSite=lax` on both cookies. Login/register are exempt (no session yet).
 
 ### Auth endpoints (`/api/auth`, public)
-- `POST /register` — `{email, password}` → creates user + session, sets cookies
+- `POST /register` — `{email, password, inviteCode?}` → creates user + session, sets cookies. The submitted `inviteCode` is always checked against `SIGNUP_INVITE_CODE` (constant-time, generic 403 on mismatch); the default empty `SIGNUP_INVITE_CODE` matches an empty code, so signup is open until a code is set.
 - `POST /login` — `{email, password}` → sets cookies; 401 on bad credentials
 - `POST /logout` — destroys the session, clears the cookie
 - `GET /me` — current user, or 401
 - `GET /csrf` — issues a CSRF token
+
+### Rate limiting
+Per-IP limits via `express-rate-limit` (`src/middleware/rateLimits.ts`), keyed off `trust proxy` so they see real client IPs behind nginx. Disabled when `NODE_ENV=test`. Login 10/15 min, register 5/hour, the rest of `/api/auth` 60/15 min, and import (`/api/import/url`, `/file`) 20/hour. Over-limit responses are `429` with the app's `{ error }` shape and `RateLimit-*` headers.
 
 All other `/api` routes sit behind `requireAuth` (and CSRF for mutations); `/media` is also gated. The auth routes are mounted before those gates.
 
@@ -250,6 +253,7 @@ Two patterns scope data by user:
 | `SESSION_TTL_HOURS` | `720` (30 days) | Session lifetime |
 | `COOKIE_SECURE` | unset → true in prod | App is served over HTTPS via host nginx; stays `true` |
 | `CORS_ORIGIN` | unset | Only needed for split-origin hosting |
+| `SIGNUP_INVITE_CODE` | `''` (open signup) | register always checks `inviteCode` against this; empty matches an empty code, set it to gate signup |
 
 ---
 
@@ -282,12 +286,14 @@ by `certbot --nginx`. DuckDNS is used (over the router's `*.tplinkdns.com` DDNS)
 the Public Suffix List, so it gets its own Let's Encrypt rate-limit bucket. Only ports 80/443 are
 forwarded at the router to the Pi; the old `:8080` forward is removed.
 
-### Deploying: `scripts/deploy-to-pi.sh user@host`
+### Deploying: `scripts/deploy-to-pi.sh user@host [--invite-code CODE]`
 1. Syncs the source tree to `~/let-them-cook` on the Pi via `tar | ssh`
    (excludes `node_modules`, `.git`, build outputs, `data/`, and `.env` so the Pi's secret is
    never clobbered)
 2. First deploy only: generates a `.env` on the Pi with a random `SESSION_SECRET`
-   (`openssl rand -hex 32`)
+   (`openssl rand -hex 32`). `SIGNUP_INVITE_CODE` is set from `--invite-code` if given, else a
+   random one. On later deploys `--invite-code` sets/rotates just that line (other values, incl.
+   `SESSION_SECRET`, are left untouched); omit it to leave the invite code as-is.
 3. `docker compose up --build -d`
 4. Copies the local dev `data/database.db` and `data/media/` into the running container
    (`docker compose cp`) so local content carries over
@@ -379,9 +385,10 @@ move to Postgres if the host's volume story is weak.
 - Upload validation (MIME filter, 20 MB limit); helmet headers (CSP currently disabled)
 - **HTTPS in production**: TLS terminated by host nginx (Let's Encrypt/certbot) in front of the
   loopback-bound container; `COOKIE_SECURE=true`; Express `trust proxy = 1`
+- **Rate limiting** on auth + import endpoints (`express-rate-limit`, per-IP)
+- **Gated signup** via `SIGNUP_INVITE_CODE` (optional invite code on register)
 
 ### Future hardening
-- Rate limiting on auth endpoints (express-rate-limit)
 - Enable a CSP via helmet
 - Email verification / password reset; optional OAuth providers
 - Email verification / password reset; optional OAuth providers

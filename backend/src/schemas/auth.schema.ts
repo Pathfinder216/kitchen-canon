@@ -12,6 +12,8 @@ export const registerSchema = z.object({
     .max(200)
     .regex(/[a-zA-Z]/, 'Password must contain a letter')
     .regex(/\d/, 'Password must contain a number'),
+  // Required only when SIGNUP_INVITE_CODE is set; checked in the route (constant-time compare).
+  inviteCode: z.string().max(100).optional(),
 });
 
 export const loginSchema = z.object({

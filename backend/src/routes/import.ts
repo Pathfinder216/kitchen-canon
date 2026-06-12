@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { importFromDocx, importFromPdf, importFromUrl } from '../services/import.service.js';
+import { importLimiter } from '../middleware/rateLimits.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -17,6 +18,7 @@ const urlSchema = z.object({ url: z.string().url() });
 // POST /api/import/url
 router.post(
   '/url',
+  importLimiter,
   asyncHandler(async (req, res) => {
     const { url } = urlSchema.parse(req.body);
     const recipe = await importFromUrl(url);
@@ -27,6 +29,7 @@ router.post(
 // POST /api/import/file  (multipart, field name: "file")
 router.post(
   '/file',
+  importLimiter,
   upload.single('file'),
   asyncHandler(async (req, res) => {
     if (!req.file) {

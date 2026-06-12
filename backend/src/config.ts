@@ -20,6 +20,10 @@ const envSchema = z.object({
   // Allowed browser origin for credentialed CORS (only needed when frontend is served
   // from a different origin than the API). In dev the Vite proxy keeps requests same-origin.
   CORS_ORIGIN: z.string().optional(),
+  // Signup invite code. The register endpoint always checks the submitted inviteCode against this
+  // value (constant-time). The default empty string means an empty code is valid → open signup;
+  // set it to a secret to gate registration.
+  SIGNUP_INVITE_CODE: z.string().default(''),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { Response } from 'express';
 import { prisma } from '../db.js';
 import { config } from '../config.js';
@@ -6,6 +7,19 @@ import { AppError } from '../middleware/errorHandler.js';
 
 const BCRYPT_COST = 12;
 const SESSION_COOKIE = 'ltc_session';
+
+/**
+ * Constant-time check of the submitted signup invite code against SIGNUP_INVITE_CODE. The code is
+ * always checked: when SIGNUP_INVITE_CODE is the empty string (the default) only an empty code
+ * matches, so signup is effectively open; set it to a secret to gate registration. Both sides are
+ * SHA-256 hashed so timingSafeEqual gets equal-length buffers and the comparison neither leaks the
+ * code's length nor short-circuits on the first differing byte.
+ */
+export function isValidInviteCode(provided: string | undefined): boolean {
+  const expectedHash = crypto.createHash('sha256').update(config.SIGNUP_INVITE_CODE).digest();
+  const providedHash = crypto.createHash('sha256').update(provided ?? '').digest();
+  return crypto.timingSafeEqual(expectedHash, providedHash);
+}
 
 export interface PublicUser {
   id: string;

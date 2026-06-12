@@ -1,9 +1,22 @@
 #!/bin/bash
 # Deploy Let Them Cook to Raspberry Pi via Docker.
-# Usage: ./scripts/deploy-to-pi.sh user@host
+# Usage: ./scripts/deploy-to-pi.sh user@host [--invite-code CODE]
 set -e
 
-PI_HOST="${1:?Usage: ./scripts/deploy-to-pi.sh user@host}"
+# The SSH target is positional; --invite-code optionally sets/rotates the signup invite code.
+INVITE_CODE=""
+PI_HOST=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --invite-code)
+      [ $# -ge 2 ] || { echo "Error: --invite-code requires a value" >&2; exit 1; }
+      INVITE_CODE="$2"; shift 2 ;;
+    --invite-code=*) INVITE_CODE="${1#*=}"; shift ;;
+    *) PI_HOST="$1"; shift ;;
+  esac
+done
+: "${PI_HOST:?Usage: ./scripts/deploy-to-pi.sh user@host [--invite-code CODE]}"
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DB_PATH="$ROOT/data/database.db"
 MEDIA_PATH="$ROOT/data/media"
@@ -21,13 +34,31 @@ tar -C "$ROOT" \
   | ssh "$PI_HOST" 'mkdir -p ~/let-them-cook && tar -xzf - -C ~/let-them-cook'
 
 echo "==> Ensuring auth secret exists on the Pi..."
-# docker compose reads ~/let-them-cook/.env for SESSION_SECRET. Generate one on first deploy.
+# docker compose reads ~/let-them-cook/.env for SESSION_SECRET (generated on first deploy) and
+# SIGNUP_INVITE_CODE, which gates registration (the app is internet-facing). Pass --invite-code to
+# set/rotate it; otherwise a random one is generated on first deploy and any existing value is kept.
 # COOKIE_SECURE=true because the app is fronted by the host's nginx HTTPS reverse proxy.
-ssh "$PI_HOST" 'cd ~/let-them-cook && if [ ! -f .env ]; then \
-  printf "SESSION_SECRET=%s\nCOOKIE_SECURE=true\nAPP_DOMAIN=\n" "$(openssl rand -hex 32)" > .env; \
-  echo "   Generated a new .env with a random SESSION_SECRET"; \
-  echo "   >>> Set APP_DOMAIN in ~/let-them-cook/.env to the DuckDNS name and configure the nginx vhost + certbot for it."; \
-else echo "   .env already present"; fi'
+ssh "$PI_HOST" 'bash -s' "$INVITE_CODE" <<'REMOTE'
+set -e
+INVITE_CODE="$1"
+cd ~/let-them-cook
+if [ ! -f .env ]; then
+  CODE="${INVITE_CODE:-$(openssl rand -hex 8)}"
+  printf "SESSION_SECRET=%s\nCOOKIE_SECURE=true\nSIGNUP_INVITE_CODE=%s\nAPP_DOMAIN=\n" "$(openssl rand -hex 32)" "$CODE" > .env
+  echo "   Generated a new .env with a random SESSION_SECRET"
+  echo "   >>> Signup invite code (share with intended users): $CODE"
+  echo "   >>> Set APP_DOMAIN in ~/let-them-cook/.env to the DuckDNS name and configure the nginx vhost + certbot for it."
+else
+  echo "   .env already present"
+  if [ -n "$INVITE_CODE" ]; then
+    # Replace the SIGNUP_INVITE_CODE line (or add it) without touching SESSION_SECRET or others.
+    grep -v '^SIGNUP_INVITE_CODE=' .env > .env.tmp || true
+    printf "SIGNUP_INVITE_CODE=%s\n" "$INVITE_CODE" >> .env.tmp
+    mv .env.tmp .env
+    echo "   >>> Updated signup invite code to: $INVITE_CODE"
+  fi
+fi
+REMOTE
 
 echo "==> Building and starting containers..."
 ssh "$PI_HOST" "cd ~/let-them-cook && docker compose up --build -d"

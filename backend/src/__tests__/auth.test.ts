@@ -39,6 +39,18 @@ describe('POST /api/auth/register', () => {
     const res = await request(app).post('/api/auth/register').send({ email: 'weak@example.com', password: 'short' });
     expect(res.status).toBe(400);
   });
+
+  it('accepts a blank/absent invite code when signup is open (empty SIGNUP_INVITE_CODE)', async () => {
+    const res = await request(app).post('/api/auth/register').send({ email: 'open@example.com', password: 'password123' });
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects a non-empty invite code when signup is open (the empty code is the only match)', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'coded@example.com', password: 'password123', inviteCode: 'unexpected' });
+    expect(res.status).toBe(403);
+  });
 });
 
 describe('POST /api/auth/login', () => {

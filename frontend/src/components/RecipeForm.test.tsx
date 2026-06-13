@@ -1,14 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { renderWithProviders } from '../test/utils';
 import { RecipeForm } from './RecipeForm';
 
 function renderForm(props: Partial<Parameters<typeof RecipeForm>[0]> = {}) {
-  return render(
-    <MemoryRouter>
-      <RecipeForm onSubmit={vi.fn()} isSubmitting={false} {...props} />
-    </MemoryRouter>,
+  return renderWithProviders(
+    <RecipeForm onSubmit={vi.fn()} isSubmitting={false} {...props} />,
   );
 }
 
@@ -45,6 +43,8 @@ describe('RecipeForm', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'My New Recipe', servings: 1 }),
       expect.objectContaining({ stepMedia: [] }),
+      [],
+      [],
     );
   });
 

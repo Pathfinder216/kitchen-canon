@@ -79,7 +79,7 @@ describe('CookModePage', () => {
     // Navigate to step 2 (passive time with 10 minutes)
     fireEvent.click(screen.getByRole('button', { name: /next/i }));
     expect(screen.getByText('Let it rest')).toBeInTheDocument();
-    expect(screen.getByText(/10m/)).toBeInTheDocument();
+    expect(screen.getByText(/10 min \(passive\)/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /start timer/i })).toBeInTheDocument();
   });
 

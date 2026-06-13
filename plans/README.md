@@ -21,7 +21,7 @@ Pi; 44 is defense-in-depth after the first three.
 
 ## Foundation & quality (do roughly in order)
 
-- [ ] [01 — Fix the 12 failing frontend tests](01-fix-frontend-tests.md) (S) — blocks 02 and all refactors
+- [x] [01 — Fix the 12 failing frontend tests](01-fix-frontend-tests.md) (S) — blocks 02 and all refactors
 - [ ] [02 — GitHub Actions CI](02-ci-github-actions.md) (S)
 - [ ] [03 — Deploy script `--with-data` flag](03-deploy-data-flag.md) (S) — **do before the next Pi deploy**
 - [ ] [04 — Dietary tags served from the API](04-dietary-tags-api.md) (S-M)

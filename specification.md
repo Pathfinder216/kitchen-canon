@@ -161,6 +161,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - SSRF protection on import-from-URL: user-supplied URLs are validated and resolved against an allowlist of public addresses before fetching (blocks internal/cloud-metadata probing)
 - Per-user data isolation: recipes and meal plans are private to their owner
 - Shared global data (ingredient catalog, official substitutions, seeded labels) with per-user private additions layered on top
+- Defense-in-depth: a strict Content-Security-Policy in production (no inline scripts) and a non-root (`node` user) Docker container
 
 ---
 

@@ -118,7 +118,7 @@ routes/  (HTTP: parsing, status codes)  →  services/  (business logic, takes u
   argument), backed by isolation tests.
 
 #### Middleware stack (in order, `src/app.ts`)
-1. `helmet` (CSP disabled for now)
+1. `helmet` (strict CSP in production; disabled in dev/test where Vite serves the frontend)
 2. `cors` with `credentials: true` (`CORS_ORIGIN` only needed for split-origin hosting; the dev
    Vite proxy keeps requests same-origin)
 3. `cookie-parser` signed with `SESSION_SECRET`
@@ -382,7 +382,14 @@ move to Postgres if the host's volume story is weak.
 - Per-user data isolation enforced in the service layer (404-on-miss), with test coverage
 - Authenticated media serving (no public file reads)
 - Zod input validation on every route; Prisma parameterized queries
-- Upload validation (MIME filter, 20 MB limit); helmet headers (CSP currently disabled)
+- Upload validation (MIME filter, 20 MB limit); helmet security headers
+- **Content-Security-Policy** in production: `default-src 'self'`, `script-src 'self'` (no
+  `unsafe-inline` — the prod bundle has no inline scripts), `object-src 'none'`,
+  `frame-ancestors 'self'`; `style-src` allows `'unsafe-inline'` for React/FLIP style attributes,
+  and `img-src`/`media-src` allow `blob:`/`data:`. Disabled in dev/test (Vite serves the SPA there
+  and HMR injects inline scripts)
+- **Non-root container**: the production image runs as the unprivileged `node` user (uid 1000);
+  `/app/data` is node-owned in the image so the named volume inherits it on first use
 - **HTTPS in production**: TLS terminated by host nginx (Let's Encrypt/certbot) in front of the
   loopback-bound container; `COOKIE_SECURE=true`; Express `trust proxy = 1`
 - **Rate limiting** on auth + import endpoints (`express-rate-limit`, per-IP)
@@ -393,8 +400,6 @@ move to Postgres if the host's volume story is weak.
   manual redirect re-validation (max 3 hops), and 10 s / 2 MB / content-type response caps
 
 ### Future hardening
-- Enable a CSP via helmet
-- Email verification / password reset; optional OAuth providers
 - Email verification / password reset; optional OAuth providers
 
 ---

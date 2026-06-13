@@ -31,7 +31,31 @@ export function createApp() {
   }
 
   // Middleware
-  app.use(helmet({ contentSecurityPolicy: false }));
+  // CSP is enabled in production only: the prod bundle is a compiled Vite build (no inline
+  // scripts), but in dev the frontend is served by Vite on :5173 (not this process) and HMR
+  // injects inline scripts that a strict policy would reject — so a CSP here would only ever
+  // bite the prod bundle. Directives are kept narrow; scriptSrc never gets 'unsafe-inline'.
+  app.use(
+    helmet({
+      contentSecurityPolicy:
+        config.NODE_ENV === 'production'
+          ? {
+              directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'"],
+                styleSrc: ["'self'", "'unsafe-inline'"], // style attributes (React inline styles, FLIP animation)
+                imgSrc: ["'self'", 'blob:', 'data:'], // blob: for crop previews (plan 26), data: for icons
+                mediaSrc: ["'self'", 'blob:'],
+                connectSrc: ["'self'"], // API + service worker fetches
+                workerSrc: ["'self'"], // PWA service worker; tesseract worker (plan 32) is same-origin
+                objectSrc: ["'none'"],
+                baseUri: ["'self'"],
+                frameAncestors: ["'self'"],
+              },
+            }
+          : false,
+    }),
+  );
   // credentials:true is required for the browser to send/receive auth cookies. In dev the Vite
   // proxy keeps requests same-origin; CORS_ORIGIN is only needed for split-origin hosting.
   app.use(cors({ origin: config.CORS_ORIGIN ?? true, credentials: true }));

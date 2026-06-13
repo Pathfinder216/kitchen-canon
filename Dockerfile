@@ -37,6 +37,13 @@ COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 COPY backend/docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
+# Run as the unprivileged `node` user (uid 1000, ships with the alpine base) instead of root.
+# /app/data must exist and be node-owned BEFORE the named volume mounts over it — a fresh volume
+# inherits ownership from the image path on first use, so this is what lets the app write the
+# SQLite DB and uploaded media once the volume is attached.
+RUN mkdir -p /app/data && chown -R node:node /app/data /app/backend /app/frontend
+USER node
+
 ENV NODE_ENV=production
 EXPOSE 8080
 ENTRYPOINT ["./docker-entrypoint.sh"]

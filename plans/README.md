@@ -17,7 +17,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [x] [41 — HTTPS via reverse proxy + secure cookies](41-https-tls.md) (M) — repo-side landed (trust-proxy, loopback bind, `COOKIE_SECURE=true`, `deploy/nginx/letthemcook.conf`, docs); Pi nginx-vhost + certbot + DuckDNS cutover is the operator runbook (host nginx already owns :443, so no Caddy service)
 - [x] [42 — Rate limiting + gated signup](42-auth-rate-limit-signup.md) (S-M) — `express-rate-limit` per-IP limiters on auth + import; `SIGNUP_INVITE_CODE` gates registration (constant-time check); deploy script generates + echoes an invite code
 - [x] [43 — Fix SSRF in import-from-URL](43-ssrf-import-url.md) (S-M) — `src/utils/safeFetch.ts` hardens user-URL fetches (scheme/credential/host/DNS-range checks, manual redirect re-validation, 2 MB + content-type caps); `importFromUrl` uses it; 56-test unit suite
-- [ ] [44 — Enable CSP + non-root container](44-csp-container-hardening.md) (S-M) — defense-in-depth
+- [x] [44 — Enable CSP + non-root container](44-csp-container-hardening.md) (S-M) — production-only strict CSP via helmet (no inline scripts; `script-src 'self'`); Dockerfile runs as `node` user with node-owned `/app/data`; one-time `chown` migration documented for existing volumes
 
 ## Foundation & quality (do roughly in order)
 

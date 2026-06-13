@@ -1,5 +1,7 @@
 # Let Them Cook
 
+[![CI](https://github.com/Pathfinder216/let-them-cook/actions/workflows/ci.yml/badge.svg)](https://github.com/Pathfinder216/let-them-cook/actions/workflows/ci.yml)
+
 A personal recipe management app for collecting, organizing, and cooking from your recipe collection. Self-hosted, offline-capable, and designed for use on both mobile and desktop.
 
 ## Features

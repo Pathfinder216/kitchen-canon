@@ -286,7 +286,7 @@ by `certbot --nginx`. DuckDNS is used (over the router's `*.tplinkdns.com` DDNS)
 the Public Suffix List, so it gets its own Let's Encrypt rate-limit bucket. Only ports 80/443 are
 forwarded at the router to the Pi; the old `:8080` forward is removed.
 
-### Deploying: `scripts/deploy-to-pi.sh user@host [--invite-code CODE]`
+### Deploying: `scripts/deploy-to-pi.sh [--with-data [--force]] user@host [--invite-code CODE]`
 1. Syncs the source tree to `~/let-them-cook` on the Pi via `tar | ssh`
    (excludes `node_modules`, `.git`, build outputs, `data/`, and `.env` so the Pi's secret is
    never clobbered)
@@ -295,13 +295,15 @@ forwarded at the router to the Pi; the old `:8080` forward is removed.
    random one. On later deploys `--invite-code` sets/rotates just that line (other values, incl.
    `SESSION_SECRET`, are left untouched); omit it to leave the invite code as-is.
 3. `docker compose up --build -d`
-4. Copies the local dev `data/database.db` and `data/media/` into the running container
-   (`docker compose cp`) so local content carries over
+4. **Data copy is opt-in.** By default the script skips it (the Pi's DB is now authoritative —
+   it holds accounts created via live signup). Pass `--with-data` to copy this machine's
+   `data/database.db` and `data/media/` into the container. If the Pi already has a DB, the
+   script first backs it up to `backups/pi-<timestamp>.db` on the dev machine (gitignored), warns
+   that signup accounts will be lost, and requires a typed `yes`. `--with-data --force` skips that
+   guard for non-interactive use.
 
 App is then live at `https://<APP_DOMAIN>` (the DuckDNS hostname, via the nginx vhost). Updating
-= re-run the script. Note the data-copy
-step overwrites the Pi's database with the local one — appropriate while the dev machine is the
-source of truth, but it should be removed (or guarded) once the Pi copy becomes primary.
+= re-run the script (without `--with-data`, so Pi data is left untouched).
 
 > `backend/ecosystem.config.cjs` (PM2) is a leftover from a pre-Docker iteration and is not
 > used by anything.

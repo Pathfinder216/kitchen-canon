@@ -18,6 +18,8 @@ duck.env
 data/
 *.db
 *.db-journal
+# Timestamped Pi DB backups taken by deploy-to-pi.sh --with-data
+backups/
 
 # Logs
 logs/

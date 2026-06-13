@@ -1,21 +1,32 @@
 #!/bin/bash
 # Deploy Let Them Cook to Raspberry Pi via Docker.
-# Usage: ./scripts/deploy-to-pi.sh user@host [--invite-code CODE]
+# Usage: ./scripts/deploy-to-pi.sh [--with-data [--force]] user@host [--invite-code CODE]
 set -e
 
+USAGE="Usage: ./scripts/deploy-to-pi.sh [--with-data [--force]] user@host [--invite-code CODE]"
+
 # The SSH target is positional; --invite-code optionally sets/rotates the signup invite code.
+# --with-data copies this machine's data/ into the Pi container (off by default so a redeploy
+# never silently overwrites accounts created on the Pi); --force skips the interactive guard.
 INVITE_CODE=""
 PI_HOST=""
+WITH_DATA=false
+FORCE=false
 while [ $# -gt 0 ]; do
   case "$1" in
     --invite-code)
       [ $# -ge 2 ] || { echo "Error: --invite-code requires a value" >&2; exit 1; }
       INVITE_CODE="$2"; shift 2 ;;
     --invite-code=*) INVITE_CODE="${1#*=}"; shift ;;
+    --with-data) WITH_DATA=true; shift ;;
+    --force) FORCE=true; shift ;;
     *) PI_HOST="$1"; shift ;;
   esac
 done
-: "${PI_HOST:?Usage: ./scripts/deploy-to-pi.sh user@host [--invite-code CODE]}"
+: "${PI_HOST:?$USAGE}"
+if [ "$FORCE" = true ] && [ "$WITH_DATA" != true ]; then
+  echo "Error: --force only applies with --with-data" >&2; exit 1
+fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DB_PATH="$ROOT/data/database.db"
@@ -63,16 +74,38 @@ REMOTE
 echo "==> Building and starting containers..."
 ssh "$PI_HOST" "cd ~/let-them-cook && docker compose up --build -d"
 
-if [ -f "$DB_PATH" ]; then
-  echo "==> Copying database into container..."
-  scp "$DB_PATH" "$PI_HOST:/tmp/let-them-cook-db.db"
-  ssh "$PI_HOST" "cd ~/let-them-cook && docker compose cp /tmp/let-them-cook-db.db app:/app/data/database.db && rm /tmp/let-them-cook-db.db"
-fi
+if [ "$WITH_DATA" != true ]; then
+  echo "==> Skipping data copy — pass --with-data to seed the Pi from this machine's data/"
+else
+  # Guard: if the Pi already has a database, copying would overwrite it (and any accounts
+  # created on the Pi). Back it up to this machine and require confirmation, unless --force.
+  if [ "$FORCE" != true ] && \
+     ssh "$PI_HOST" "cd ~/let-them-cook && docker compose exec -T app test -f /app/data/database.db" 2>/dev/null; then
+    echo ""
+    echo "!! WARNING: the Pi already has a database at /app/data/database.db."
+    echo "!! Copying --with-data will OVERWRITE it, destroying any accounts created on the Pi."
+    mkdir -p "$ROOT/backups"
+    BACKUP="$ROOT/backups/pi-$(date +%Y%m%d-%H%M%S).db"
+    echo "==> Backing up the Pi database to $BACKUP first..."
+    ssh "$PI_HOST" "cd ~/let-them-cook && docker compose cp app:/app/data/database.db /tmp/ltc-pi-backup.db"
+    scp "$PI_HOST:/tmp/ltc-pi-backup.db" "$BACKUP"
+    ssh "$PI_HOST" "rm -f /tmp/ltc-pi-backup.db"
+    printf "Type 'yes' to overwrite the Pi database: "
+    read -r CONFIRM
+    [ "$CONFIRM" = "yes" ] || { echo "Aborted — Pi data left untouched."; exit 1; }
+  fi
 
-if [ -d "$MEDIA_PATH" ]; then
-  echo "==> Copying media into container..."
-  scp -r "$MEDIA_PATH" "$PI_HOST:/tmp/let-them-cook-media"
-  ssh "$PI_HOST" "cd ~/let-them-cook && docker compose cp /tmp/let-them-cook-media/. app:/app/data/media && rm -rf /tmp/let-them-cook-media"
+  if [ -f "$DB_PATH" ]; then
+    echo "==> Copying database into container..."
+    scp "$DB_PATH" "$PI_HOST:/tmp/let-them-cook-db.db"
+    ssh "$PI_HOST" "cd ~/let-them-cook && docker compose cp /tmp/let-them-cook-db.db app:/app/data/database.db && rm /tmp/let-them-cook-db.db"
+  fi
+
+  if [ -d "$MEDIA_PATH" ]; then
+    echo "==> Copying media into container..."
+    scp -r "$MEDIA_PATH" "$PI_HOST:/tmp/let-them-cook-media"
+    ssh "$PI_HOST" "cd ~/let-them-cook && docker compose cp /tmp/let-them-cook-media/. app:/app/data/media && rm -rf /tmp/let-them-cook-media"
+  fi
 fi
 
 echo ""

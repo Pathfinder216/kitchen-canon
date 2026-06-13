@@ -11,8 +11,12 @@ FROM node:24-alpine AS backend-build
 WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm ci
-COPY backend/ ./
+# Generate the Prisma client before copying the rest of the source so this layer stays cached
+# across pushes (it only busts when the schema/config or deps change, not on every code edit).
+COPY backend/prisma ./prisma
+COPY backend/prisma.config.ts ./
 RUN npx prisma generate
+COPY backend/ ./
 RUN npm run build
 
 # ── Stage 3: Production image ─────────────────────────────────────────────────
@@ -23,15 +27,15 @@ WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm ci --omit=dev
 
-# Compiled backend + seed
-COPY --from=backend-build /app/backend/dist ./dist
+# Generate the Prisma client for this platform. Done before copying the compiled output so the
+# generate layer only busts when the schema/config or deps change — not on every code push.
 COPY --from=backend-build /app/backend/prisma ./prisma
 COPY backend/prisma.config.ts ./
-
-# Generate Prisma client for this platform
 RUN npx prisma generate
 
-# Built frontend — served as static files by Express in production
+# Compiled backend + built frontend (served as static files by Express in production). These
+# change every push, so they come last to keep the cacheable layers above untouched.
+COPY --from=backend-build /app/backend/dist ./dist
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
 COPY backend/docker-entrypoint.sh ./

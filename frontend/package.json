@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.10",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5.90.21",
     "react": "^19.2.0",

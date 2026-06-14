@@ -10,6 +10,7 @@ import { useDietaryTags } from '../hooks/useDietaryTags';
 import { StepMedia } from './StepMedia';
 import { RecipeMedia } from './RecipeMedia';
 import { ComboInput } from './ComboInput';
+import { Modal } from './ui/Modal';
 import { UNIT_SUGGESTIONS } from '../constants/suggestions';
 import { useIngredientNames } from '../hooks/useIngredients';
 
@@ -602,115 +603,113 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {showOverRefWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowOverRefWarning(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Ingredient references exceed 100%</h2>
+      <Modal
+        open={showOverRefWarning}
+        onClose={() => setShowOverRefWarning(false)}
+        title="Ingredient references exceed 100%"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => { setShowOverRefWarning(false); finalSubmit(); }}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Save anyway
+            </button>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setShowOverRefWarning(false)}
+              className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
+            >
+              Continue editing
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600 mb-3">
+          The following ingredients are referenced for more than their total amount across all steps:
+        </p>
+        <ul className="text-sm font-medium text-red-700 mb-5 space-y-1">
+          {overRefWarningIngredients.map((label) => (
+            <li key={label}>• {label}</li>
+          ))}
+        </ul>
+      </Modal>
+      <Modal
+        open={showUnderRefInfo}
+        onClose={() => setShowUnderRefInfo(false)}
+        title={noRefsUsedAtAll ? 'No ingredient references used' : "Some ingredients aren't fully referenced"}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => { setShowUnderRefInfo(false); finalSubmit(); }}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Save anyway
+            </button>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setShowUnderRefInfo(false)}
+              className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
+            >
+              Continue editing
+            </button>
+          </>
+        }
+      >
+        {noRefsUsedAtAll ? (
+          <p className="text-sm text-gray-600 mb-5">
+            When you use ingredient references in the steps (see the buttons below the step text field), the step description will list the ingredient by name and amount, scaled based on serving size. This is helpful when cooking. Please consider using this feature!
+          </p>
+        ) : (
+          <>
             <p className="text-sm text-gray-600 mb-3">
-              The following ingredients are referenced for more than their total amount across all steps:
+              The following ingredients are referenced for less than 100% of their amount across all steps:
             </p>
-            <ul className="text-sm font-medium text-red-700 mb-5 space-y-1">
-              {overRefWarningIngredients.map((label) => (
+            <ul className="text-sm font-medium text-gray-700 mb-5 space-y-1">
+              {underRefInfoIngredients.map((label) => (
                 <li key={label}>• {label}</li>
               ))}
             </ul>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => { setShowOverRefWarning(false); finalSubmit(); }}
-                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                Save anyway
-              </button>
-              <button
-                type="button"
-                autoFocus
-                onClick={() => setShowOverRefWarning(false)}
-                className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
-              >
-                Continue editing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showUnderRefInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowUnderRefInfo(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">
-              {noRefsUsedAtAll ? 'No ingredient references used' : "Some ingredients aren't fully referenced"}
-            </h2>
-            {noRefsUsedAtAll ? (
-              <p className="text-sm text-gray-600 mb-5">
-                When you use ingredient references in the steps (see the buttons below the step text field), the step description will list the ingredient by name and amount, scaled based on serving size. This is helpful when cooking. Please consider using this feature!
-              </p>
-            ) : (
-              <>
-                <p className="text-sm text-gray-600 mb-3">
-                  The following ingredients are referenced for less than 100% of their amount across all steps:
-                </p>
-                <ul className="text-sm font-medium text-gray-700 mb-5 space-y-1">
-                  {underRefInfoIngredients.map((label) => (
-                    <li key={label}>• {label}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => { setShowUnderRefInfo(false); finalSubmit(); }}
-                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                Save anyway
-              </button>
-              <button
-                type="button"
-                autoFocus
-                onClick={() => setShowUnderRefInfo(false)}
-                className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
-              >
-                Continue editing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {showUnclassifiedWarning && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowUnclassifiedWarning(false)} />
-          <div className="relative bg-white rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Unclassified ingredients</h2>
-            <p className="text-sm text-gray-600 mb-3">
-              The following ingredients aren't in the catalog. Dietary info may be incomplete.
-            </p>
-            <ul className="text-sm font-medium text-amber-700 mb-5 space-y-1">
-              {unclassifiedForWarning.map((name) => (
-                <li key={name}>• {name}</li>
-              ))}
-            </ul>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => { setShowUnclassifiedWarning(false); finalSubmit(); }}
-                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
-              >
-                Save anyway
-              </button>
-              <button
-                type="button"
-                autoFocus
-                onClick={() => setShowUnclassifiedWarning(false)}
-                className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
-              >
-                Continue editing
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
+      <Modal
+        open={showUnclassifiedWarning}
+        onClose={() => setShowUnclassifiedWarning(false)}
+        title="Unclassified ingredients"
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={() => { setShowUnclassifiedWarning(false); finalSubmit(); }}
+              className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Save anyway
+            </button>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setShowUnclassifiedWarning(false)}
+              className="bg-orange-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-orange-700 transition-colors"
+            >
+              Continue editing
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-600 mb-3">
+          The following ingredients aren't in the catalog. Dietary info may be incomplete.
+        </p>
+        <ul className="text-sm font-medium text-amber-700 mb-5 space-y-1">
+          {unclassifiedForWarning.map((name) => (
+            <li key={name}>• {name}</li>
+          ))}
+        </ul>
+      </Modal>
       {/* Basic Info */}
       <div>
         <label htmlFor="recipe-title" className={labelClass}>Title *</label>

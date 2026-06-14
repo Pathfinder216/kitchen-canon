@@ -60,8 +60,10 @@ see real client IPs).
 - **React 19** with **Vite 7** (build + dev server with HMR)
 - **React Router 7** — client-side routing; `ProtectedRoute` redirects anonymous users to login
 - **TanStack Query (React Query) 5** — all server state: caching, invalidation on mutation
-- **Tailwind CSS 4** — utility-first styling; all components are hand-rolled (no Headless UI /
-  Radix component library)
+- **Tailwind CSS 4** — utility-first styling
+- **Headless UI 2** — accessible overlay primitives only. `components/ui/Modal.tsx` (Dialog: focus
+  trap, Escape/backdrop close, focus return) and `components/ui/Menu.tsx` (anchored dropdown menu)
+  back every modal and dropdown; everything else is hand-rolled.
 - **TypeScript** throughout
 
 #### State management
@@ -92,6 +94,8 @@ see real client IPs).
   meal plan form/detail, meal history, import, substitutions, ingredients, login, signup)
 - `src/components/` — RecipeForm, IngredientList, StepList, FilterPanel, GroceryList,
   RecipeSelector, RecipeMedia, StepMedia, ComboInput, ClassifyIngredientsPanel, etc.
+- `src/components/ui/` — shared accessible primitives (`Modal`, `Menu`) wrapping Headless UI;
+  all overlays/dropdowns build on these
 - `src/api/` — one module per resource; `client.ts` is a fetch wrapper that prepends `/api`,
   sends credentials, and attaches the `x-csrf-token` header on mutations
 - `src/hooks/` — React Query hooks (`useRecipes`, `useMealPlans`, `useScaling`, `useIngredients`)
@@ -424,7 +428,7 @@ move to Postgres if the host's volume story is weak.
 |-------|-----------|-------|
 | Frontend framework | React 19 + TypeScript | SPA |
 | Build tool | Vite 7 | Dev proxy to backend on :3000 |
-| Styling | Tailwind CSS 4 | No component library; custom components |
+| Styling | Tailwind CSS 4 | Custom components; Headless UI 2 for modal/menu primitives only |
 | Server state | TanStack Query 5 | All API data |
 | Client state | React Context (auth) + local state | No Zustand |
 | Routing | React Router 7 | `ProtectedRoute` guard |

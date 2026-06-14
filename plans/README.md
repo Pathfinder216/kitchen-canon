@@ -25,7 +25,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [x] [02 — GitHub Actions CI](02-ci-github-actions.md) (S)
 - [x] [03 — Deploy script `--with-data` flag](03-deploy-data-flag.md) (S) — **do before the next Pi deploy**
 - [x] [04 — Dietary tags served from the API](04-dietary-tags-api.md) (S-M) — `GET /api/meta` is the single source of truth; `useDietaryTags()` hook feeds the 6 consumers. Deviation from plan: the static frontend mirror was **deleted** (not kept as a fallback), so the CI mirror-guard script was unnecessary — the hook degrades to empty structures during the sub-second cold-load fetch instead
-- [ ] [05 — Shared Modal/Menu primitives (Headless UI)](05-ui-primitives.md) (S-M) — blocks 06–09, 26
+- [x] [05 — Shared Modal/Menu primitives (Headless UI)](05-ui-primitives.md) (S-M) — blocks 06–09, 26 — `components/ui/Modal.tsx` (Headless UI Dialog) + `components/ui/Menu.tsx` (anchored dropdown); every overlay (RecipeForm 3 dialogs, RecipeDetailPage delete + substitutions, MealPlanFormPage preview modal + swap) migrated; Floating-UI anchored menus replaced the manual fixed-position popovers; RTL tests for both
 - [ ] [06 — Decompose RecipeForm](06-decompose-recipe-form.md) (M-L)
 - [ ] [07 — Decompose CookModePage](07-decompose-cook-mode.md) (M)
 - [ ] [08 — Decompose MealPlanFormPage](08-decompose-meal-plan-form.md) (M)

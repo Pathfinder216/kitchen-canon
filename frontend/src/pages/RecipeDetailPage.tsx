@@ -14,6 +14,8 @@ import { exportRecipeAsText, exportRecipeAsJson } from '../utils/exportRecipe';
 import { apiGet } from '../api/client';
 import { useDietaryTags } from '../hooks/useDietaryTags';
 import type { DietaryInfo } from '../types/meal-plan';
+import { Modal } from '../components/ui/Modal';
+import { Menu, MenuItemButton, MenuItem } from '../components/ui/Menu';
 
 function SwapIcon() {
   return (
@@ -37,7 +39,6 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const scaledIngredients = recipe.ingredients.map(scaleIngredient);
 
   const [activeSwaps, setActiveSwaps] = useState<Record<string, Substitution>>({});
-  const [openSwapId, setOpenSwapId] = useState<string | null>(null);
 
   const { data: allSubs = [] } = useQuery({
     queryKey: ['recipe-substitutions', id],
@@ -151,11 +152,6 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
 
       {/* Screen layout — hidden when printing */}
       <div className="print:hidden">
-        {/* Backdrop for swap popover */}
-        {openSwapId && (
-          <div className="fixed inset-0 z-40" onClick={() => setOpenSwapId(null)} />
-        )}
-
         {/* Header */}
         <div className="flex items-start justify-between mb-6">
           <div>
@@ -201,32 +197,32 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
         </div>
 
         {/* Delete confirmation modal */}
-        {confirmDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setConfirmDelete(false)} />
-            <div className="relative bg-white rounded-xl shadow-xl p-6 mx-4 max-w-sm w-full">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">Delete recipe?</h2>
-              <p className="text-sm text-gray-600 mb-6">
-                <span className="font-medium">"{recipe.title}"</span> and all its versions will be permanently deleted. This cannot be undone.
-              </p>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleteMutation.isPending}
-                  className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                >
-                  {deleteMutation.isPending ? 'Deleting…' : 'Yes, delete permanently'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <Modal
+          open={confirmDelete}
+          onClose={() => setConfirmDelete(false)}
+          title="Delete recipe?"
+          footer={
+            <>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="border border-gray-300 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'Deleting…' : 'Yes, delete permanently'}
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-600 mb-6">
+            <span className="font-medium">"{recipe.title}"</span> and all its versions will be permanently deleted. This cannot be undone.
+          </p>
+        </Modal>
 
         {recipe.archived && (
           <div className="bg-amber-50 border border-amber-200 rounded-md px-4 py-2 mb-4 text-sm text-amber-700">
@@ -368,7 +364,6 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                 const displayName = swap ? swap.toIngredient : ing.name;
                 const displayAmount = swap && ing.amount !== null ? ing.amount * swap.ratio : ing.amount;
                 const availableSubs = subsByIngredientId[ing.id] ?? [];
-                const isOpen = openSwapId === ing.id;
 
                 return (
                   <li key={ing.id} className="flex items-start gap-2 text-sm">
@@ -388,54 +383,47 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                         <span className="text-gray-400 ml-1">(optional)</span>
                       )}
                       {availableSubs.length > 0 && (
-                        <span className="relative inline-block ml-2 align-middle">
-                          <button
-                            onClick={() => setOpenSwapId(isOpen ? null : ing.id)}
-                            className={`inline-flex items-center justify-center rounded transition-colors ${swap
+                        <span className="inline-block ml-2 align-middle">
+                          <Menu
+                            buttonAriaLabel={swap ? `Change substitution for ${ing.name}` : `Substitute ${ing.name}`}
+                            buttonClassName={`inline-flex items-center justify-center rounded transition-colors ${swap
                               ? 'text-orange-500 hover:text-orange-600'
                               : 'text-gray-400 hover:text-orange-500'
                               }`}
-                            aria-label={swap ? `Change substitution for ${ing.name}` : `Substitute ${ing.name}`}
+                            label={<SwapIcon />}
                           >
-                            <SwapIcon />
-                          </button>
-                          {isOpen && (
-                            <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg min-w-44 py-1">
-                              <p className="px-3 pt-1.5 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide border-b border-gray-100">
-                                Sub for {ing.name}
-                              </p>
-                              {availableSubs.map((sub) => (
-                                <button
-                                  key={sub.id}
-                                  onClick={() => {
-                                    setActiveSwaps((s) => ({ ...s, [ing.id]: sub }));
-                                    setOpenSwapId(null);
-                                  }}
-                                  className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between gap-3 hover:bg-gray-50 ${swap?.id === sub.id
-                                    ? 'text-orange-600 bg-orange-50'
-                                    : 'text-gray-700'
-                                    }`}
-                                >
-                                  <span>{sub.toIngredient}</span>
-                                  {sub.ratio !== 1 && (
-                                    <span className="text-xs text-gray-400 shrink-0">
-                                      {parseFloat(sub.ratio.toPrecision(4))}×
-                                    </span>
-                                  )}
-                                </button>
-                              ))}
-                              {swap && (
-                                <div className="border-t border-gray-100 mt-1 pt-1">
+                            <p className="px-3 pt-1.5 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide border-b border-gray-100">
+                              Sub for {ing.name}
+                            </p>
+                            {availableSubs.map((sub) => (
+                              <MenuItemButton
+                                key={sub.id}
+                                selected={swap?.id === sub.id}
+                                className="flex items-center justify-between gap-3"
+                                onClick={() => setActiveSwaps((s) => ({ ...s, [ing.id]: sub }))}
+                              >
+                                <span>{sub.toIngredient}</span>
+                                {sub.ratio !== 1 && (
+                                  <span className="text-xs text-gray-400 shrink-0">
+                                    {parseFloat(sub.ratio.toPrecision(4))}×
+                                  </span>
+                                )}
+                              </MenuItemButton>
+                            ))}
+                            {swap && (
+                              <div className="border-t border-gray-100 mt-1 pt-1">
+                                <MenuItem>
                                   <button
-                                    onClick={() => { removeSwap(ing.id); setOpenSwapId(null); }}
-                                    className="w-full text-left px-3 py-2 text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                    type="button"
+                                    onClick={() => removeSwap(ing.id)}
+                                    className="block w-full text-left px-3 py-2 text-sm text-gray-400 data-[focus]:bg-gray-50 data-[focus]:text-gray-600"
                                   >
                                     Use original
                                   </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                                </MenuItem>
+                              </div>
+                            )}
+                          </Menu>
                         </span>
                       )}
                     </span>

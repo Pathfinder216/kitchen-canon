@@ -24,7 +24,10 @@ jobs:
         with:
           filters: |
             code:
-              - '!**.md'
+              # picomatch globstar: '**/*.md' matches .md at any depth.
+              # NOT '**.md' — picomatch degrades that to '*.md' (root only),
+              # so docs under plans/ slip through and force a full CI run.
+              - '!**/*.md'
 
   backend:
     name: Backend tests

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { createIngredientEntry } from '../api/ingredients';
-import { ALLERGENS, DIETS, ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
+import { useDietaryTags } from '../hooks/useDietaryTags';
 
 interface ClassifyFormState {
   allergens: string[];
@@ -17,6 +17,7 @@ interface Props {
 
 export function ClassifyIngredientsPanel({ unknownIngredients, onSaved, onDone }: Props) {
   const queryClient = useQueryClient();
+  const { allergens: ALLERGENS, diets: DIETS, allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const [forms, setForms] = useState<Record<string, ClassifyFormState>>(() =>
     Object.fromEntries(unknownIngredients.map((n) => [n, { allergens: [], diets: [] }]))
   );

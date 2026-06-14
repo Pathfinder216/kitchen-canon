@@ -52,7 +52,7 @@ export default defineConfig({
             },
           },
           {
-            urlPattern: /^\/api\/(courses|labels|meal-plans)/,
+            urlPattern: /^\/api\/(courses|labels|meal-plans|meta)/,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-misc',

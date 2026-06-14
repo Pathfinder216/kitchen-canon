@@ -74,7 +74,7 @@ see real client IPs).
 - **vite-plugin-pwa** (Workbox under the hood), `registerType: 'autoUpdate'`
   - Precaches the app shell (static assets)
   - Runtime caching of API reads: `/api/recipes*` stale-while-revalidate (7 days),
-    `/api/courses|labels|meal-plans` network-first (1 day)
+    `/api/courses|labels|meal-plans|meta` network-first (1 day)
 - **Web App Manifest** — installable to home screen, standalone display, SVG icons
 - **What works offline today**: viewing previously loaded recipes/meal plans (read-only)
 - **(planned)** Offline *writes*: IndexedDB (e.g. Dexie) + a queued-mutation/background-sync
@@ -144,6 +144,7 @@ requires a session.
 | Versions | `GET /api/recipes/:id/versions`, `POST /api/recipes/:id/restore/:version` |
 | Recipe extras | `GET /api/recipes/:id/dietary-info`, `GET /api/recipes/:id/substitutions`, `POST /api/recipes/:id/labels`, `POST /api/recipes/:id/courses` |
 | Courses | `GET /api/courses` (static enum list) |
+| Meta | `GET /api/meta` → `{ allergens, diets, allergenLabels, dietLabels }` (dietary vocabulary; single source of truth for the frontend, served from `constants/dietaryTags.ts`) |
 | Labels | `GET /api/labels`, `POST /api/labels` |
 | Meal plans | `GET /api/meal-plans`, `POST /api/meal-plans`, `GET /api/meal-plans/:id`, `PATCH /api/meal-plans/:id`, `PATCH /api/meal-plans/:id/grocery/:itemId` (toggle purchased), `POST /api/meal-plans/:id/recalculate` (recompute dietary info), `POST /api/meal-plans/:id/remake` (clone) |
 | Import | `POST /api/import/url`, `POST /api/import/file` (multipart: .docx/.pdf/.txt) |

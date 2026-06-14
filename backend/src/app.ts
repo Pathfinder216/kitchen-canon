@@ -17,6 +17,7 @@ import importRouter from './routes/import.js';
 import substitutionsRouter from './routes/substitutions.js';
 import mediaRouter from './routes/media.js';
 import ingredientsRouter from './routes/ingredients.js';
+import metaRouter from './routes/meta.js';
 import fs from 'fs';
 
 export function createApp() {
@@ -95,6 +96,7 @@ export function createApp() {
   app.use('/api/import', importRouter);
   app.use('/api/substitutions', substitutionsRouter);
   app.use('/api/ingredients', ingredientsRouter);
+  app.use('/api/meta', metaRouter);
   app.use('/api', mediaRouter);
 
   // Serve frontend in production

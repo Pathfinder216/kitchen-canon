@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCourses } from '../api/courses';
 import { fetchLabels } from '../api/labels';
-import { ALLERGENS, ALLERGEN_LABELS, DIETS, DIET_LABELS } from '../constants/dietaryTags';
+import { useDietaryTags } from '../hooks/useDietaryTags';
 import { useIngredientNames } from '../hooks/useIngredients';
 import { ComboInput } from './ComboInput';
 
@@ -126,6 +126,7 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
 
   const { data: courses } = useQuery({ queryKey: ['courses'], queryFn: fetchCourses });
   const { data: allLabels } = useQuery({ queryKey: ['labels'], queryFn: () => fetchLabels() });
+  const { allergens: ALLERGENS, diets: DIETS, allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const ingredientNames = useIngredientNames();
 
   const otherLabels = allLabels?.filter((l) => l.type === 'manual') ?? [];

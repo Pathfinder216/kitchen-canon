@@ -24,7 +24,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [x] [01 — Fix the 12 failing frontend tests](01-fix-frontend-tests.md) (S) — blocks 02 and all refactors
 - [x] [02 — GitHub Actions CI](02-ci-github-actions.md) (S)
 - [x] [03 — Deploy script `--with-data` flag](03-deploy-data-flag.md) (S) — **do before the next Pi deploy**
-- [ ] [04 — Dietary tags served from the API](04-dietary-tags-api.md) (S-M)
+- [x] [04 — Dietary tags served from the API](04-dietary-tags-api.md) (S-M) — `GET /api/meta` is the single source of truth; `useDietaryTags()` hook feeds the 6 consumers. Deviation from plan: the static frontend mirror was **deleted** (not kept as a fallback), so the CI mirror-guard script was unnecessary — the hook degrades to empty structures during the sub-second cold-load fetch instead
 - [ ] [05 — Shared Modal/Menu primitives (Headless UI)](05-ui-primitives.md) (S-M) — blocks 06–09, 26
 - [ ] [06 — Decompose RecipeForm](06-decompose-recipe-form.md) (M-L)
 - [ ] [07 — Decompose CookModePage](07-decompose-cook-mode.md) (M)

@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchIngredients, updateIngredientEntry, deleteIngredientEntry, type CatalogEntry } from '../api/ingredients';
-import { ALLERGENS, DIETS, ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
+import { useDietaryTags } from '../hooks/useDietaryTags';
 
 function EditRow({ entry, onDone }: { entry: CatalogEntry; onDone: () => void }) {
   const queryClient = useQueryClient();
+  const { allergens: ALLERGENS, diets: DIETS, allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const [allergens, setAllergens] = useState<string[]>(entry.allergens);
   const [diets, setDiets] = useState<string[]>(entry.diets);
 
@@ -116,6 +117,7 @@ function IngredientRow({ entry, isEditing, onEdit, onDone }: {
   onDone: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const deleteMutation = useMutation({
     mutationFn: () => deleteIngredientEntry(entry.id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ingredients'] }),

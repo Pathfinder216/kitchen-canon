@@ -5,7 +5,7 @@ import { GroceryList } from '../components/GroceryList';
 import { ClassifyIngredientsPanel } from '../components/ClassifyIngredientsPanel';
 import { useMealPlan, useToggleGroceryItem } from '../hooks/useMealPlans';
 import { recalculateMealPlanDietaryInfo } from '../api/meal-plans';
-import { ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
+import { useDietaryTags } from '../hooks/useDietaryTags';
 import type { DietaryInfo } from '../types/meal-plan';
 
 interface MediaItem { id: string; type: string; path: string; }
@@ -73,6 +73,7 @@ function DietaryInfoSection({
   planId: string;
 }) {
   const queryClient = useQueryClient();
+  const { allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const [classifying, setClassifying] = useState(false);
   const [pendingUnknowns, setPendingUnknowns] = useState<string[]>([]);
 

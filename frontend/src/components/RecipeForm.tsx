@@ -6,7 +6,7 @@ import type { ParsedRecipe } from '../api/import';
 import { fetchCourses } from '../api/courses';
 import { fetchLabels, createLabel } from '../api/labels';
 import { createIngredientEntry } from '../api/ingredients';
-import { ALLERGENS, DIETS, ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
+import { useDietaryTags } from '../hooks/useDietaryTags';
 import { StepMedia } from './StepMedia';
 import { RecipeMedia } from './RecipeMedia';
 import { ComboInput } from './ComboInput';
@@ -62,6 +62,7 @@ function InlineClassifyPanel({ ingredientName, onSaved, onClose }: {
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const { allergens: ALLERGENS, diets: DIETS, allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const [allergens, setAllergens] = useState<string[]>([]);
   const [diets, setDiets] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);

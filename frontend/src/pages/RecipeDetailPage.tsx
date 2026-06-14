@@ -12,7 +12,7 @@ import { resolveIngredientRefs, resolveIngredientRefsText } from '../utils/resol
 import { fetchSubstitutionsForRecipe, type Substitution } from '../api/substitutions';
 import { exportRecipeAsText, exportRecipeAsJson } from '../utils/exportRecipe';
 import { apiGet } from '../api/client';
-import { ALLERGEN_LABELS, DIET_LABELS } from '../constants/dietaryTags';
+import { useDietaryTags } from '../hooks/useDietaryTags';
 import type { DietaryInfo } from '../types/meal-plan';
 
 function SwapIcon() {
@@ -31,6 +31,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const backLink = locationState?.from ?? { label: 'Back to recipes', href: '/' };
   const archiveMutation = useArchiveRecipe();
   const deleteMutation = useDeleteRecipePermanently();
+  const { allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const { targetServings, setTargetServings, scaleIngredient } = useScaling(locationState?.targetServings ?? recipe.servings);
   const scaledIngredients = recipe.ingredients.map(scaleIngredient);

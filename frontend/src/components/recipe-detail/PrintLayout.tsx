@@ -1,7 +1,6 @@
 import type { Recipe, Ingredient } from '../../types/recipe';
 import { formatScaledAmount } from '../../hooks/useScaling';
 import { COURSE_DISPLAY_NAMES } from '../../api/courses';
-import { getIngredientAlias } from '../../utils/ingredientAliases';
 import { resolveIngredientRefsText } from '../../utils/resolveIngredientRefs';
 
 interface PrintLayoutProps {
@@ -43,7 +42,6 @@ export function PrintLayout({ recipe, finalIngredients, swapDisplayNames, target
               </span>
             )}
             {swapDisplayNames.get(ing.id) ?? ing.name}
-            {!swapDisplayNames.has(ing.id) && getIngredientAlias(ing.name) && <span className="text-gray-400"> ({getIngredientAlias(ing.name)})</span>}
             {ing.isOptional && <span className="text-gray-400"> (optional)</span>}
           </li>
         ))}

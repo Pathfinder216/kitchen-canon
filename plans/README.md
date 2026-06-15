@@ -33,11 +33,11 @@ Pi; 44 is defense-in-depth after the first three.
 
 ## Bugs & small improvements (independent; any order)
 
-- [ ] [45 — Responsive mobile navigation](45-mobile-nav-responsive.md) (S-M, bug) — nav links overflow off-screen on phones
-- [x] [10 — Fix stale unclassified-ingredients banner](10-fix-unclassified-banner.md) (S, bug) — `InlineClassifyPanel` now also invalidates `['recipe-dietary', recipeId]` (threaded RecipeForm→IngredientsEditor→panel); meal-plan `ClassifyIngredientsPanel` path already recalculates + writes the cache (not stale); 2-test invalidation suite
-- [ ] [11 — Remove alias names from ingredient list](11-remove-alias-names-from-ingredient-list.md) (S)
+- [x] [45 — Responsive mobile navigation](45-mobile-nav-responsive.md) (S-M, bug) — hamburger toggle below `sm`; desktop row unchanged; active-highlight via shared `linkClass` helper; closes on navigation; RTL test
+- [x] [10 — Fix stale unclassified-ingredients banner](10-fix-unclassified-banner.md) (S, bug) — `InlineClassifyPanel` now also invalidates `['recipe-dietary', recipeId]` (threaded RecipeForm→IngredientsEditor→panel); meal-plan
+- [x] [11 — Remove alias names from ingredient list](11-remove-alias-names-from-ingredient-list.md) (S) — dropped the `(coriander)` parenthetical from **every** UI display per user request: recipe-detail list (`RecipeIngredientList` + `PrintLayout`), `GroceryList`, cook-mode `IngredientChecklist`, and the now-dead `IngredientList`. `utils/ingredientAliases.ts` is kept (display-unused now) — alias **filtering/search** is unaffected (powered by the catalog, not this static helper). Note: plan named pre-decomposition `IngredientList.tsx`; the live list is `recipe-detail/RecipeIngredientList.tsx`
 - [ ] [12 — Hours + minutes duration display](12-duration-display-hours.md) (S)
-- [ ] [13 — Hours/minutes input for step times](13-step-time-hm-input.md) (S)
+- [x] [13 — Hours/minutes input for step times](13-step-time-hm-input.md) (S) — `StepsEditor` step time is now a two-field `h`/`min` widget (`StepTimeInput`, empty-able string state, emits `h*60+m`); storage stays `timeMinutesText` (minutes). Backend unchanged (schema has no max). 3 RecipeForm tests (h+m submit, minutes-only, seeding 90→1/30)
 - [ ] [14 — Empty-able meal plan servings input](14-meal-plan-servings-input.md) (S; after 08 if both queued)
 - [ ] [15 — Read-only global ingredients + Customize flow](15-readonly-global-ingredients.md) (S-M)
 - [ ] [16 — Media visibility toggle](16-media-visibility-toggle.md) (S)

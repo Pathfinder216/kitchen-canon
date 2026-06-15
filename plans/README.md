@@ -29,7 +29,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [ ] [06 — Decompose RecipeForm](06-decompose-recipe-form.md) (M-L)
 - [ ] [07 — Decompose CookModePage](07-decompose-cook-mode.md) (M)
 - [ ] [08 — Decompose MealPlanFormPage](08-decompose-meal-plan-form.md) (M)
-- [ ] [09 — Decompose RecipeDetailPage](09-decompose-recipe-detail.md) (M)
+- [x] [09 — Decompose RecipeDetailPage](09-decompose-recipe-detail.md) (M) — extracted `components/recipe-detail/` (RecipeActionsBar + ExportActions, SubstitutionsMenu, ServingScaler, DietaryBadges, RecipeNotes, plus PrintLayout + RecipeIngredientList to land the inner composition under ~200 lines); added a 5-test characterization suite (`RecipeDetailPage.test.tsx`); zero behavior change. Deviation: `activeSwaps` stays in the page (SubstitutionsMenu's parent) per spec; print/export buttons are an `ExportActions` export alongside RecipeActionsBar since they need page-derived `finalIngredients`/`swapDisplayNames`; added two extra components (PrintLayout, RecipeIngredientList) beyond the listed five to meet the line-count acceptance.
 
 ## Bugs & small improvements (independent; any order)
 

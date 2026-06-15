@@ -37,7 +37,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [ ] [10 — Fix stale unclassified-ingredients banner](10-fix-unclassified-banner.md) (S, bug)
 - [ ] [11 — Remove alias names from ingredient list](11-remove-alias-names-from-ingredient-list.md) (S)
 - [ ] [12 — Hours + minutes duration display](12-duration-display-hours.md) (S)
-- [ ] [13 — Hours/minutes input for step times](13-step-time-hm-input.md) (S)
+- [x] [13 — Hours/minutes input for step times](13-step-time-hm-input.md) (S) — `StepsEditor` step time is now a two-field `h`/`min` widget (`StepTimeInput`, empty-able string state, emits `h*60+m`); storage stays `timeMinutesText` (minutes). Backend unchanged (schema has no max). 3 RecipeForm tests (h+m submit, minutes-only, seeding 90→1/30)
 - [ ] [14 — Empty-able meal plan servings input](14-meal-plan-servings-input.md) (S; after 08 if both queued)
 - [ ] [15 — Read-only global ingredients + Customize flow](15-readonly-global-ingredients.md) (S-M)
 - [ ] [16 — Media visibility toggle](16-media-visibility-toggle.md) (S)

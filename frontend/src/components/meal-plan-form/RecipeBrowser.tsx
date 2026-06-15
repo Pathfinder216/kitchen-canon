@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRecipes } from '../../hooks/useRecipes';
 import { FilterPanel } from '../FilterPanel';
 import { fetchCoverPhoto } from './types';
+import { formatDuration } from '../../utils/formatDuration';
 import type { Recipe } from '../../types/recipe';
 
 const base = 'rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500';
@@ -53,7 +54,7 @@ function BrowserRecipeCard({ recipe, isAdded, onAdd, onRemove, onView }: Browser
           {recipe.title}
         </h3>
         <div className="flex flex-wrap gap-x-2 text-xs text-gray-500 mt-0.5">
-          {recipe.totalTime && <span>{recipe.totalTime} min</span>}
+          {recipe.totalTime && <span>{formatDuration(recipe.totalTime)}</span>}
           <span>{recipe.servings} serving{recipe.servings !== 1 ? 's' : ''}</span>
           <span>{recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 ? 's' : ''}</span>
         </div>

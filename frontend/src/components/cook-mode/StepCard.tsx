@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Ingredient, Step } from '../../types/recipe';
 import { StepMedia } from '../StepMedia';
 import { resolveIngredientRefs } from '../../utils/resolveIngredientRefs';
+import { formatDuration } from '../../utils/formatDuration';
 import { StepTimerControls, type CustomTime } from './StepTimerControls';
 import type { TimerState } from '../../hooks/useStepTimers';
 
@@ -38,7 +39,7 @@ export function StepCard({
         </span>
         {!!step.timeMinutes && (
           <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-            {step.timeMinutes} min {step.isActiveTime ? '(active)' : '(passive)'}
+            {formatDuration(step.timeMinutes)} {step.isActiveTime ? '(active)' : '(passive)'}
           </span>
         )}
       </div>

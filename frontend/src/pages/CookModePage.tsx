@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useRecipe } from '../hooks/useRecipes';
 import { resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
+import { formatDuration } from '../utils/formatDuration';
 import { playTimerSound, useStepTimers } from '../hooks/useStepTimers';
 import { TimerPanel } from '../components/cook-mode/TimerPanel';
 import { StepCard } from '../components/cook-mode/StepCard';
@@ -126,7 +127,7 @@ export function CookModePage() {
               {resolveIngredientRefsText(steps[currentStep + 1].instruction, scaledIngredients, 1, swapDisplayNames)}
             </p>
             {!!steps[currentStep + 1].timeMinutes && (
-              <p className="text-xs text-gray-400 mt-1">{steps[currentStep + 1].timeMinutes} min</p>
+              <p className="text-xs text-gray-400 mt-1">{formatDuration(steps[currentStep + 1].timeMinutes)}</p>
             )}
           </div>
         )}

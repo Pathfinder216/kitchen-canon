@@ -36,7 +36,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [ ] [45 — Responsive mobile navigation](45-mobile-nav-responsive.md) (S-M, bug) — nav links overflow off-screen on phones
 - [ ] [10 — Fix stale unclassified-ingredients banner](10-fix-unclassified-banner.md) (S, bug)
 - [ ] [11 — Remove alias names from ingredient list](11-remove-alias-names-from-ingredient-list.md) (S)
-- [ ] [12 — Hours + minutes duration display](12-duration-display-hours.md) (S)
+- [x] [12 — Hours + minutes duration display](12-duration-display-hours.md) (S) — `utils/formatDuration.ts` (`135 → "2 h 15 min"`, rounds floats, `null/0 → ''`) applied at every duration site: RecipeCard, RecipeDetailPage (+ steps), PrintLayout, CookModePage next-step, StepCard, StepList, RecipeMetaFields summary, ImportPage, RecipeBrowser, RecipePreviewModal; 5 boundary unit tests
 - [ ] [13 — Hours/minutes input for step times](13-step-time-hm-input.md) (S)
 - [ ] [14 — Empty-able meal plan servings input](14-meal-plan-servings-input.md) (S; after 08 if both queued)
 - [ ] [15 — Read-only global ingredients + Customize flow](15-readonly-global-ingredients.md) (S-M)

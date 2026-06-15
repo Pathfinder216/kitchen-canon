@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { importFromFile, importFromUrl, type ParsedRecipe } from '../api/import';
 import { useCreateRecipe } from '../hooks/useRecipes';
+import { formatDuration } from '../utils/formatDuration';
 
 type ImportMode = 'url' | 'file';
 type ImportStatus = 'idle' | 'loading' | 'preview' | 'error';
@@ -165,7 +166,7 @@ export function ImportPage() {
           <h3 className="text-xl font-bold text-gray-800 mb-1">{preview.title}</h3>
           <div className="flex gap-3 text-sm text-gray-500 mb-4">
             <span>{preview.servings} servings</span>
-            {preview.totalTime && <span>{preview.totalTime} min total</span>}
+            {preview.totalTime && <span>{formatDuration(preview.totalTime)} total</span>}
             {preview.source && <span className="truncate">Source: {preview.source}</span>}
           </div>
 

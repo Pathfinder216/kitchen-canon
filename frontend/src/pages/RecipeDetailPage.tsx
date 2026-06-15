@@ -8,6 +8,7 @@ import { StepMedia } from '../components/StepMedia';
 import type { Recipe } from '../types/recipe';
 import { COURSE_DISPLAY_NAMES } from '../api/courses';
 import { resolveIngredientRefs } from '../utils/resolveIngredientRefs';
+import { formatDuration } from '../utils/formatDuration';
 import { fetchSubstitutionsForRecipe, type Substitution } from '../api/substitutions';
 import { apiGet } from '../api/client';
 import { useDietaryTags } from '../hooks/useDietaryTags';
@@ -82,8 +83,8 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
             </Link>
             <h1 className="text-2xl font-bold text-gray-900">{recipe.title}</h1>
             <div className="flex gap-3 text-sm text-gray-500 mt-1">
-              {recipe.totalTime && <span>Total: {recipe.totalTime} min</span>}
-              {recipe.activeTime && <span>Active: {recipe.activeTime} min</span>}
+              {recipe.totalTime && <span>Total: {formatDuration(recipe.totalTime)}</span>}
+              {recipe.activeTime && <span>Active: {formatDuration(recipe.activeTime)}</span>}
             </div>
           </div>
           <RecipeActionsBar recipe={recipe} targetServings={targetServings} activeSwaps={activeSwaps} />
@@ -167,7 +168,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                     </p>
                     {!!step.timeMinutes && (
                       <p className="text-xs text-gray-500 mt-1">
-                        {step.timeMinutes} min ({step.isActiveTime ? 'active' : 'inactive'})
+                        {formatDuration(step.timeMinutes)} ({step.isActiveTime ? 'active' : 'inactive'})
                       </p>
                     )}
                     <StepMedia stepId={step.id} readOnly />

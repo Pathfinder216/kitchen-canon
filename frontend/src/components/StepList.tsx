@@ -1,4 +1,5 @@
 import type { Step } from '../types/recipe';
+import { formatDuration } from '../utils/formatDuration';
 
 interface StepListProps {
   steps: Step[];
@@ -20,7 +21,7 @@ export function StepList({ steps }: StepListProps) {
             <p className="text-gray-900 text-sm">{step.instruction}</p>
             {step.timeMinutes && (
               <p className="text-xs text-gray-500 mt-1">
-                {step.timeMinutes} min ({step.isActiveTime ? 'active' : 'inactive'})
+                {formatDuration(step.timeMinutes)} ({step.isActiveTime ? 'active' : 'inactive'})
               </p>
             )}
           </div>

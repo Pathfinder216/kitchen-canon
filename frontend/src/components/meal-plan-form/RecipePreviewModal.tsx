@@ -5,6 +5,7 @@ import { apiGet } from '../../api/client';
 import type { Recipe } from '../../types/recipe';
 import type { ActiveSwaps } from '../../types/meal-plan';
 import { resolveIngredientRefs } from '../../utils/resolveIngredientRefs';
+import { formatDuration } from '../../utils/formatDuration';
 import { fetchSubstitutionsForRecipe, type Substitution } from '../../api/substitutions';
 import { Modal } from '../ui/Modal';
 import { Menu, MenuItemButton, MenuItem } from '../ui/Menu';
@@ -89,8 +90,8 @@ export function RecipePreviewModal({ recipeId, isAdded, currentServings, current
             <>
               {/* Metadata */}
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                {recipe.totalTime && <span>{recipe.totalTime} min total</span>}
-                {recipe.activeTime && <span>{recipe.activeTime} min active</span>}
+                {recipe.totalTime && <span>{formatDuration(recipe.totalTime)} total</span>}
+                {recipe.activeTime && <span>{formatDuration(recipe.activeTime)} active</span>}
                 <span>{recipe.servings} default servings</span>
                 {recipe.source && <span className="truncate">{recipe.source}</span>}
               </div>

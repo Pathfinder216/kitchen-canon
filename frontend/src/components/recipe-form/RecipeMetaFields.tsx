@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchCourses } from '../../api/courses';
 import { fetchLabels, createLabel } from '../../api/labels';
 import { inputClass, labelClass, noScroll } from './styles';
+import { formatDuration } from '../../utils/formatDuration';
 import type { StepFormItem } from './useRecipeFormState';
 
 interface BasicInfoFieldsProps {
@@ -34,8 +35,8 @@ export function BasicInfoFields({ title, setTitle, servings, setServings, source
           const active = Math.ceil(steps.filter(s => s.isActiveTime).reduce((sum, s) => sum + (parseFloat(s.timeMinutesText) || 0), 0));
           return (
             <div className="pb-2 text-sm text-gray-500 space-y-0.5">
-              <p>Total time: <span className="font-medium text-gray-700">{total} min</span></p>
-              <p>Active time: <span className="font-medium text-gray-700">{active} min</span></p>
+              <p>Total time: <span className="font-medium text-gray-700">{formatDuration(total)}</span></p>
+              <p>Active time: <span className="font-medium text-gray-700">{formatDuration(active)}</span></p>
             </div>
           );
         })()}

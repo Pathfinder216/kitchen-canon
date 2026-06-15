@@ -17,6 +17,51 @@ interface StepsEditorProps {
   onStepMediaRemove: (internalId: string) => void;
 }
 
+/**
+ * Two-field hours/minutes entry for a step time. The canonical form-state value
+ * stays `timeMinutesText` (total minutes); this widget keeps its own empty-able
+ * `hours`/`mins` strings (seeded once from the incoming minutes) and emits the
+ * combined `h * 60 + m` total on every change.
+ */
+function StepTimeInput({ valueMinutes, onChange }: { valueMinutes: string; onChange: (minutes: string) => void }) {
+  const seedTotal = Math.round(parseFloat(valueMinutes) || 0);
+  const [hours, setHours] = useState(seedTotal >= 60 ? String(Math.floor(seedTotal / 60)) : '');
+  const [mins, setMins] = useState(seedTotal % 60 > 0 ? String(seedTotal % 60) : '');
+
+  function emit(h: string, m: string) {
+    const hv = parseInt(h, 10) || 0;
+    const mv = parseFloat(m) || 0;
+    onChange(String(hv * 60 + mv));
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <input
+        type="number"
+        value={hours}
+        onChange={(e) => { setHours(e.target.value); emit(e.target.value, mins); }}
+        className={`${base} w-14`}
+        min={0}
+        placeholder="0"
+        aria-label="Hours"
+        onWheel={noScroll}
+      />
+      <span className="text-xs text-gray-500 mr-1">h</span>
+      <input
+        type="number"
+        value={mins}
+        onChange={(e) => { setMins(e.target.value); emit(hours, e.target.value); }}
+        className={`${base} w-14`}
+        min={0}
+        placeholder="0"
+        aria-label="Minutes"
+        onWheel={noScroll}
+      />
+      <span className="text-xs text-gray-500">min</span>
+    </div>
+  );
+}
+
 export function StepsEditor({
   steps,
   setSteps,
@@ -225,16 +270,10 @@ export function StepsEditor({
                     </div>
                   );
                 })()}
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="number"
-                    value={step.timeMinutesText}
-                    onChange={(e) => updateStep(index, 'timeMinutesText', e.target.value)}
-                    className={`${base} w-24`}
-                    min={0}
-                    step="any"
-                    required
-                    onWheel={noScroll}
+                <div className="flex gap-3 items-center flex-wrap">
+                  <StepTimeInput
+                    valueMinutes={step.timeMinutesText}
+                    onChange={(v) => updateStep(index, 'timeMinutesText', v)}
                   />
                   <label className="flex items-center gap-1 text-xs text-gray-500">
                     <input type="checkbox" checked={step.isActiveTime} onChange={(e) => updateStep(index, 'isActiveTime', e.target.checked)} />

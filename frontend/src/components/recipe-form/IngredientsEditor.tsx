@@ -14,6 +14,8 @@ interface IngredientsEditorProps {
   updateIngredient: (index: number, field: keyof IngredientFormItem, value: unknown) => void;
   ingredientNames: string[];
   catalogNameSet: Set<string>;
+  /** Set when editing an existing recipe — threaded to InlineClassifyPanel for dietary refresh. */
+  recipeId?: string;
 }
 
 export function IngredientsEditor({
@@ -24,6 +26,7 @@ export function IngredientsEditor({
   updateIngredient,
   ingredientNames,
   catalogNameSet,
+  recipeId,
 }: IngredientsEditorProps) {
   const [classifyingIngredientId, setClassifyingIngredientId] = useState<string | null>(null);
 
@@ -188,6 +191,7 @@ export function IngredientsEditor({
             {classifyingIngredientId === ing.internalId && (
               <InlineClassifyPanel
                 ingredientName={ing.name}
+                recipeId={recipeId}
                 onSaved={() => setClassifyingIngredientId(null)}
                 onClose={() => setClassifyingIngredientId(null)}
               />

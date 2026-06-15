@@ -169,6 +169,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
         updateIngredient={updateIngredient}
         ingredientNames={ingredientNames}
         catalogNameSet={catalogNameSet}
+        recipeId={recipeId}
       />
 
       <StepsEditor

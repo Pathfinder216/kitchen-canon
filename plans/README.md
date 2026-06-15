@@ -33,7 +33,7 @@ Pi; 44 is defense-in-depth after the first three.
 
 ## Bugs & small improvements (independent; any order)
 
-- [ ] [45 — Responsive mobile navigation](45-mobile-nav-responsive.md) (S-M, bug) — nav links overflow off-screen on phones
+- [x] [45 — Responsive mobile navigation](45-mobile-nav-responsive.md) (S-M, bug) — hamburger toggle below `sm`; desktop row unchanged; active-highlight via shared `linkClass` helper; closes on navigation; RTL test
 - [ ] [10 — Fix stale unclassified-ingredients banner](10-fix-unclassified-banner.md) (S, bug)
 - [ ] [11 — Remove alias names from ingredient list](11-remove-alias-names-from-ingredient-list.md) (S)
 - [ ] [12 — Hours + minutes duration display](12-duration-display-hours.md) (S)

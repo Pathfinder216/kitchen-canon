@@ -34,7 +34,7 @@ Pi; 44 is defense-in-depth after the first three.
 ## Bugs & small improvements (independent; any order)
 
 - [ ] [45 — Responsive mobile navigation](45-mobile-nav-responsive.md) (S-M, bug) — nav links overflow off-screen on phones
-- [ ] [10 — Fix stale unclassified-ingredients banner](10-fix-unclassified-banner.md) (S, bug)
+- [x] [10 — Fix stale unclassified-ingredients banner](10-fix-unclassified-banner.md) (S, bug) — `InlineClassifyPanel` now also invalidates `['recipe-dietary', recipeId]` (threaded RecipeForm→IngredientsEditor→panel); meal-plan `ClassifyIngredientsPanel` path already recalculates + writes the cache (not stale); 2-test invalidation suite
 - [ ] [11 — Remove alias names from ingredient list](11-remove-alias-names-from-ingredient-list.md) (S)
 - [ ] [12 — Hours + minutes duration display](12-duration-display-hours.md) (S)
 - [ ] [13 — Hours/minutes input for step times](13-step-time-hm-input.md) (S)

@@ -3,8 +3,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { createIngredientEntry } from '../../api/ingredients';
 import { useDietaryTags } from '../../hooks/useDietaryTags';
 
-export function InlineClassifyPanel({ ingredientName, onSaved, onClose }: {
+export function InlineClassifyPanel({ ingredientName, recipeId, onSaved, onClose }: {
   ingredientName: string;
+  /** Set when editing an existing recipe — used to refresh its dietary banner. */
+  recipeId?: string;
   onSaved: () => void;
   onClose: () => void;
 }) {
@@ -29,6 +31,7 @@ export function InlineClassifyPanel({ ingredientName, onSaved, onClose }: {
     try {
       await createIngredientEntry({ name: ingredientName.toLowerCase().trim(), allergens, diets });
       await queryClient.invalidateQueries({ queryKey: ['ingredients'] });
+      if (recipeId) await queryClient.invalidateQueries({ queryKey: ['recipe-dietary', recipeId] });
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');

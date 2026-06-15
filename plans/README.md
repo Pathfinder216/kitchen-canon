@@ -28,7 +28,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [x] [05 — Shared Modal/Menu primitives (Headless UI)](05-ui-primitives.md) (S-M) — blocks 06–09, 26 — `components/ui/Modal.tsx` (Headless UI Dialog) + `components/ui/Menu.tsx` (anchored dropdown); every overlay (RecipeForm 3 dialogs, RecipeDetailPage delete + substitutions, MealPlanFormPage preview modal + swap) migrated; Floating-UI anchored menus replaced the manual fixed-position popovers; RTL tests for both
 - [ ] [06 — Decompose RecipeForm](06-decompose-recipe-form.md) (M-L)
 - [ ] [07 — Decompose CookModePage](07-decompose-cook-mode.md) (M)
-- [ ] [08 — Decompose MealPlanFormPage](08-decompose-meal-plan-form.md) (M)
+- [x] [08 — Decompose MealPlanFormPage](08-decompose-meal-plan-form.md) (M) — deviation: no standalone `DietaryFilterBar` (this page never had inline dietary-filter UI; all candidate filtering is delegated to the existing `FilterPanel`, which already uses `useDietaryTags()`). Extracted `PlanDetailsFields`, `RecipeBrowser`, `SelectedRecipesList`, `RecipePreviewModal`. Kept the rich cover-photo browser rather than folding into the checkbox-only `RecipeSelector` (would change behavior). No `useMealPlanForm` hook needed — state threading stayed clean.
 - [ ] [09 — Decompose RecipeDetailPage](09-decompose-recipe-detail.md) (M)
 
 ## Bugs & small improvements (independent; any order)

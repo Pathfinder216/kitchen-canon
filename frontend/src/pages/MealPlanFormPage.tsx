@@ -1,378 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { useRecipes } from '../hooks/useRecipes';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useCreateMealPlan, useMealPlan, useUpdateMealPlan } from '../hooks/useMealPlans';
-import { FilterPanel } from '../components/FilterPanel';
-import { apiGet } from '../api/client';
 import type { Recipe } from '../types/recipe';
 import type { ActiveSwaps, MealPlanDetail } from '../types/meal-plan';
-import { resolveIngredientRefs } from '../utils/resolveIngredientRefs';
-import { fetchSubstitutionsForRecipe, type Substitution } from '../api/substitutions';
-import { Modal } from '../components/ui/Modal';
-import { Menu, MenuItemButton, MenuItem } from '../components/ui/Menu';
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-interface SelectedRecipe {
-  recipeId: string;
-  title: string;
-  defaultServings: number;
-  servings: number;
-  activeSwaps: ActiveSwaps;
-}
-
-function SwapIcon() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5" aria-hidden="true">
-      <path fillRule="evenodd" d="M13.2 2.24a.75.75 0 00.04 1.06l2.1 1.95H6.75a.75.75 0 000 1.5h8.59l-2.1 1.95a.75.75 0 101.02 1.1l3.5-3.25a.75.75 0 000-1.1l-3.5-3.25a.75.75 0 00-1.06.04zm-6.4 8a.75.75 0 00-1.06-.04l-3.5 3.25a.75.75 0 000 1.1l3.5 3.25a.75.75 0 101.02-1.1l-2.1-1.95h8.59a.75.75 0 000-1.5H4.66l2.1-1.95a.75.75 0 00.04-1.06z" clipRule="evenodd" />
-    </svg>
-  );
-}
-
-interface MediaItem { id: string; type: string; path: string; }
-
-async function fetchCoverPhoto(recipeId: string): Promise<MediaItem | null> {
-  const res = await fetch(`/api/recipes/${recipeId}/media`);
-  if (!res.ok) return null;
-  const items: MediaItem[] = await res.json();
-  return items.find((m) => m.type === 'image') ?? null;
-}
-
-// ── Selected recipe cover thumbnail ──────────────────────────────────────────
-
-function SelectedRecipeCover({ recipeId }: { recipeId: string }) {
-  const { data: cover = null } = useQuery({
-    queryKey: ['cover-photo', recipeId],
-    queryFn: () => fetchCoverPhoto(recipeId),
-    staleTime: 60_000,
-  });
-
-  return (
-    <div className="w-10 h-10 shrink-0 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center">
-      {cover
-        ? <img src={cover.path} alt="" className="w-full h-full object-cover" />
-        : <span className="text-base opacity-30">🍽</span>
-      }
-    </div>
-  );
-}
-
-// ── Browser recipe card ───────────────────────────────────────────────────────
-
-interface BrowserRecipeCardProps {
-  recipe: Recipe;
-  isAdded: boolean;
-  onAdd: () => void;
-  onRemove: () => void;
-  onView: () => void;
-}
-
-function BrowserRecipeCard({ recipe, isAdded, onAdd, onRemove, onView }: BrowserRecipeCardProps) {
-  const { data: cover = null } = useQuery({
-    queryKey: ['cover-photo', recipe.id],
-    queryFn: () => fetchCoverPhoto(recipe.id),
-    staleTime: 60_000,
-  });
-
-  return (
-    <div className="flex items-center gap-3 bg-white rounded-lg shadow-sm border border-gray-200 p-3">
-      {/* Cover photo */}
-      <button
-        type="button"
-        onClick={onView}
-        className="w-14 h-14 shrink-0 rounded-md overflow-hidden bg-gray-100 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-orange-400"
-        aria-label={`Preview ${recipe.title}`}
-      >
-        {cover ? (
-          <img src={cover.path} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-xl opacity-30">🍽</span>
-        )}
-      </button>
-
-      {/* Text — clicking opens preview */}
-      <button type="button" onClick={onView} className="flex-1 min-w-0 text-left focus:outline-none group">
-        <h3 className="text-sm font-semibold text-gray-900 truncate group-hover:text-orange-600 transition-colors">
-          {recipe.title}
-        </h3>
-        <div className="flex flex-wrap gap-x-2 text-xs text-gray-500 mt-0.5">
-          {recipe.totalTime && <span>{recipe.totalTime} min</span>}
-          <span>{recipe.servings} serving{recipe.servings !== 1 ? 's' : ''}</span>
-          <span>{recipe.ingredients.length} ingredient{recipe.ingredients.length !== 1 ? 's' : ''}</span>
-        </div>
-      </button>
-
-      {/* Add button */}
-      <button
-        type="button"
-        onClick={isAdded ? onRemove : onAdd}
-        className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-orange-400 ${
-          isAdded
-            ? 'bg-orange-100 text-orange-600 hover:bg-orange-200'
-            : 'bg-orange-500 text-white hover:bg-orange-600'
-        }`}
-        aria-label={isAdded ? `Remove ${recipe.title}` : `Add ${recipe.title}`}
-      >
-        {isAdded ? '✓' : '+'}
-      </button>
-    </div>
-  );
-}
-
-// ── Recipe preview modal ──────────────────────────────────────────────────────
-
-interface RecipePreviewModalProps {
-  recipeId: string;
-  isAdded: boolean;
-  currentServings: number | undefined;
-  currentSwaps: ActiveSwaps;
-  onAddOrUpdate: (recipeId: string, title: string, defaultServings: number, servings: number, activeSwaps: ActiveSwaps) => void;
-  onClose: () => void;
-}
-
-function RecipePreviewModal({ recipeId, isAdded, currentServings, currentSwaps, onAddOrUpdate, onClose }: RecipePreviewModalProps) {
-  const { data: recipe, isLoading } = useQuery({
-    queryKey: ['recipe', recipeId],
-    queryFn: () => apiGet<Recipe>(`/recipes/${recipeId}`),
-    staleTime: 60_000,
-  });
-
-  const { data: substitutions = [] } = useQuery({
-    queryKey: ['recipe-substitutions', recipeId],
-    queryFn: () => fetchSubstitutionsForRecipe(recipeId),
-    staleTime: 60_000,
-  });
-
-  const [servings, setServings] = useState(currentServings ?? 1);
-  const [activeSwaps, setActiveSwaps] = useState<ActiveSwaps>(currentSwaps);
-
-  useEffect(() => {
-    if (recipe) setServings(currentServings ?? recipe.servings);
-  }, [recipe, currentServings]);
-
-  // Group substitutions by ingredient name
-  const subsByName = new Map<string, Substitution[]>();
-  for (const sub of substitutions) {
-    const list = subsByName.get(sub.fromIngredient) ?? [];
-    list.push(sub);
-    subsByName.set(sub.fromIngredient, list);
-  }
-
-  function toggleSwap(ingId: string, sub: Substitution) {
-    setActiveSwaps((prev) => {
-      if (prev[ingId]?.toIngredient === sub.toIngredient) {
-        const next = { ...prev };
-        delete next[ingId];
-        return next;
-      }
-      return { ...prev, [ingId]: { toIngredient: sub.toIngredient, ratio: sub.ratio } };
-    });
-  }
-
-  const swapCount = Object.keys(activeSwaps).length;
-
-  return (
-    <Modal
-      open
-      onClose={onClose}
-      panelClassName="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl"
-    >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900 truncate pr-4">
-            {recipe?.title ?? (isLoading ? 'Loading…' : '')}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 text-xl leading-none shrink-0"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
-          {isLoading && <p className="text-gray-500 text-sm">Loading recipe…</p>}
-
-          {recipe && (
-            <>
-              {/* Metadata */}
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-500">
-                {recipe.totalTime && <span>{recipe.totalTime} min total</span>}
-                {recipe.activeTime && <span>{recipe.activeTime} min active</span>}
-                <span>{recipe.servings} default servings</span>
-                {recipe.source && <span className="truncate">{recipe.source}</span>}
-              </div>
-
-              {/* Active swap chips */}
-              {swapCount > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(activeSwaps).map(([ingId, swap]) => {
-                    const ing = recipe.ingredients.find((i) => i.id === ingId);
-                    if (!ing) return null;
-                    return (
-                      <button
-                        key={ingId}
-                        type="button"
-                        onClick={() => {
-                          setActiveSwaps((prev) => {
-                            const next = { ...prev };
-                            delete next[ingId];
-                            return next;
-                          });
-                        }}
-                        className="inline-flex items-center gap-1 text-xs bg-orange-100 text-orange-700 border border-orange-300 rounded-full px-2 py-0.5 hover:bg-orange-200 transition-colors"
-                        title="Click to remove substitution"
-                      >
-                        <SwapIcon />
-                        {ing.name} → {swap.toIngredient}
-                        <span className="ml-0.5 text-orange-500">✕</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Ingredients */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                  Ingredients ({recipe.ingredients.length})
-                </h3>
-                <ul className="space-y-1">
-                  {recipe.ingredients.map((ing) => {
-                    const swap = activeSwaps[ing.id];
-                    const displayName = swap ? swap.toIngredient : ing.name;
-                    const subs = subsByName.get(ing.name) ?? [];
-                    return (
-                      <li key={ing.id} className="text-sm text-gray-700 flex gap-2 items-center">
-                        <span className="text-gray-400 shrink-0">
-                          {ing.amount != null ? `${ing.amount}${ing.unit ? ' ' + ing.unit : ''}` : ing.unit ?? ''}
-                        </span>
-                        <span className={swap ? 'text-orange-700 font-medium' : ''}>
-                          {displayName}
-                          {ing.isOptional && <span className="text-gray-400 ml-1">(optional)</span>}
-                          {swap && <span className="text-gray-400 font-normal ml-1">(was {ing.name})</span>}
-                        </span>
-                        {subs.length > 0 && (
-                          <span className="inline-block ml-1">
-                            <Menu
-                              buttonAriaLabel={`Substitute ${ing.name}`}
-                              buttonClassName={`p-0.5 rounded transition-colors ${swap ? 'text-orange-500 hover:text-orange-700' : 'text-gray-400 hover:text-orange-500'}`}
-                              className="min-w-[180px]"
-                              label={<SwapIcon />}
-                            >
-                              <p className="text-xs text-gray-400 px-3 py-1 font-medium">Substitute {ing.name}</p>
-                              {subs.map((sub) => {
-                                const isActive = activeSwaps[ing.id]?.toIngredient === sub.toIngredient;
-                                return (
-                                  <MenuItemButton
-                                    key={sub.id}
-                                    selected={isActive}
-                                    onClick={() => toggleSwap(ing.id, sub)}
-                                  >
-                                    {isActive ? '✓ ' : ''}{sub.toIngredient}
-                                    {sub.ratio !== 1 && (
-                                      <span className="text-xs text-gray-400 ml-1">({sub.ratio}× amount)</span>
-                                    )}
-                                  </MenuItemButton>
-                                );
-                              })}
-                              {swap && (
-                                <MenuItem>
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setActiveSwaps((prev) => { const next = { ...prev }; delete next[ing.id]; return next; })
-                                    }
-                                    className="block w-full text-left px-3 py-2 text-sm text-red-500 border-t border-gray-100 data-[focus]:bg-red-50"
-                                  >
-                                    Remove substitution
-                                  </button>
-                                </MenuItem>
-                              )}
-                            </Menu>
-                          </span>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-
-              {/* Steps */}
-              {recipe.steps.length > 0 && (() => {
-                // Apply swap ratios to amounts (same pattern as RecipeDetailPage)
-                const finalIngredients = recipe.ingredients.map((ing) => {
-                  const swap = activeSwaps[ing.id];
-                  if (!swap) return ing;
-                  return { ...ing, amount: ing.amount !== null ? ing.amount * swap.ratio : null };
-                });
-                const swapDisplayNames = new Map(
-                  Object.entries(activeSwaps).map(([id, s]) => [id, s.toIngredient])
-                );
-                return (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-2">
-                      Steps ({recipe.steps.length})
-                    </h3>
-                    <ol className="space-y-2">
-                      {recipe.steps.map((step, i) => (
-                        <li key={step.id} className="flex gap-3 text-sm text-gray-700">
-                          <span className="shrink-0 w-5 h-5 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center text-xs font-semibold mt-0.5">
-                            {i + 1}
-                          </span>
-                          <span>{resolveIngredientRefs(step.instruction, finalIngredients, 1, swapDisplayNames)}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                );
-              })()}
-            </>
-          )}
-        </div>
-
-        {/* Footer — add/update */}
-        <div className="border-t border-gray-200 px-5 py-4 flex items-center gap-4">
-          <label htmlFor="modal-servings" className="text-sm text-gray-700 shrink-0">Servings:</label>
-          <input
-            id="modal-servings"
-            type="number"
-            min={1}
-            value={servings}
-            onChange={(e) => setServings(Math.max(1, parseInt(e.target.value) || 1))}
-            className="w-20 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-400"
-          />
-          <button
-            type="button"
-            disabled={!recipe}
-            onClick={() => {
-              if (recipe) {
-                onAddOrUpdate(recipe.id, recipe.title, recipe.servings, servings, activeSwaps);
-                onClose();
-              }
-            }}
-            className="ml-auto bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors"
-          >
-            {isAdded ? 'Update' : 'Add to Meal'}
-          </button>
-          {recipe && (
-            <Link
-              to={`/recipes/${recipe.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-gray-500 hover:text-orange-600"
-            >
-              Open recipe ↗
-            </Link>
-          )}
-        </div>
-    </Modal>
-  );
-}
+import { PlanDetailsFields } from '../components/meal-plan-form/PlanDetailsFields';
+import { RecipeBrowser } from '../components/meal-plan-form/RecipeBrowser';
+import { SelectedRecipesList } from '../components/meal-plan-form/SelectedRecipesList';
+import { RecipePreviewModal } from '../components/meal-plan-form/RecipePreviewModal';
+import type { SelectedRecipe } from '../components/meal-plan-form/types';
 
 // ── Main form component ───────────────────────────────────────────────────────
 
@@ -407,27 +42,12 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
     })) ?? [],
   );
 
-  // Recipe browser state
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState<{
-    includeIngredients?: string;
-    excludeIngredients?: string;
-    labels?: string;
-    courses?: string;
-  }>({});
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const createMealPlan = useCreateMealPlan();
   const updateMealPlan = useUpdateMealPlan();
   const isPending = createMealPlan.isPending || updateMealPlan.isPending;
-
-  const { data: recipesData, isLoading: recipesLoading } = useRecipes({
-    search: search || undefined,
-    page,
-    ...filters,
-  });
 
   const selectedIds = new Set(selected.map((s) => s.recipeId));
 
@@ -479,9 +99,6 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
     }
   }
 
-  const base = 'rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500';
-  const labelClass = 'block text-sm font-medium text-gray-700 mb-1';
-
   return (
     <form onSubmit={handleSubmit}>
       {/* Header */}
@@ -507,195 +124,34 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
         </div>
       </div>
 
-      {/* Top fields */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-        <div className="col-span-2">
-          <label htmlFor="plan-name" className={labelClass}>Name *</label>
-          <input
-            id="plan-name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Sunday dinner"
-            className={base + ' w-full'}
-            required
-          />
-        </div>
-        <div>
-          <label htmlFor="plan-date" className={labelClass}>Date</label>
-          <input
-            ref={dateRef}
-            id="plan-date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className={base + ' w-full'}
-          />
-        </div>
-        <div>
-          <label htmlFor="plan-time" className={labelClass}>Time</label>
-          <input
-            id="plan-time"
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            className={base + ' w-full'}
-          />
-        </div>
-        <div className="col-span-2 md:col-span-4">
-          <label htmlFor="plan-notes" className={labelClass}>Notes</label>
-          <textarea
-            id="plan-notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Occasion, guests, special requirements…"
-            rows={2}
-            className={base + ' w-full resize-none'}
-          />
-        </div>
-      </div>
+      <PlanDetailsFields
+        ref={dateRef}
+        name={name}
+        onNameChange={setName}
+        date={date}
+        onDateChange={setDate}
+        time={time}
+        onTimeChange={setTime}
+        notes={notes}
+        onNotesChange={setNotes}
+      />
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       {/* Two-panel layout */}
       <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <RecipeBrowser
+          selectedIds={selectedIds}
+          onAdd={(recipe: Recipe) => addRecipe(recipe.id, recipe.title, recipe.servings, recipe.servings)}
+          onRemove={removeRecipe}
+          onView={setPreviewId}
+        />
 
-        {/* Left panel: recipe browser */}
-        <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold text-gray-700 mb-2">Browse Recipes</h2>
-
-          <div className="mb-2">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              placeholder="Search recipes…"
-              className={base + ' w-full'}
-            />
-          </div>
-
-          <FilterPanel
-            onFilterChange={(f) => { setFilters(f); setPage(1); }}
-          />
-
-          {recipesLoading && <p className="text-gray-500 text-sm mt-2">Loading recipes…</p>}
-
-          {recipesData && recipesData.recipes.length === 0 && (
-            <p className="text-gray-500 text-sm mt-2">No recipes found.</p>
-          )}
-
-          {recipesData && recipesData.recipes.length > 0 && (
-            <>
-              <div className="grid gap-2 mt-2">
-                {recipesData.recipes.map((recipe) => (
-                  <BrowserRecipeCard
-                    key={recipe.id}
-                    recipe={recipe}
-                    isAdded={selectedIds.has(recipe.id)}
-                    onAdd={() => addRecipe(recipe.id, recipe.title, recipe.servings, recipe.servings)}
-                    onRemove={() => removeRecipe(recipe.id)}
-                    onView={() => setPreviewId(recipe.id)}
-                  />
-                ))}
-              </div>
-
-              {recipesData.pagination.totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-4">
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="px-3 py-1 text-sm rounded border border-gray-300 disabled:opacity-50 hover:bg-gray-50"
-                  >
-                    Previous
-                  </button>
-                  <span className="text-sm text-gray-600">
-                    Page {page} of {recipesData.pagination.totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(recipesData.pagination.totalPages, p + 1))}
-                    disabled={page === recipesData.pagination.totalPages}
-                    className="px-3 py-1 text-sm rounded border border-gray-300 disabled:opacity-50 hover:bg-gray-50"
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Right panel: selected recipes */}
-        <div className="lg:w-80 shrink-0 w-full">
-          <h2 className="text-sm font-semibold text-gray-700 mb-2">
-            Meal{selected.length > 0 ? ` (${selected.length})` : ''}
-          </h2>
-
-          {selected.length === 0 ? (
-            <p className="text-sm text-gray-400 border border-dashed border-gray-200 rounded-lg p-4 text-center">
-              Add recipes from the list on the left.
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {selected.map((s) => (
-                <li
-                  key={s.recipeId}
-                  className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2"
-                >
-                  <div className="flex items-start gap-2">
-                    <SelectedRecipeCover recipeId={s.recipeId} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <Link
-                          to={`/recipes/${s.recipeId}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium text-gray-800 hover:text-orange-600 truncate"
-                        >
-                          {s.title}
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => removeRecipe(s.recipeId)}
-                          className="text-gray-400 hover:text-red-500 shrink-0 text-sm font-bold"
-                          aria-label={`Remove ${s.title}`}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <label htmlFor={`srv-${s.recipeId}`} className="text-xs text-gray-500">Servings:</label>
-                        <input
-                          id={`srv-${s.recipeId}`}
-                          type="number"
-                          min={1}
-                          value={s.servings}
-                          onChange={(e) => updateServings(s.recipeId, Math.max(1, parseInt(e.target.value) || 1))}
-                          className="w-16 border border-orange-300 rounded px-2 py-0.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-orange-400"
-                        />
-                        <span className="text-xs text-gray-400">(default: {s.defaultServings})</span>
-                      </div>
-                      {Object.keys(s.activeSwaps).length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {Object.entries(s.activeSwaps).map(([, swap]) => (
-                            <span
-                              key={swap.toIngredient}
-                              className="inline-flex items-center gap-1 text-xs bg-orange-100 text-orange-700 rounded-full px-2 py-0.5"
-                            >
-                              <SwapIcon />
-                              {swap.toIngredient}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        <SelectedRecipesList
+          selected={selected}
+          onRemove={removeRecipe}
+          onUpdateServings={updateServings}
+        />
       </div>
 
       {/* Recipe preview modal */}

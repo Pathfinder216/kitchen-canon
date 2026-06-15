@@ -24,6 +24,12 @@ describe('GroceryList', () => {
     expect(screen.getByText(/2 cups/)).toBeInTheDocument();
   });
 
+  it('does not show the alias parenthetical', () => {
+    render(<GroceryList items={[makeItem({ ingredient: 'cilantro', amount: null, unit: null })]} />);
+    expect(screen.getByText('cilantro')).toBeInTheDocument();
+    expect(screen.queryByText(/\(coriander\)/)).not.toBeInTheDocument();
+  });
+
   it('renders item without amount', () => {
     render(<GroceryList items={[makeItem({ amount: null, unit: null })]} />);
     expect(screen.getByText('Flour')).toBeInTheDocument();

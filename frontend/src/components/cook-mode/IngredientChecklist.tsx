@@ -1,6 +1,5 @@
 import type { Ingredient } from '../../types/recipe';
 import { formatScaledAmount } from '../../hooks/useScaling';
-import { getIngredientAlias } from '../../utils/ingredientAliases';
 
 interface IngredientChecklistProps {
   ingredients: Ingredient[];
@@ -50,7 +49,6 @@ export function IngredientChecklist({
                 </span>
               )}
               {swapDisplayNames.get(ing.id) ?? ing.name}
-              {!swapDisplayNames.has(ing.id) && getIngredientAlias(ing.name) && <span className="text-gray-400 ml-1">({getIngredientAlias(ing.name)})</span>}
               {ing.isOptional && <span className="text-gray-400 ml-1">(optional)</span>}
             </label>
           </li>

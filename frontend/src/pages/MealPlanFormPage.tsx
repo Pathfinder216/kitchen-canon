@@ -9,6 +9,8 @@ import type { Recipe } from '../types/recipe';
 import type { ActiveSwaps, MealPlanDetail } from '../types/meal-plan';
 import { resolveIngredientRefs } from '../utils/resolveIngredientRefs';
 import { fetchSubstitutionsForRecipe, type Substitution } from '../api/substitutions';
+import { Modal } from '../components/ui/Modal';
+import { Menu, MenuItemButton, MenuItem } from '../components/ui/Menu';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -144,8 +146,6 @@ function RecipePreviewModal({ recipeId, isAdded, currentServings, currentSwaps, 
 
   const [servings, setServings] = useState(currentServings ?? 1);
   const [activeSwaps, setActiveSwaps] = useState<ActiveSwaps>(currentSwaps);
-  const [openSwapId, setOpenSwapId] = useState<string | null>(null);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (recipe) setServings(currentServings ?? recipe.servings);
@@ -168,68 +168,16 @@ function RecipePreviewModal({ recipeId, isAdded, currentServings, currentSwaps, 
       }
       return { ...prev, [ingId]: { toIngredient: sub.toIngredient, ratio: sub.ratio } };
     });
-    setOpenSwapId(null);
   }
 
   const swapCount = Object.keys(activeSwaps).length;
 
   return (
-    <div
-      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
+    <Modal
+      open
+      onClose={onClose}
+      panelClassName="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl"
     >
-      {/* Popover rendered at fixed position so it escapes overflow-y-auto clipping */}
-      {openSwapId && popoverPos && (() => {
-        const ing = recipe?.ingredients.find((i) => i.id === openSwapId);
-        const subs = ing ? (subsByName.get(ing.name) ?? []) : [];
-        const swap = ing ? activeSwaps[ing.id] : undefined;
-        return (
-          <>
-            <div className="fixed inset-0 z-[60]" onClick={(e) => { e.stopPropagation(); setOpenSwapId(null); setPopoverPos(null); }} />
-            <div
-              className="fixed z-[61] bg-white border border-gray-200 rounded-lg shadow-lg min-w-[180px] py-1"
-              style={{ top: popoverPos.top, left: popoverPos.left }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {ing && <p className="text-xs text-gray-400 px-3 py-1 font-medium">Substitute {ing.name}</p>}
-              {subs.map((sub) => {
-                const isActive = ing && activeSwaps[ing.id]?.toIngredient === sub.toIngredient;
-                return (
-                  <button
-                    key={sub.id}
-                    type="button"
-                    onClick={() => { if (ing) toggleSwap(ing.id, sub); }}
-                    className={`w-full text-left px-3 py-1.5 text-sm hover:bg-orange-50 transition-colors ${isActive ? 'text-orange-700 font-medium' : 'text-gray-700'}`}
-                  >
-                    {isActive ? '✓ ' : ''}{sub.toIngredient}
-                    {sub.ratio !== 1 && (
-                      <span className="text-xs text-gray-400 ml-1">({sub.ratio}× amount)</span>
-                    )}
-                  </button>
-                );
-              })}
-              {swap && ing && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveSwaps((prev) => { const next = { ...prev }; delete next[ing.id]; return next; });
-                    setOpenSwapId(null);
-                    setPopoverPos(null);
-                  }}
-                  className="w-full text-left px-3 py-1.5 text-sm text-red-500 hover:bg-red-50 transition-colors border-t border-gray-100"
-                >
-                  Remove substitution
-                </button>
-              )}
-            </div>
-          </>
-        );
-      })()}
-
-      <div
-        className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900 truncate pr-4">
@@ -298,7 +246,6 @@ function RecipePreviewModal({ recipeId, isAdded, currentServings, currentSwaps, 
                     const swap = activeSwaps[ing.id];
                     const displayName = swap ? swap.toIngredient : ing.name;
                     const subs = subsByName.get(ing.name) ?? [];
-                    const isOpen = openSwapId === ing.id;
                     return (
                       <li key={ing.id} className="text-sm text-gray-700 flex gap-2 items-center">
                         <span className="text-gray-400 shrink-0">
@@ -311,25 +258,42 @@ function RecipePreviewModal({ recipeId, isAdded, currentServings, currentSwaps, 
                         </span>
                         {subs.length > 0 && (
                           <span className="inline-block ml-1">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (isOpen) {
-                                  setOpenSwapId(null);
-                                  setPopoverPos(null);
-                                } else {
-                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                  setPopoverPos({ top: rect.bottom + 4, left: rect.left });
-                                  setOpenSwapId(ing.id);
-                                }
-                              }}
-                              className={`p-0.5 rounded transition-colors ${swap ? 'text-orange-500 hover:text-orange-700' : 'text-gray-400 hover:text-orange-500'}`}
-                              aria-label={`Substitute ${ing.name}`}
-                              title="Substitute ingredient"
+                            <Menu
+                              buttonAriaLabel={`Substitute ${ing.name}`}
+                              buttonClassName={`p-0.5 rounded transition-colors ${swap ? 'text-orange-500 hover:text-orange-700' : 'text-gray-400 hover:text-orange-500'}`}
+                              className="min-w-[180px]"
+                              label={<SwapIcon />}
                             >
-                              <SwapIcon />
-                            </button>
+                              <p className="text-xs text-gray-400 px-3 py-1 font-medium">Substitute {ing.name}</p>
+                              {subs.map((sub) => {
+                                const isActive = activeSwaps[ing.id]?.toIngredient === sub.toIngredient;
+                                return (
+                                  <MenuItemButton
+                                    key={sub.id}
+                                    selected={isActive}
+                                    onClick={() => toggleSwap(ing.id, sub)}
+                                  >
+                                    {isActive ? '✓ ' : ''}{sub.toIngredient}
+                                    {sub.ratio !== 1 && (
+                                      <span className="text-xs text-gray-400 ml-1">({sub.ratio}× amount)</span>
+                                    )}
+                                  </MenuItemButton>
+                                );
+                              })}
+                              {swap && (
+                                <MenuItem>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setActiveSwaps((prev) => { const next = { ...prev }; delete next[ing.id]; return next; })
+                                    }
+                                    className="block w-full text-left px-3 py-2 text-sm text-red-500 border-t border-gray-100 data-[focus]:bg-red-50"
+                                  >
+                                    Remove substitution
+                                  </button>
+                                </MenuItem>
+                              )}
+                            </Menu>
                           </span>
                         )}
                       </li>
@@ -406,8 +370,7 @@ function RecipePreviewModal({ recipeId, isAdded, currentServings, currentSwaps, 
             </Link>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

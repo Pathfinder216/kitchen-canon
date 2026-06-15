@@ -28,7 +28,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [x] [05 — Shared Modal/Menu primitives (Headless UI)](05-ui-primitives.md) (S-M) — blocks 06–09, 26 — `components/ui/Modal.tsx` (Headless UI Dialog) + `components/ui/Menu.tsx` (anchored dropdown); every overlay (RecipeForm 3 dialogs, RecipeDetailPage delete + substitutions, MealPlanFormPage preview modal + swap) migrated; Floating-UI anchored menus replaced the manual fixed-position popovers; RTL tests for both
 - [x] [06 — Decompose RecipeForm](06-decompose-recipe-form.md) (M-L) — split the 1046-line `RecipeForm.tsx` into `components/recipe-form/`; composition file 210 lines; zero behavior change (11 existing tests pass unmodified) + new `useRecipeFormState` hook tests
 - [x] [07 — Decompose CookModePage](07-decompose-cook-mode.md) (M) — timer system extracted to `hooks/useStepTimers.ts` (state machine + `formatTime` + `playTimerSound`, audio via `onComplete` callback); `components/cook-mode/` holds `TimerPanel`, `StepTimerControls`, `StepCard`, `IngredientChecklist`; page down to 172 lines; checked-ingredient state kept in page; added 8 `useStepTimers` fake-timer tests; all 11 CookModePage tests pass unchanged
-- [ ] [08 — Decompose MealPlanFormPage](08-decompose-meal-plan-form.md) (M)
+- [x] [08 — Decompose MealPlanFormPage](08-decompose-meal-plan-form.md) (M) — extracted `components/meal-plan-form/` (page 743→198 lines); candidate filtering stays in the existing `FilterPanel`; new 6-test characterization suite; zero behavior change
 - [x] [09 — Decompose RecipeDetailPage](09-decompose-recipe-detail.md) (M) — extracted `components/recipe-detail/`; inner composition under ~200 lines; new 5-test characterization suite; zero behavior change
 
 ## Bugs & small improvements (independent; any order)

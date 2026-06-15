@@ -1,5 +1,4 @@
 import { formatScaledAmount } from '../../hooks/useScaling';
-import { getIngredientAlias } from '../../utils/ingredientAliases';
 import { SubstitutionsMenu } from './SubstitutionsMenu';
 import type { Ingredient } from '../../types/recipe';
 import type { Substitution } from '../../api/substitutions';
@@ -79,9 +78,6 @@ export function RecipeIngredientList({
                   <span className="font-medium">{displayName}</span>
                   {swap && (
                     <span className="text-xs text-orange-500 ml-1">(sub for {ing.name})</span>
-                  )}
-                  {!swap && getIngredientAlias(ing.name) && (
-                    <span className="text-gray-400 ml-1">({getIngredientAlias(ing.name)})</span>
                   )}
                   {ing.isOptional && (
                     <span className="text-gray-400 ml-1">(optional)</span>

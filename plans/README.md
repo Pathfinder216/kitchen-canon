@@ -35,7 +35,7 @@ Pi; 44 is defense-in-depth after the first three.
 
 - [ ] [45 — Responsive mobile navigation](45-mobile-nav-responsive.md) (S-M, bug) — nav links overflow off-screen on phones
 - [ ] [10 — Fix stale unclassified-ingredients banner](10-fix-unclassified-banner.md) (S, bug)
-- [ ] [11 — Remove alias names from ingredient list](11-remove-alias-names-from-ingredient-list.md) (S)
+- [x] [11 — Remove alias names from ingredient list](11-remove-alias-names-from-ingredient-list.md) (S) — dropped the `(coriander)` parenthetical from the recipe-detail ingredient list (`RecipeIngredientList` + `PrintLayout`, and the now-dead `IngredientList`); left `GroceryList` + cook-mode aliases as the plan directs. Note: plan named pre-decomposition `IngredientList.tsx` (now unused) — the live list is `recipe-detail/RecipeIngredientList.tsx`
 - [ ] [12 — Hours + minutes duration display](12-duration-display-hours.md) (S)
 - [ ] [13 — Hours/minutes input for step times](13-step-time-hm-input.md) (S)
 - [ ] [14 — Empty-able meal plan servings input](14-meal-plan-servings-input.md) (S; after 08 if both queued)

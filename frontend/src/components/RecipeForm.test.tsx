@@ -112,6 +112,51 @@ describe('RecipeForm', () => {
     expect(screen.getByRole('generic', { name: /drag to reorder/i })).toBeInTheDocument();
   });
 
+  it('submits a step time entered as hours and minutes', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderForm({ onSubmit });
+
+    await user.type(screen.getByLabelText(/title/i), 'Braise');
+    await user.click(screen.getByText('+ Add Step'));
+    await user.type(screen.getByPlaceholderText('Step instruction'), 'Braise low and slow');
+    await user.type(screen.getByLabelText('Hours'), '1');
+    await user.type(screen.getByLabelText('Minutes'), '30');
+    await user.click(screen.getByText('Create Recipe'));
+
+    expect(onSubmit).toHaveBeenCalled();
+    expect(onSubmit.mock.calls[0][0].steps[0].timeMinutes).toBe(90);
+  });
+
+  it('still accepts a minutes-only step time', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    renderForm({ onSubmit });
+
+    await user.type(screen.getByLabelText(/title/i), 'Quick');
+    await user.click(screen.getByText('+ Add Step'));
+    await user.type(screen.getByPlaceholderText('Step instruction'), 'Stir');
+    await user.type(screen.getByLabelText('Minutes'), '45');
+    await user.click(screen.getByText('Create Recipe'));
+
+    expect(onSubmit).toHaveBeenCalled();
+    expect(onSubmit.mock.calls[0][0].steps[0].timeMinutes).toBe(45);
+  });
+
+  it('seeds hours and minutes from an existing step time', () => {
+    const recipe = {
+      id: '1', title: 'Test', servings: 1, totalTime: null, activeTime: null,
+      source: null, archived: false, createdAt: '', updatedAt: '',
+      version: 1, parentId: null, isLatest: true, authorNotes: null,
+      personalNotes: null, ingredients: [],
+      steps: [{ id: 's1', recipeId: '1', orderIndex: 0, instruction: 'Braise', timeMinutes: 90, isActiveTime: true }],
+    };
+    renderForm({ initialData: recipe });
+
+    expect(screen.getByLabelText('Hours')).toHaveValue(1);
+    expect(screen.getByLabelText('Minutes')).toHaveValue(30);
+  });
+
   it('shows import link for new recipe', () => {
     renderForm();
     expect(screen.getByRole('link', { name: /import from url/i })).toBeInTheDocument();

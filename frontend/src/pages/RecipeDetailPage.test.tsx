@@ -95,6 +95,21 @@ describe('RecipeDetailPage', () => {
     expect(screen.getAllByText('Bake it').length).toBeGreaterThan(0);
   });
 
+  it('renders ingredient names without the alias parenthetical', async () => {
+    mockFetchRecipe.mockResolvedValue({
+      ...mockRecipe,
+      ingredients: [
+        { id: 'i1', recipeId: 'r1', name: 'cilantro', amount: 1, unit: 'cup', isOptional: false, orderIndex: 0, originalName: null },
+      ],
+    });
+    renderPage();
+    await screen.findAllByRole('heading', { name: 'Test Recipe', level: 1 });
+
+    expect(screen.getAllByText('cilantro').length).toBeGreaterThan(0);
+    // The on-screen recipe ingredient list must not append "(coriander)".
+    expect(screen.queryByText(/\(coriander\)/)).not.toBeInTheDocument();
+  });
+
   it('doubles displayed ingredient amounts when servings are doubled', async () => {
     renderPage();
     await screen.findAllByRole('heading', { name: 'Test Recipe', level: 1 });

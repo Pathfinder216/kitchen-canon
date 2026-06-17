@@ -1,7 +1,8 @@
 import { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { StepMedia } from '../StepMedia';
 import { GripIcon, TrashIcon } from './icons';
-import { base, inputClass, gripClass, FLIP_TRANSITION, noScroll } from './styles';
+import { base, inputClass, gripClass, FLIP_TRANSITION } from './styles';
+import { NumberField } from '../ui/NumberField';
 import { refKeyForIngredient, getRefUsage } from './refs';
 import type { IngredientFormItem, StepFormItem } from './useRecipeFormState';
 
@@ -36,26 +37,22 @@ function StepTimeInput({ valueMinutes, onChange }: { valueMinutes: string; onCha
 
   return (
     <div className="flex items-center gap-1">
-      <input
-        type="number"
+      <NumberField
         value={hours}
-        onChange={(e) => { setHours(e.target.value); emit(e.target.value, mins); }}
+        onChange={(v) => { setHours(v); emit(v, mins); }}
         className={`${base} w-14`}
         min={0}
         placeholder="0"
         aria-label="Hours"
-        onWheel={noScroll}
       />
       <span className="text-xs text-gray-500 mr-1">h</span>
-      <input
-        type="number"
+      <NumberField
         value={mins}
-        onChange={(e) => { setMins(e.target.value); emit(hours, e.target.value); }}
+        onChange={(v) => { setMins(v); emit(hours, v); }}
         className={`${base} w-14`}
         min={0}
         placeholder="0"
         aria-label="Minutes"
-        onWheel={noScroll}
       />
       <span className="text-xs text-gray-500">min</span>
     </div>

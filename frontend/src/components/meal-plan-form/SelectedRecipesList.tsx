@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCoverPhoto } from './types';
 import type { SelectedRecipe } from './types';
+import { NumberField } from '../ui/NumberField';
 import { SwapIcon } from './SwapIcon';
 
 function SelectedRecipeCover({ recipeId }: { recipeId: string }) {
@@ -24,7 +25,7 @@ function SelectedRecipeCover({ recipeId }: { recipeId: string }) {
 interface SelectedRecipesListProps {
   selected: SelectedRecipe[];
   onRemove: (recipeId: string) => void;
-  onUpdateServings: (recipeId: string, value: number) => void;
+  onUpdateServings: (recipeId: string, value: string) => void;
 }
 
 /** The right-hand "Meal" panel: chosen recipes with servings inputs + active-substitution chips. */
@@ -69,12 +70,11 @@ export function SelectedRecipesList({ selected, onRemove, onUpdateServings }: Se
                   </div>
                   <div className="flex items-center gap-2">
                     <label htmlFor={`srv-${s.recipeId}`} className="text-xs text-gray-500">Servings:</label>
-                    <input
+                    <NumberField
                       id={`srv-${s.recipeId}`}
-                      type="number"
                       min={1}
                       value={s.servings}
-                      onChange={(e) => onUpdateServings(s.recipeId, Math.max(1, parseInt(e.target.value) || 1))}
+                      onChange={(value) => onUpdateServings(s.recipeId, value)}
                       className="w-16 border border-orange-300 rounded px-2 py-0.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-orange-400"
                     />
                     <span className="text-xs text-gray-400">(default: {s.defaultServings})</span>

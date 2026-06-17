@@ -4,8 +4,15 @@ export interface SelectedRecipe {
   recipeId: string;
   title: string;
   defaultServings: number;
-  servings: number;
+  /** Empty-able string so the field can be cleared mid-edit; parsed on submit via `parseServings`. */
+  servings: string;
   activeSwaps: ActiveSwaps;
+}
+
+/** Parse an empty-able servings string to a valid Int ≥ 1, falling back to the recipe default. */
+export function parseServings(value: string, fallback: number): number {
+  const n = parseInt(value, 10);
+  return Number.isFinite(n) && n >= 1 ? n : fallback;
 }
 
 export interface MediaItem {

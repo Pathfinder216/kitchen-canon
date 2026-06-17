@@ -1,5 +1,6 @@
 import type { Step } from '../../types/recipe';
 import { formatTime, getRemaining, isDone, isRunning, type TimerState } from '../../hooks/useStepTimers';
+import { NumberField } from '../ui/NumberField';
 
 export interface CustomTime {
   mins: string;
@@ -47,24 +48,24 @@ export function StepTimerControls({ step, stepIndex, timer, customTime, onCustom
         <span className="text-sm font-medium text-orange-700">Passive time</span>
         {canEdit ? (
           <div className="flex items-center gap-1 text-sm text-orange-700">
-            <input
-              type="number"
+            <NumberField
               min={0}
               step={1}
               value={customMins}
-              onChange={(e) => setCustomMins(e.target.value)}
+              onChange={setCustomMins}
               onKeyDown={blockNonDigits}
+              aria-label="Minutes"
               className={numInput}
             />
             <span>m</span>
-            <input
-              type="number"
+            <NumberField
               min={0}
               max={59}
               step={1}
               value={customSecs}
-              onChange={(e) => setCustomSecs(e.target.value)}
+              onChange={setCustomSecs}
               onKeyDown={blockNonDigits}
+              aria-label="Seconds"
               className={numInput}
             />
             <span>s</span>

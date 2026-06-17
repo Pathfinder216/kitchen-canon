@@ -236,6 +236,54 @@ describe('MealPlanFormPage (characterization)', () => {
     expect(await screen.findByText('Plan Detail Page')).toBeInTheDocument();
   });
 
+  it('servings field can be cleared mid-edit, then a typed value submits', async () => {
+    mockFetchMealPlan.mockResolvedValue(undefined);
+    mockCreateMealPlan.mockResolvedValue(makePlan({ id: 'new1' }));
+    renderNew();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/Name/i), 'My Plan');
+
+    const pastaCard = (await screen.findByText('Pasta')).closest('div')!;
+    await user.click(within(pastaCard.parentElement!).getByRole('button', { name: /Add Pasta/i }));
+
+    const servingsInput = screen.getByLabelText(/^Servings:$/i) as HTMLInputElement;
+    // Clearing the field leaves it empty — it does NOT snap back to the default.
+    await user.clear(servingsInput);
+    expect(servingsInput.value).toBe('');
+
+    await user.type(servingsInput, '6');
+    expect(servingsInput.value).toBe('6');
+
+    await user.click(screen.getByRole('button', { name: /Create Meal Plan/i }));
+
+    await waitFor(() => expect(mockCreateMealPlan).toHaveBeenCalledTimes(1));
+    expect(mockCreateMealPlan.mock.calls[0][0].recipes).toEqual([
+      { recipeId: 'r1', servings: 6, orderIndex: 0, substitutions: undefined },
+    ]);
+  });
+
+  it('an empty servings field falls back to the recipe default on submit', async () => {
+    mockFetchMealPlan.mockResolvedValue(undefined);
+    mockCreateMealPlan.mockResolvedValue(makePlan({ id: 'new1' }));
+    renderNew();
+
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/Name/i), 'My Plan');
+
+    const pastaCard = (await screen.findByText('Pasta')).closest('div')!;
+    await user.click(within(pastaCard.parentElement!).getByRole('button', { name: /Add Pasta/i }));
+
+    // Leave the field empty and submit — the payload carries the recipe's default servings (4).
+    await user.clear(screen.getByLabelText(/^Servings:$/i));
+    await user.click(screen.getByRole('button', { name: /Create Meal Plan/i }));
+
+    await waitFor(() => expect(mockCreateMealPlan).toHaveBeenCalledTimes(1));
+    expect(mockCreateMealPlan.mock.calls[0][0].recipes).toEqual([
+      { recipeId: 'r1', servings: 4, orderIndex: 0, substitutions: undefined },
+    ]);
+  });
+
   it('submit on edit calls update and navigates back to detail', async () => {
     mockFetchMealPlan.mockResolvedValue(makePlan());
     mockUpdateMealPlan.mockResolvedValue(makePlan());

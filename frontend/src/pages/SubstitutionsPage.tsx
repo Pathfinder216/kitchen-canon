@@ -7,6 +7,7 @@ import {
   type Substitution,
 } from '../api/substitutions';
 import { ComboInput } from '../components/ComboInput';
+import { NumberField } from '../components/ui/NumberField';
 import { useIngredientNames } from '../hooks/useIngredients';
 
 function TrashIcon() {
@@ -149,12 +150,12 @@ export function SubstitutionsPage() {
               {/* Amount */}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">Use</span>
-                <input
-                  type="number"
+                <NumberField
+                  mode="decimal"
                   min="0.01"
                   step="0.01"
                   value={form.ratio}
-                  onChange={(e) => setForm((f) => ({ ...f, ratio: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, ratio: v }))}
                   className="w-20 border border-gray-300 rounded-md px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
                 <span className="text-sm text-gray-600">times the amount</span>

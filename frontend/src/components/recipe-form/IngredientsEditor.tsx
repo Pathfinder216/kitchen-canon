@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { ComboInput } from '../ComboInput';
+import { NumberField } from '../ui/NumberField';
 import { UNIT_SUGGESTIONS } from '../../constants/suggestions';
 import { InlineClassifyPanel } from './InlineClassifyPanel';
 import { GripIcon, TrashIcon, UnclassifiedIcon } from './icons';
@@ -140,14 +141,10 @@ export function IngredientsEditor({
                 <GripIcon />
               </div>
 
-              <input
-                type="text"
-                inputMode="decimal"
+              <NumberField
+                mode="fraction"
                 value={ing.amountText}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (/^[0-9/. ]*$/.test(val)) updateIngredient(index, 'amountText', val);
-                }}
+                onChange={(v) => updateIngredient(index, 'amountText', v)}
                 placeholder="Amt"
                 className={`${base} w-18 shrink-0`}
               />

@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchCourses } from '../../api/courses';
 import { fetchLabels, createLabel } from '../../api/labels';
-import { inputClass, labelClass, noScroll } from './styles';
+import { inputClass, labelClass } from './styles';
+import { NumberField } from '../ui/NumberField';
 import { formatDuration } from '../../utils/formatDuration';
 import type { StepFormItem } from './useRecipeFormState';
 
@@ -28,7 +29,7 @@ export function BasicInfoFields({ title, setTitle, servings, setServings, source
       <div className="flex items-end gap-6 flex-wrap">
         <div className="w-32">
           <label htmlFor="recipe-servings" className={labelClass}>Servings</label>
-          <input id="recipe-servings" type="number" value={servings} onChange={(e) => setServings(e.target.value)} min={1} className={inputClass} onWheel={noScroll} />
+          <NumberField id="recipe-servings" value={servings} onChange={setServings} min={1} className={inputClass} />
         </div>
         {steps.length > 0 && (() => {
           const total = Math.ceil(steps.reduce((sum, s) => sum + (parseFloat(s.timeMinutesText) || 0), 0));

@@ -7,7 +7,7 @@ import { PlanDetailsFields } from '../components/meal-plan-form/PlanDetailsField
 import { RecipeBrowser } from '../components/meal-plan-form/RecipeBrowser';
 import { SelectedRecipesList } from '../components/meal-plan-form/SelectedRecipesList';
 import { RecipePreviewModal } from '../components/meal-plan-form/RecipePreviewModal';
-import type { SelectedRecipe } from '../components/meal-plan-form/types';
+import { parseServings, type SelectedRecipe } from '../components/meal-plan-form/types';
 
 // ── Main form component ───────────────────────────────────────────────────────
 
@@ -37,7 +37,7 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
       recipeId: r.recipeId,
       title: r.recipe.title,
       defaultServings: r.recipe.servings,
-      servings: r.servings,
+      servings: String(r.servings),
       activeSwaps: (r.substitutions as ActiveSwaps | null) ?? {},
     })) ?? [],
   );
@@ -54,8 +54,8 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
   function addRecipe(recipeId: string, title: string, defaultServings: number, servings: number, activeSwaps: ActiveSwaps = {}) {
     setSelected((prev) =>
       prev.some((s) => s.recipeId === recipeId)
-        ? prev.map((s) => s.recipeId === recipeId ? { ...s, servings, activeSwaps } : s)
-        : [...prev, { recipeId, title, defaultServings, servings, activeSwaps }],
+        ? prev.map((s) => s.recipeId === recipeId ? { ...s, servings: String(servings), activeSwaps } : s)
+        : [...prev, { recipeId, title, defaultServings, servings: String(servings), activeSwaps }],
     );
   }
 
@@ -63,7 +63,7 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
     setSelected((prev) => prev.filter((s) => s.recipeId !== recipeId));
   }
 
-  function updateServings(recipeId: string, value: number) {
+  function updateServings(recipeId: string, value: string) {
     setSelected((prev) => prev.map((s) => s.recipeId === recipeId ? { ...s, servings: value } : s));
   }
 
@@ -80,7 +80,7 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
       notes: notes.trim() || undefined,
       recipes: selected.map((s, i) => ({
         recipeId: s.recipeId,
-        servings: s.servings,
+        servings: parseServings(s.servings, s.defaultServings),
         orderIndex: i,
         substitutions: Object.keys(s.activeSwaps).length > 0 ? s.activeSwaps : undefined,
       })),

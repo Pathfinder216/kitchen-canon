@@ -9,12 +9,15 @@ import { formatDuration } from '../../utils/formatDuration';
 import { fetchSubstitutionsForRecipe, type Substitution } from '../../api/substitutions';
 import { Modal } from '../ui/Modal';
 import { Menu, MenuItemButton, MenuItem } from '../ui/Menu';
+import { NumberField } from '../ui/NumberField';
 import { SwapIcon } from './SwapIcon';
+import { parseServings } from './types';
 
 interface RecipePreviewModalProps {
   recipeId: string;
   isAdded: boolean;
-  currentServings: number | undefined;
+  /** Empty-able servings string from the selected-recipe state, or undefined when not yet added. */
+  currentServings: string | undefined;
   currentSwaps: ActiveSwaps;
   onAddOrUpdate: (recipeId: string, title: string, defaultServings: number, servings: number, activeSwaps: ActiveSwaps) => void;
   onClose: () => void;
@@ -33,11 +36,11 @@ export function RecipePreviewModal({ recipeId, isAdded, currentServings, current
     staleTime: 60_000,
   });
 
-  const [servings, setServings] = useState(currentServings ?? 1);
+  const [servings, setServings] = useState(currentServings ?? '1');
   const [activeSwaps, setActiveSwaps] = useState<ActiveSwaps>(currentSwaps);
 
   useEffect(() => {
-    if (recipe) setServings(currentServings ?? recipe.servings);
+    if (recipe) setServings(currentServings ?? String(recipe.servings));
   }, [recipe, currentServings]);
 
   // Group substitutions by ingredient name
@@ -227,12 +230,11 @@ export function RecipePreviewModal({ recipeId, isAdded, currentServings, current
         {/* Footer — add/update */}
         <div className="border-t border-gray-200 px-5 py-4 flex items-center gap-4">
           <label htmlFor="modal-servings" className="text-sm text-gray-700 shrink-0">Servings:</label>
-          <input
+          <NumberField
             id="modal-servings"
-            type="number"
             min={1}
             value={servings}
-            onChange={(e) => setServings(Math.max(1, parseInt(e.target.value) || 1))}
+            onChange={setServings}
             className="w-20 border border-gray-300 rounded px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-400"
           />
           <button
@@ -240,7 +242,7 @@ export function RecipePreviewModal({ recipeId, isAdded, currentServings, current
             disabled={!recipe}
             onClick={() => {
               if (recipe) {
-                onAddOrUpdate(recipe.id, recipe.title, recipe.servings, servings, activeSwaps);
+                onAddOrUpdate(recipe.id, recipe.title, recipe.servings, parseServings(servings, recipe.servings), activeSwaps);
                 onClose();
               }
             }}

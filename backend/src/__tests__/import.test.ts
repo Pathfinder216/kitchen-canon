@@ -1,5 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
-import { parseIngredientLine, parseTextRecipe } from '../services/import.service.js';
+import { importFromPdf, parseIngredientLine, parseTextRecipe } from '../services/import.service.js';
 
 describe('parseIngredientLine', () => {
   it('parses integer amount and unit', () => {
@@ -95,5 +96,21 @@ describe('parseTextRecipe', () => {
     expect(result.title).toBe('Imported Recipe');
     expect(result.ingredients).toHaveLength(0);
     expect(result.steps).toHaveLength(0);
+  });
+});
+
+describe('importFromPdf', () => {
+  // Guards against a pdf-parse major-version bump silently breaking the call
+  // site (v2 dropped the v1 default-function export for a PDFParse class — that
+  // mismatch surfaced as a 500 on every PDF import). The fixture is a tiny
+  // hand-built PDF; see fixtures/recipe.pdf.
+  const fixture = readFileSync(new URL('./fixtures/recipe.pdf', import.meta.url));
+
+  it('extracts text from a PDF buffer and parses it into a recipe', async () => {
+    const result = await importFromPdf(fixture);
+    expect(result.title).toBe('Test Snickerdoodles');
+    expect(result.servings).toBe(24);
+    expect(result.ingredients.map((i) => i.name)).toContain('flour');
+    expect(result.steps.some((s) => s.instruction.startsWith('Mix the dry'))).toBe(true);
   });
 });

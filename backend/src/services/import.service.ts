@@ -380,8 +380,13 @@ export async function importFromDocx(buffer: Buffer): Promise<ParsedRecipe> {
 // ---------------------------------------------------------------------------
 
 export async function importFromPdf(buffer: Buffer): Promise<ParsedRecipe> {
-  const mod = await import('pdf-parse') as unknown as { default: (buf: Buffer) => Promise<{ text: string }> };
-  const pdfParse = mod.default;
-  const data = await pdfParse(buffer);
-  return parseTextRecipe(data.text);
+  // pdf-parse v2 replaced the v1 default-function export with a PDFParse class.
+  const { PDFParse } = await import('pdf-parse');
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const { text } = await parser.getText();
+    return parseTextRecipe(text);
+  } finally {
+    await parser.destroy();
+  }
 }

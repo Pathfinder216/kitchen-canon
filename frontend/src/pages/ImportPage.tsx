@@ -132,7 +132,17 @@ export function ImportPage() {
       )}
 
       {status === 'error' && (
-        <p className="mt-3 text-sm text-red-600">{errorMsg}</p>
+        <div className="mt-3">
+          <p className="text-sm text-red-600">{errorMsg}</p>
+          {mode === 'url' && (
+            <button
+              onClick={() => { setMode('file'); setStatus('idle'); setErrorMsg(''); }}
+              className="mt-2 text-sm font-medium text-orange-600 hover:text-orange-700 underline"
+            >
+              Switch to file import
+            </button>
+          )}
+        </div>
       )}
 
       {/* Preview (URL import only) */}

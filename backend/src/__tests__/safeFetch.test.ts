@@ -292,10 +292,20 @@ describe('safeFetch', () => {
     await expect(safeFetch('https://example.com/big')).rejects.toThrow('URL not allowed');
   });
 
-  it('rejects a non-ok response', async () => {
+  it('rejects a non-ok response with a status-specific, actionable message', async () => {
     resolveTo('93.184.216.34');
     stubFetch(htmlResponse('not found', 404));
-    await expect(safeFetch('https://example.com/missing')).rejects.toThrow('URL could not be fetched');
+    await expect(safeFetch('https://example.com/missing')).rejects.toThrow(
+      /returned an error \(HTTP 404\).*Import from File/s,
+    );
+  });
+
+  it('explains a bot-wall (403) and points the user to file import', async () => {
+    resolveTo('93.184.216.34');
+    stubFetch(htmlResponse('forbidden', 403));
+    await expect(safeFetch('https://example.com/blocked')).rejects.toThrow(
+      /blocked this request \(HTTP 403\).*Import from File/s,
+    );
   });
 
   it('rejects when the fetch itself throws', async () => {

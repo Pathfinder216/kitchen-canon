@@ -46,6 +46,26 @@ const USER_AGENT = 'Mozilla/5.0 (compatible; LetThemCook/1.0)';
 const NOT_ALLOWED = 'URL not allowed';
 const NOT_FETCHED = 'URL could not be fetched';
 
+// Once a host has cleared every SSRF gate (static URL validation, public-DNS
+// resolution, a successful connection) and answered with an HTTP status, that
+// status reveals nothing about the internal network — so unlike the deliberately
+// vague NXDOMAIN/resolves-private cases, we can give the user the real reason and
+// a concrete way forward. A 401/403/429 almost always means a bot wall (e.g.
+// Cloudflare's "Just a moment" challenge), which no server-side header tweak can
+// pass; the only reliable path is to fetch it in a real browser and hand us the
+// page as a file.
+function remoteErrorMessage(status: number): string {
+  const blocked = status === 401 || status === 403 || status === 429;
+  const reason = blocked
+    ? `The site blocked this request (HTTP ${status}) — many recipe sites reject automated imports.`
+    : `The site returned an error (HTTP ${status}) and could not be imported.`;
+  return (
+    `${reason} Open the recipe in your browser, then save the page as a PDF ` +
+    `(Print → Save as PDF) or copy its text into a .txt file, and use ` +
+    `“Import from File” instead.`
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Address-range math (pure, exhaustively unit-tested)
 // ---------------------------------------------------------------------------
@@ -318,7 +338,7 @@ export async function safeFetch(rawUrl: string): Promise<SafeFetchResult> {
 
     if (!response.ok) {
       await response.body?.cancel();
-      throw new AppError(400, NOT_FETCHED);
+      throw new AppError(400, remoteErrorMessage(response.status));
     }
 
     if (!isAllowedContentType(response.headers.get('content-type') ?? '')) {

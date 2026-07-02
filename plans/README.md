@@ -41,7 +41,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [x] [14 — Empty-able meal plan servings input](14-meal-plan-servings-input.md) (S) — new shared `components/ui/NumberField.tsx` (empty-able string input, wheel-guard) replaces the number-bound servings inputs in `SelectedRecipesList` + `RecipePreviewModal` (and the recipe form's servings); `SelectedRecipe.servings` is now an empty-able string parsed on submit via `parseServings(value, defaultServings)`; 2 new MealPlanFormPage tests (clear-no-snapback / empty→default)
 - [ ] [15 — Read-only global ingredients + Customize flow](15-readonly-global-ingredients.md) (S-M)
 - [ ] [16 — Media visibility toggle](16-media-visibility-toggle.md) (S)
-- [ ] [17 — Cook mode wake lock + swipe navigation](17-wake-lock-swipe.md) (S-M)
+- [x] [17 — Cook mode wake lock + swipe navigation](17-wake-lock-swipe.md) (S-M) — `hooks/useWakeLock.ts` (request on mount, re-acquire on visibilitychange→visible, release on unmount; `supported: false` instead of throwing on insecure contexts, surfaced as a one-line cook-mode notice) + dependency-free `hooks/useSwipe.ts` (touchstart/touchend deltas: >60px horizontal, <40px vertical drift, multi-touch ignored, no preventDefault so vertical scroll stays native) spread onto the step-card container and wired to the same bounded prev/next logic as the buttons; 6 useWakeLock tests + 9 new CookModePage swipe/notice tests
 
 ## Features
 

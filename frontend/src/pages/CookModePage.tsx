@@ -4,6 +4,8 @@ import { useRecipe } from '../hooks/useRecipes';
 import { resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
 import { formatDuration } from '../utils/formatDuration';
 import { playTimerSound, useStepTimers } from '../hooks/useStepTimers';
+import { useWakeLock } from '../hooks/useWakeLock';
+import { useSwipe } from '../hooks/useSwipe';
 import { TimerPanel } from '../components/cook-mode/TimerPanel';
 import { StepCard } from '../components/cook-mode/StepCard';
 import { IngredientChecklist } from '../components/cook-mode/IngredientChecklist';
@@ -23,6 +25,14 @@ export function CookModePage() {
   const { timers, startTimer, pauseTimer, resumeTimer, resetTimer, dismissTimer } = useStepTimers({
     ingredients: recipe?.ingredients ?? [],
     onComplete: playTimerSound,
+  });
+
+  const { supported: wakeLockSupported } = useWakeLock();
+
+  const stepCount = recipe?.steps.length ?? 0;
+  const swipeHandlers = useSwipe({
+    onSwipeLeft: () => setCurrentStep((s) => (s < stepCount - 1 ? s + 1 : s)),
+    onSwipeRight: () => setCurrentStep((s) => (s > 0 ? s - 1 : s)),
   });
 
   function toggleIngredient(ingId: string) {
@@ -74,12 +84,18 @@ export function CookModePage() {
           </span>
         </div>
 
+        {!wakeLockSupported && (
+          <p className="text-xs text-gray-400 -mt-4 mb-4">
+            Screen may sleep — wake lock unavailable on this connection.
+          </p>
+        )}
+
         {steps.length === 0 && (
           <p className="text-gray-500">This recipe has no steps.</p>
         )}
 
         {steps.length > 0 && (
-          <div className="space-y-6">
+          <div className="space-y-6" {...swipeHandlers}>
             {/* Running timers from other steps */}
             <TimerPanel
               timers={timers}

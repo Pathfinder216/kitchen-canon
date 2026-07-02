@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CookModePage } from './CookModePage';
@@ -147,6 +147,99 @@ describe('CookModePage', () => {
     // Dismiss it
     fireEvent.click(screen.getByRole('button', { name: /dismiss timer/i }));
     expect(screen.queryByText(/Step 2: Let it rest/)).not.toBeInTheDocument();
+  });
+
+  it('shows the wake lock notice when the API is unavailable', async () => {
+    // jsdom has no navigator.wakeLock, so the hook reports unsupported.
+    renderPage();
+    await screen.findByText('Mix the flour');
+    expect(
+      screen.getByText(/screen may sleep — wake lock unavailable/i),
+    ).toBeInTheDocument();
+  });
+
+  it('hides the wake lock notice when the lock is acquired', async () => {
+    Object.defineProperty(navigator, 'wakeLock', {
+      value: { request: vi.fn().mockResolvedValue({ release: vi.fn().mockResolvedValue(undefined) }) },
+      configurable: true,
+    });
+    try {
+      renderPage();
+      await screen.findByText('Mix the flour');
+      await waitFor(() =>
+        expect(screen.queryByText(/screen may sleep/i)).not.toBeInTheDocument(),
+      );
+    } finally {
+      delete (navigator as { wakeLock?: unknown }).wakeLock;
+    }
+  });
+
+  function swipe(el: Element, from: { x: number; y: number }, to: { x: number; y: number }) {
+    fireEvent.touchStart(el, { touches: [{ clientX: from.x, clientY: from.y }] });
+    fireEvent.touchEnd(el, { touches: [], changedTouches: [{ clientX: to.x, clientY: to.y }] });
+  }
+
+  it('swiping left advances to the next step', async () => {
+    renderPage();
+    const stepText = await screen.findByText('Mix the flour');
+    swipe(stepText, { x: 300, y: 100 }, { x: 100, y: 110 });
+    expect(screen.getByText('Let it rest')).toBeInTheDocument();
+    expect(screen.getByText(/step 2 of 3/i)).toBeInTheDocument();
+  });
+
+  it('swiping right goes back to the previous step', async () => {
+    renderPage();
+    await screen.findByText('Mix the flour');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    const stepText = screen.getByText('Let it rest');
+    swipe(stepText, { x: 100, y: 100 }, { x: 300, y: 110 });
+    expect(screen.getByText('Mix the flour')).toBeInTheDocument();
+    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
+  });
+
+  it('swiping right on the first step stays on step 1', async () => {
+    renderPage();
+    const stepText = await screen.findByText('Mix the flour');
+    swipe(stepText, { x: 100, y: 100 }, { x: 300, y: 110 });
+    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
+  });
+
+  it('swiping left on the last step stays on the last step', async () => {
+    renderPage();
+    await screen.findByText('Mix the flour');
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    const stepText = screen.getByText('Bake it');
+    swipe(stepText, { x: 300, y: 100 }, { x: 100, y: 110 });
+    expect(screen.getByText(/step 3 of 3/i)).toBeInTheDocument();
+  });
+
+  it('a vertical-dominant gesture does not change the step', async () => {
+    renderPage();
+    const stepText = await screen.findByText('Mix the flour');
+    // Large vertical drift alongside the horizontal movement → treated as scroll.
+    swipe(stepText, { x: 300, y: 100 }, { x: 200, y: 250 });
+    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
+  });
+
+  it('a short horizontal movement does not change the step', async () => {
+    renderPage();
+    const stepText = await screen.findByText('Mix the flour');
+    swipe(stepText, { x: 300, y: 100 }, { x: 260, y: 105 });
+    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
+  });
+
+  it('multi-touch gestures are ignored', async () => {
+    renderPage();
+    const stepText = await screen.findByText('Mix the flour');
+    fireEvent.touchStart(stepText, {
+      touches: [
+        { clientX: 300, clientY: 100 },
+        { clientX: 320, clientY: 120 },
+      ],
+    });
+    fireEvent.touchEnd(stepText, { touches: [], changedTouches: [{ clientX: 100, clientY: 110 }] });
+    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
   });
 
   it('can pause and resume a timer from the running panel', async () => {

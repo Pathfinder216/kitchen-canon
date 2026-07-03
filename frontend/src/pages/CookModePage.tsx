@@ -30,10 +30,13 @@ export function CookModePage() {
 
   const { supported: wakeLockSupported } = useWakeLock();
 
+  // Whole-screen swipe navigation; the app navbar and the cook-mode header
+  // row are opted out so gestures there never change the step.
   const stepCount = recipe?.steps.length ?? 0;
-  const swipeHandlers = useSwipe({
+  useSwipe({
     onSwipeLeft: () => setCurrentStep((s) => (s < stepCount - 1 ? s + 1 : s)),
     onSwipeRight: () => setCurrentStep((s) => (s > 0 ? s - 1 : s)),
+    exclude: 'header, [data-swipe-exclude]',
   });
 
   function toggleIngredient(ingId: string) {
@@ -72,10 +75,10 @@ export function CookModePage() {
 
   return (
     <>
-      {/* Scrollable content */}
-      <div className="max-w-2xl mx-auto">
-        {/* Header — excluded from the swipe area */}
-        <div className="flex items-center gap-3 mb-6">
+      {/* Scrollable content — padded at bottom so fixed nav doesn't cover it */}
+      <div className="max-w-2xl mx-auto pb-28">
+        {/* Header — excluded from swipe navigation */}
+        <div className="flex items-center gap-3 mb-6" data-swipe-exclude>
           <Link to={backLink.href} state={{ targetServings }} className="text-gray-500 hover:text-gray-800 text-sm">
             ← {backLink.label}
           </Link>
@@ -86,8 +89,6 @@ export function CookModePage() {
           <MediaVisibilityToggle />
         </div>
 
-        {/* Swipe area — everything below the header; bottom-padded so the fixed nav doesn't cover it */}
-        <div className="pb-28" {...swipeHandlers}>
         {!wakeLockSupported && (
           <p className="text-xs text-gray-400 -mt-4 mb-4">
             Screen may sleep — wake lock unavailable on this connection.
@@ -151,12 +152,11 @@ export function CookModePage() {
             )}
           </div>
         )}
-        </div>
       </div>
 
-      {/* Fixed navigation bar — always at the same spot regardless of scroll; also swipeable */}
+      {/* Fixed navigation bar — always at the same spot regardless of scroll */}
       {steps.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg" {...swipeHandlers}>
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
           <div className="max-w-2xl mx-auto px-4 py-3 space-y-2">
             {/* Progress dots */}
             <div className="flex justify-center gap-1.5 flex-wrap">

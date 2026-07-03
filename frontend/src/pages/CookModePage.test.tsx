@@ -249,6 +249,15 @@ describe('CookModePage', () => {
     expect(screen.getByText(/step 2 of 3/i)).toBeInTheDocument();
   });
 
+  it('swiping on empty space outside the page content changes the step', async () => {
+    renderPage();
+    await screen.findByText('Mix the flour');
+    // The listeners live on document, so the gap between the content and the
+    // fixed bottom nav (layout background, outside any page element) works too.
+    swipe(document.body, { x: 300, y: 100 }, { x: 100, y: 110 });
+    expect(screen.getByText(/step 2 of 3/i)).toBeInTheDocument();
+  });
+
   it('swiping on the bottom navigation bar changes the step', async () => {
     renderPage();
     await screen.findByText('Mix the flour');

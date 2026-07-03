@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchIngredients, updateIngredientEntry, deleteIngredientEntry, type CatalogEntry } from '../api/ingredients';
+import {
+  fetchIngredients,
+  createIngredientEntry,
+  updateIngredientEntry,
+  deleteIngredientEntry,
+  type CatalogEntry,
+} from '../api/ingredients';
 import { useDietaryTags } from '../hooks/useDietaryTags';
 
 function EditRow({ entry, onDone }: { entry: CatalogEntry; onDone: () => void }) {
@@ -9,9 +15,15 @@ function EditRow({ entry, onDone }: { entry: CatalogEntry; onDone: () => void })
   const { allergens: ALLERGENS, diets: DIETS, allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const [allergens, setAllergens] = useState<string[]>(entry.allergens);
   const [diets, setDiets] = useState<string[]>(entry.diets);
+  const isGlobal = entry.userId === null;
 
   const mutation = useMutation({
-    mutationFn: () => updateIngredientEntry(entry.id, { allergens, diets }),
+    // Globals are read-only: "customizing" one POSTs a user-private shadow entry with the same
+    // name, which wins resolution over the global. User entries are PATCHed in place.
+    mutationFn: () =>
+      isGlobal
+        ? createIngredientEntry({ name: entry.displayAlias, allergens, diets })
+        : updateIngredientEntry(entry.id, { allergens, diets }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ingredients'] });
       onDone();
@@ -28,6 +40,11 @@ function EditRow({ entry, onDone }: { entry: CatalogEntry; onDone: () => void })
 
   return (
     <div className="px-4 py-3 bg-orange-50 border-t border-orange-100 space-y-3">
+      {isGlobal && (
+        <p className="text-xs text-gray-500">
+          Saving creates your own copy of this built-in ingredient; your copy takes priority.
+        </p>
+      )}
       <div>
         <p className="text-xs font-medium text-gray-500 mb-1.5">Allergens</p>
         <div className="flex flex-wrap gap-1.5">
@@ -110,14 +127,17 @@ function TrashIcon() {
   );
 }
 
-function IngredientRow({ entry, isEditing, onEdit, onDone }: {
+function IngredientRow({ entry, isCustomized, isEditing, onEdit, onDone }: {
   entry: CatalogEntry;
+  /** True when this user entry shadows a built-in global of the same name. */
+  isCustomized: boolean;
   isEditing: boolean;
   onEdit: () => void;
   onDone: () => void;
 }) {
   const queryClient = useQueryClient();
   const { allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
+  const isGlobal = entry.userId === null;
   const deleteMutation = useMutation({
     mutationFn: () => deleteIngredientEntry(entry.id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ingredients'] }),
@@ -131,7 +151,19 @@ function IngredientRow({ entry, isEditing, onEdit, onDone }: {
     <div>
       <div className="flex items-center gap-3 px-4 py-3 pr-6">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900">{entry.displayAlias}</p>
+          <p className="text-sm font-medium text-gray-900">
+            {entry.displayAlias}
+            {isGlobal && (
+              <span className="ml-2 align-middle text-xs px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+                built-in
+              </span>
+            )}
+            {isCustomized && (
+              <span className="ml-2 align-middle text-xs px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
+                customized
+              </span>
+            )}
+          </p>
           {synonyms.length > 0 && (
             <p className="text-xs text-gray-400 mt-0.5">{synonyms.join(' · ')}</p>
           )}
@@ -152,24 +184,48 @@ function IngredientRow({ entry, isEditing, onEdit, onDone }: {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={onEdit}
-            disabled={isEditing}
-            aria-label="Edit ingredient"
-            className="text-orange-600 hover:text-orange-800 disabled:text-gray-300"
-          >
-            <PencilIcon />
-          </button>
-          <button
-            type="button"
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
-            aria-label="Delete ingredient"
-            className="text-gray-400 hover:text-red-600 disabled:opacity-50 transition-colors"
-          >
-            <TrashIcon />
-          </button>
+          {isGlobal ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              disabled={isEditing}
+              className="text-xs font-medium text-orange-600 hover:text-orange-800 disabled:text-gray-300"
+            >
+              Customize
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={onEdit}
+                disabled={isEditing}
+                aria-label="Edit ingredient"
+                className="text-orange-600 hover:text-orange-800 disabled:text-gray-300"
+              >
+                <PencilIcon />
+              </button>
+              {isCustomized ? (
+                <button
+                  type="button"
+                  onClick={() => deleteMutation.mutate()}
+                  disabled={deleteMutation.isPending}
+                  className="text-xs font-medium text-gray-500 hover:text-red-600 disabled:opacity-50 transition-colors"
+                >
+                  Reset to default
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => deleteMutation.mutate()}
+                  disabled={deleteMutation.isPending}
+                  aria-label="Delete ingredient"
+                  className="text-gray-400 hover:text-red-600 disabled:opacity-50 transition-colors"
+                >
+                  <TrashIcon />
+                </button>
+              )}
+            </>
+          )}
         </div>
       </div>
       {isEditing && <EditRow entry={entry} onDone={onDone} />}
@@ -188,15 +244,29 @@ export function IngredientsPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // A user-private entry shadows a built-in global with the same (lowercase) name — resolution
+  // prefers the user's own entry, so show only that one, marked as customized.
+  const userNames = new Set(
+    entries.filter((e) => e.userId !== null).map((e) => e.displayAlias.toLowerCase()),
+  );
+  const shadowedGlobalNames = new Set(
+    entries
+      .filter((e) => e.userId === null && userNames.has(e.displayAlias.toLowerCase()))
+      .map((e) => e.displayAlias.toLowerCase()),
+  );
+  const visible = entries.filter(
+    (e) => !(e.userId === null && shadowedGlobalNames.has(e.displayAlias.toLowerCase())),
+  );
+
   const searchLower = search.toLowerCase();
   const filtered = search
-    ? entries.filter((e) =>
+    ? visible.filter((e) =>
         e.displayAlias.includes(searchLower) ||
         e.aliases.some((a) => a.alias.includes(searchLower))
       )
-    : entries;
+    : visible;
 
-  const unclassifiedCount = entries.filter(
+  const unclassifiedCount = visible.filter(
     (e) => e.allergens.length === 0 && e.diets.length === 0,
   ).length;
 
@@ -207,7 +277,7 @@ export function IngredientsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Ingredient Catalog</h1>
           {!isLoading && (
             <p className="text-sm text-gray-500 mt-1">
-              {entries.length} ingredients
+              {visible.length} ingredients
               {unclassifiedCount > 0 && (
                 <span className="text-amber-600"> · {unclassifiedCount} unclassified</span>
               )}
@@ -236,6 +306,10 @@ export function IngredientsPage() {
             <IngredientRow
               key={entry.id}
               entry={entry}
+              isCustomized={
+                entry.userId !== null &&
+                shadowedGlobalNames.has(entry.displayAlias.toLowerCase())
+              }
               isEditing={editingId === entry.id}
               onEdit={() => setEditingId(entry.id)}
               onDone={() => setEditingId(null)}

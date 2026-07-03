@@ -90,7 +90,7 @@ router.get(
   }),
 );
 
-// GET /api/auth/csrf — issues a CSRF token (and sets the ltc_csrf cookie).
+// GET /api/auth/csrf — issues a CSRF token (and sets the kc_csrf cookie).
 router.get(
   '/csrf',
   asyncHandler(async (req, res) => {

@@ -33,7 +33,7 @@ export async function importFromFile(file: File): Promise<ParsedRecipe> {
   formData.append('file', file);
 
   // This is a raw fetch (multipart), so it needs credentials + the CSRF token explicitly.
-  const csrfMatch = document.cookie.match(/(?:^|; )ltc_csrf=([^;]*)/);
+  const csrfMatch = document.cookie.match(/(?:^|; )kc_csrf=([^;]*)/);
   const headers: Record<string, string> = {};
   if (csrfMatch) headers['x-csrf-token'] = decodeURIComponent(csrfMatch[1]);
 

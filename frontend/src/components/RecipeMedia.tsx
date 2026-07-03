@@ -12,7 +12,7 @@ interface MediaItem {
 
 /** CSRF header for mutating raw fetches (these don't go through the apiClient helpers). */
 function csrfHeaders(): Record<string, string> {
-  const match = document.cookie.match(/(?:^|; )ltc_csrf=([^;]*)/);
+  const match = document.cookie.match(/(?:^|; )kc_csrf=([^;]*)/);
   return match ? { 'x-csrf-token': decodeURIComponent(match[1]) } : {};
 }
 

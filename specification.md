@@ -1,4 +1,4 @@
-# Let Them Cook - Application Specification
+# Kitchen Canon - Application Specification
 
 ## Overview
 A recipe management application for collecting, consolidating, using, updating, and sharing recipes. Designed for personal use with potential for future public availability.

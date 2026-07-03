@@ -1,6 +1,6 @@
-# Let Them Cook
+# Kitchen Canon
 
-[![CI](https://github.com/Pathfinder216/let-them-cook/actions/workflows/ci.yml/badge.svg)](https://github.com/Pathfinder216/let-them-cook/actions/workflows/ci.yml)
+[![CI](https://github.com/Pathfinder216/kitchen-canon/actions/workflows/ci.yml/badge.svg)](https://github.com/Pathfinder216/kitchen-canon/actions/workflows/ci.yml)
 
 A personal recipe management app for collecting, organizing, and cooking from your recipe collection. Self-hosted, offline-capable, and designed for use on both mobile and desktop.
 
@@ -116,7 +116,7 @@ From your development machine (requires Git Bash or any bash-compatible shell):
 
 This syncs the source code to the Pi and runs `docker compose up --build -d`. The app will be available at `http://<ip-address>:8080`.
 
-On the first deploy the script generates `~/let-them-cook/.env` on the Pi with a random `SESSION_SECRET` and `COOKIE_SECURE=false` (the Pi is served over plain HTTP on the LAN). This `.env` is never overwritten by later deploys and is excluded from the sync — keep it safe; rotating `SESSION_SECRET` logs everyone out. If you put the app behind HTTPS, set `COOKIE_SECURE=true` in that file.
+On the first deploy the script generates `~/kitchen-canon/.env` on the Pi with a random `SESSION_SECRET` and `COOKIE_SECURE=false` (the Pi is served over plain HTTP on the LAN). This `.env` is never overwritten by later deploys and is excluded from the sync — keep it safe; rotating `SESSION_SECRET` logs everyone out. If you put the app behind HTTPS, set `COOKIE_SECURE=true` in that file.
 
 Subsequent deploys use the same command — Docker rebuilds the image and restarts the container with zero downtime for the database (persisted in a named Docker volume).
 

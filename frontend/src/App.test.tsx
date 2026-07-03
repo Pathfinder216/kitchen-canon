@@ -43,7 +43,7 @@ function renderApp(initialPath = '/') {
 describe('App (authenticated)', () => {
   it('renders the app title', async () => {
     renderApp();
-    expect(await screen.findByText('Let Them Cook')).toBeInTheDocument();
+    expect(await screen.findByText('Kitchen Canon')).toBeInTheDocument();
   });
 
   it('renders the recipe list page by default', async () => {

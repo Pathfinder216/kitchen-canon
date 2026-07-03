@@ -29,7 +29,7 @@ export function logoutRequest(): Promise<void> {
   return apiPost<void>('/auth/logout');
 }
 
-/** Fetch a fresh CSRF token (also sets the ltc_csrf cookie the client reads). */
+/** Fetch a fresh CSRF token (also sets the kc_csrf cookie the client reads). */
 export function fetchCsrfToken(): Promise<{ csrfToken: string }> {
   return apiGet<{ csrfToken: string }>('/auth/csrf');
 }

@@ -48,7 +48,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [ ] [18 — Canonical ingredient units](18-unit-normalization.md) (M) — do before 19, 27
 - [ ] [19 — Import hardening](19-import-hardening.md) (M)
 - [ ] [20 — Fuzzy matching for filtering/search/typeahead](20-fuzzy-matching.md) (M) — do before 34
-- [ ] [21 — Seed global substitutions](21-global-substitutions-seed.md) (S-M)
+- [x] [21 — Seed global substitutions](21-global-substitutions-seed.md) (S-M) — `src/constants/substitutionSeed.ts` holds 43 curated `{from,to,ratio,notes}` official pairs (baking/herbs/dairy/pantry, lowercase matching catalog `displayAlias`); `seed.ts` inserts them via findFirst+create (NOT upsert — SQLite null-unique), never wiping the table so user rows (`isOfficial:false`) survive reseeds. Ratio semantics verified against `substitutions.service.ts` + the swap UI (`amount * ratio`): fresh→dried herbs at 0.333. New `substitutions-seed.test.ts` covers the full set, idempotency + user-row survival, and the 1 cup basil → 1/3 cup dried swap end-to-end
 - [ ] [22 — Implement LocalizationMapping](22-localization-mappings.md) (M)
 - [ ] [23 — Per-ingredient notes](23-ingredient-notes.md) (M)
 - [ ] [24 — Remaining-percent ingredient refs](24-remaining-percent-refs.md) (M)

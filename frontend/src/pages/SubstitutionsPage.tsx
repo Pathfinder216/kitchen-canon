@@ -246,14 +246,18 @@ export function SubstitutionsPage() {
                           )}
                         </span>
                       </div>
-                      <button
-                        onClick={() => deleteMutation.mutate(sub.id)}
-                        disabled={deleteMutation.isPending}
-                        className="text-red-400 hover:text-red-600 shrink-0"
-                        aria-label="Delete substitution"
-                      >
-                        <TrashIcon />
-                      </button>
+                      {/* Official (global) substitutions are read-only — the backend 404s
+                          deletes of rows the user doesn't own, so don't offer the button. */}
+                      {!sub.isOfficial && (
+                        <button
+                          onClick={() => deleteMutation.mutate(sub.id)}
+                          disabled={deleteMutation.isPending}
+                          className="text-red-400 hover:text-red-600 shrink-0"
+                          aria-label="Delete substitution"
+                        >
+                          <TrashIcon />
+                        </button>
+                      )}
                     </li>
                   );
                 })}

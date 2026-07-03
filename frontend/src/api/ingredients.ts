@@ -11,6 +11,8 @@ export interface CatalogEntry {
   allergens: string[];
   diets: string[];
   isUserAdded: boolean;
+  /** null = built-in global entry; otherwise the owning user's id. */
+  userId: string | null;
   aliases: CatalogAlias[];
 }
 

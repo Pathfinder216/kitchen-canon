@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '../api/client';
+import { useMediaVisibility } from '../hooks/useMediaVisibility';
 
 interface MediaItem {
   id: string;
@@ -55,6 +56,7 @@ export function StepMedia({ stepId, readOnly = false }: StepMediaProps) {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState('');
+  const { showMedia } = useMediaVisibility();
 
   const { data: media = null } = useQuery({
     queryKey: ['step-media', stepId],
@@ -83,9 +85,9 @@ export function StepMedia({ stepId, readOnly = false }: StepMediaProps) {
     if (file) uploadMutation.mutate(file);
   }
 
-  // ── Read-only (detail / cook mode) ──────────────────────────────────────
+  // ── Read-only (detail / cook mode) — respects the media visibility toggle ─
   if (readOnly) {
-    if (!media) return null;
+    if (!showMedia || !media) return null;
     if (media.type === 'video') {
       return (
         <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 aspect-video">

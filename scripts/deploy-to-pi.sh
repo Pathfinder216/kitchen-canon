@@ -32,27 +32,6 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DB_PATH="$ROOT/data/database.db"
 MEDIA_PATH="$ROOT/data/media"
 
-echo "==> Checking for a pre-rename deploy to migrate..."
-# One-time migration from the pre-rename layout (the app was called Let Them Cook). The compose
-# project name — and therefore the data volume name — derives from the deploy directory, so the
-# old stack must be stopped, the directory moved, and the volume contents copied to the new name.
-# Both steps are guarded, so this is a no-op once migrated (or on a fresh Pi).
-ssh "$PI_HOST" 'bash -s' <<'REMOTE'
-set -e
-if [ -d ~/let-them-cook ] && [ ! -d ~/kitchen-canon ]; then
-  echo "   Migrating ~/let-them-cook -> ~/kitchen-canon"
-  (cd ~/let-them-cook && docker compose down) || true
-  mv ~/let-them-cook ~/kitchen-canon
-fi
-if docker volume inspect let-them-cook_data >/dev/null 2>&1 \
-   && ! docker volume inspect kitchen-canon_data >/dev/null 2>&1; then
-  echo "   Copying data volume let-them-cook_data -> kitchen-canon_data"
-  docker volume create kitchen-canon_data >/dev/null
-  docker run --rm -v let-them-cook_data:/from:ro -v kitchen-canon_data:/to alpine cp -a /from/. /to/
-  echo "   Old volume kept as a backup; remove later with: docker volume rm let-them-cook_data"
-fi
-REMOTE
-
 echo "==> Syncing project to Pi..."
 # Exclude .env so we never clobber the Pi's secret (and never ship a local one).
 tar -C "$ROOT" \

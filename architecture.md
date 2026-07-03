@@ -87,7 +87,11 @@ see real client IPs).
 #### Browser APIs
 - **Clipboard API** — copy grocery list (`components/GroceryList.tsx`)
 - **Web Audio API** — cook-mode timer completion beep (`pages/CookModePage.tsx`)
-- **(planned)** Screen Wake Lock in cook mode, Web Share API for sharing recipes
+- **Screen Wake Lock API** — keeps the screen awake in cook mode (`hooks/useWakeLock.ts`);
+  requires a secure context (HTTPS/localhost), otherwise cook mode shows a one-line notice
+- **Touch events** — swipe left/right between cook-mode steps (`hooks/useSwipe.ts`,
+  dependency-free touchstart/touchend deltas; vertical scrolling stays native)
+- **(planned)** Web Share API for sharing recipes
 
 #### Structure
 - `src/pages/` — route-level pages (recipe list/detail/form, version history, cook mode,

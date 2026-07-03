@@ -72,9 +72,9 @@ export function CookModePage() {
 
   return (
     <>
-      {/* Scrollable content — padded at bottom so fixed nav doesn't cover it */}
-      <div className="max-w-2xl mx-auto pb-28">
-        {/* Header */}
+      {/* Scrollable content */}
+      <div className="max-w-2xl mx-auto">
+        {/* Header — excluded from the swipe area */}
         <div className="flex items-center gap-3 mb-6">
           <Link to={backLink.href} state={{ targetServings }} className="text-gray-500 hover:text-gray-800 text-sm">
             ← {backLink.label}
@@ -86,6 +86,8 @@ export function CookModePage() {
           <MediaVisibilityToggle />
         </div>
 
+        {/* Swipe area — everything below the header; bottom-padded so the fixed nav doesn't cover it */}
+        <div className="pb-28" {...swipeHandlers}>
         {!wakeLockSupported && (
           <p className="text-xs text-gray-400 -mt-4 mb-4">
             Screen may sleep — wake lock unavailable on this connection.
@@ -97,7 +99,7 @@ export function CookModePage() {
         )}
 
         {steps.length > 0 && (
-          <div className="space-y-6" {...swipeHandlers}>
+          <div className="space-y-6">
             {/* Running timers from other steps */}
             <TimerPanel
               timers={timers}
@@ -149,11 +151,12 @@ export function CookModePage() {
             )}
           </div>
         )}
+        </div>
       </div>
 
-      {/* Fixed navigation bar — always at the same spot regardless of scroll */}
+      {/* Fixed navigation bar — always at the same spot regardless of scroll; also swipeable */}
       {steps.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg" {...swipeHandlers}>
           <div className="max-w-2xl mx-auto px-4 py-3 space-y-2">
             {/* Progress dots */}
             <div className="flex justify-center gap-1.5 flex-wrap">

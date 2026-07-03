@@ -242,6 +242,27 @@ describe('CookModePage', () => {
     expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
   });
 
+  it('swiping outside the step card (ingredient checklist) also changes the step', async () => {
+    renderPage();
+    await screen.findByText('Mix the flour');
+    swipe(screen.getByText(/ingredients \(1\)/i), { x: 300, y: 100 }, { x: 100, y: 110 });
+    expect(screen.getByText(/step 2 of 3/i)).toBeInTheDocument();
+  });
+
+  it('swiping on the bottom navigation bar changes the step', async () => {
+    renderPage();
+    await screen.findByText('Mix the flour');
+    swipe(screen.getByRole('button', { name: /previous/i }), { x: 300, y: 100 }, { x: 100, y: 110 });
+    expect(screen.getByText(/step 2 of 3/i)).toBeInTheDocument();
+  });
+
+  it('swiping on the header does not change the step', async () => {
+    renderPage();
+    await screen.findByText('Mix the flour');
+    swipe(screen.getByText('Test Recipe'), { x: 300, y: 100 }, { x: 100, y: 110 });
+    expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
+  });
+
   it('can pause and resume a timer from the running panel', async () => {
     renderPage();
     await screen.findByText('Mix the flour');

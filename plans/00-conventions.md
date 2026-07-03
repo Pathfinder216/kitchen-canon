@@ -37,3 +37,4 @@ codebase's load-bearing patterns and the traps that have bitten before.
 2. New behavior has tests (backend: supertest suite; frontend: RTL where there's logic worth pinning).
 3. If the plan ships a user-facing feature: update the Implementation Status section in `specification.md`, and `architecture.md` if it adds models/routes/dependencies.
 4. Check the plan off in `plans/README.md`.
+5. Open a PR from a branch (`gh pr create`). Follow the PR template's title guidance and suffix the title with "(plan NN)", e.g. "Keep the screen awake in cook mode (plan 17)".

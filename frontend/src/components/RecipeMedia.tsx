@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApiError } from '../api/client';
+import { useMediaVisibility } from '../hooks/useMediaVisibility';
 
 interface MediaItem {
   id: string;
@@ -57,6 +58,7 @@ export function RecipeMedia({ recipeId, readOnly = false }: RecipeMediaProps) {
   const queryClient = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState('');
+  const { showMedia } = useMediaVisibility();
 
   const { data: cover = null } = useQuery({
     queryKey: ['cover-photo', recipeId],
@@ -88,9 +90,9 @@ export function RecipeMedia({ recipeId, readOnly = false }: RecipeMediaProps) {
     if (file) uploadMutation.mutate(file);
   }
 
-  // ── Read-only (detail page) ──────────────────────────────────────────────
+  // ── Read-only (detail page) — respects the media visibility toggle ──────
   if (readOnly) {
-    if (!cover) return null;
+    if (!showMedia || !cover) return null;
     return (
       <div className="w-full aspect-video rounded-xl overflow-hidden border border-gray-200 mb-6">
         <img src={cover.path} alt="" className="w-full h-full object-cover" />

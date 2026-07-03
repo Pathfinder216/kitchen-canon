@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CookModePage } from './CookModePage';
@@ -166,5 +166,61 @@ describe('CookModePage', () => {
     // Resume it
     fireEvent.click(screen.getByRole('button', { name: /resume timer/i }));
     expect(screen.getByRole('button', { name: /pause timer/i })).toBeInTheDocument();
+  });
+});
+
+describe('CookModePage media visibility', () => {
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    localStorage.clear();
+    mockFetchRecipe.mockResolvedValue(mockRecipe);
+    // StepMedia loads step media via raw fetch — return an image for every step.
+    fetchMock.mockImplementation(async (url: RequestInfo | URL) => {
+      if (String(url).includes('/media')) {
+        return new Response(JSON.stringify({ id: 'm1', type: 'image', path: '/media/step.jpg' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response('null', { status: 200 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('renders step media in the step card by default', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Mix the flour');
+    // <img alt=""> is presentational, so query the DOM directly
+    await waitFor(() => expect(container.querySelector('img')).not.toBeNull());
+  });
+
+  it('with showMedia=false renders no img or video in the step card', async () => {
+    localStorage.setItem('ltc:showMedia', 'false');
+    const { container } = renderPage();
+    await screen.findByText('Mix the flour');
+
+    // Wait until the step-media query has fired so the assertion isn't vacuous
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('/api/steps/s1/media', expect.anything()),
+    );
+    expect(container.querySelector('img, video')).toBeNull();
+    // Header shows the "show media" affordance while hidden
+    expect(screen.getByRole('button', { name: /show media/i })).toBeInTheDocument();
+  });
+
+  it('toggling from the header hides step media immediately and persists', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Mix the flour');
+    await waitFor(() => expect(container.querySelector('img')).not.toBeNull());
+
+    fireEvent.click(screen.getByRole('button', { name: /hide media/i }));
+
+    expect(container.querySelector('img, video')).toBeNull();
+    expect(localStorage.getItem('ltc:showMedia')).toBe('false');
   });
 });

@@ -6,6 +6,7 @@ import { formatDuration } from '../utils/formatDuration';
 import { playTimerSound, useStepTimers } from '../hooks/useStepTimers';
 import { TimerPanel } from '../components/cook-mode/TimerPanel';
 import { StepCard } from '../components/cook-mode/StepCard';
+import { MediaVisibilityToggle } from '../components/MediaVisibilityToggle';
 import { IngredientChecklist } from '../components/cook-mode/IngredientChecklist';
 import type { CustomTime } from '../components/cook-mode/StepTimerControls';
 
@@ -72,6 +73,7 @@ export function CookModePage() {
           <span className="text-sm text-gray-400 shrink-0">
             {steps.length > 0 ? `Step ${currentStep + 1} of ${steps.length}` : ''}
           </span>
+          <MediaVisibilityToggle />
         </div>
 
         {steps.length === 0 && (

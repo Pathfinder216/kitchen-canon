@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useArchiveRecipe, useDeleteRecipePermanently } from '../../hooks/useRecipes';
 import { exportRecipeAsText, exportRecipeAsJson } from '../../utils/exportRecipe';
 import { Modal } from '../ui/Modal';
+import { MediaVisibilityToggle } from '../MediaVisibilityToggle';
 import type { Recipe, Ingredient } from '../../types/recipe';
 import type { Substitution } from '../../api/substitutions';
 
@@ -33,6 +34,7 @@ export function RecipeActionsBar({ recipe, targetServings, activeSwaps }: Recipe
   return (
     <>
       <div className="flex gap-2">
+        <MediaVisibilityToggle />
         {recipe.steps.length > 0 && (
           <Link
             to={`/recipes/${id}/cook`}

@@ -24,7 +24,7 @@ substitution selections). Today only per-recipe client-side `.txt`/`.json` exist
    - Media: include a `media` manifest (paths + which recipe/step) but not file bytes;
      document that media files live in the data volume. (A zip with media is out of scope —
      note as future.)
-   - Set `Content-Disposition: attachment; filename=let-them-cook-export-<date>.json`.
+   - Set `Content-Disposition: attachment; filename=kitchen-canon-export-<date>.json`.
 2. **JSON-LD round-trip**: the import service already parses schema.org JSON-LD — add a test
    that exports schema-org format and re-imports one recipe through
    `import.service`'s JSON-LD path, asserting title/servings/ingredients/steps survive. This

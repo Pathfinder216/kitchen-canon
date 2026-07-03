@@ -22,7 +22,7 @@ function readCookie(name: string): string | undefined {
 function mutationHeaders(hasBody: boolean): Record<string, string> {
   const headers: Record<string, string> = {};
   if (hasBody) headers['Content-Type'] = 'application/json';
-  const csrf = readCookie('ltc_csrf');
+  const csrf = readCookie('kc_csrf');
   if (csrf) headers['x-csrf-token'] = csrf;
   return headers;
 }

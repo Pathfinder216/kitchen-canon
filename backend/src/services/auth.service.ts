@@ -6,7 +6,7 @@ import { config } from '../config.js';
 import { AppError } from '../middleware/errorHandler.js';
 
 const BCRYPT_COST = 12;
-const SESSION_COOKIE = 'ltc_session';
+const SESSION_COOKIE = 'kc_session';
 
 /**
  * Constant-time check of the submitted signup invite code against SIGNUP_INVITE_CODE. The code is

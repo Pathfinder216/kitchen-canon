@@ -35,7 +35,7 @@ import { AppError } from '../middleware/errorHandler.js';
 const MAX_REDIRECTS = 3;
 const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
 const TIMEOUT_MS = 10_000;
-const USER_AGENT = 'Mozilla/5.0 (compatible; LetThemCook/1.0)';
+const USER_AGENT = 'Mozilla/5.0 (compatible; KitchenCanon/1.0)';
 
 // Two deliberately vague messages, never revealing which internal hosts exist:
 //   NOT_ALLOWED — static URL-string rejections (scheme, credentials, literal

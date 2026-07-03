@@ -18,7 +18,7 @@ describe('POST /api/auth/register', () => {
     expect(res.body.email).toBe('new@example.com');
     expect(res.body.id).toBeDefined();
     expect(res.body.passwordHash).toBeUndefined();
-    expect(res.headers['set-cookie'].some((c: string) => c.startsWith('ltc_session='))).toBe(true);
+    expect(res.headers['set-cookie'].some((c: string) => c.startsWith('kc_session='))).toBe(true);
   });
 
   it('lowercases and trims the email', async () => {
@@ -62,7 +62,7 @@ describe('POST /api/auth/login', () => {
     const res = await request(app).post('/api/auth/login').send({ email: 'user@example.com', password: 'password123' });
     expect(res.status).toBe(200);
     expect(res.body.email).toBe('user@example.com');
-    expect(res.headers['set-cookie'].some((c: string) => c.startsWith('ltc_session='))).toBe(true);
+    expect(res.headers['set-cookie'].some((c: string) => c.startsWith('kc_session='))).toBe(true);
   });
 
   it('rejects a wrong password with 401', async () => {

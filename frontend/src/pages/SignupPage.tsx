@@ -57,7 +57,7 @@ export function SignupPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white rounded-lg shadow p-6">
-        <h1 className="text-xl font-bold text-gray-900 mb-1">Let Them Cook</h1>
+        <h1 className="text-xl font-bold text-gray-900 mb-1">Kitchen Canon</h1>
         <p className="text-sm text-gray-500 mb-6">Create your account</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

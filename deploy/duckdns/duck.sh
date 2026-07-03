@@ -7,7 +7,7 @@
 #   chmod 600 ~/duckdns/duck.env
 #   ( crontab -l 2>/dev/null; echo '*/5 * * * * ~/duckdns/duck.sh >/dev/null 2>&1' ) | crontab -
 #
-# DUCKDNS_DOMAIN is just the label (e.g. "letthemcook" for letthemcook.duckdns.org).
+# DUCKDNS_DOMAIN is just the label (e.g. "kitchencanon" for kitchencanon.duckdns.org).
 # Leaving ip= blank tells DuckDNS to use the request's source IP — i.e. your router's WAN IP.
 
 set -eu

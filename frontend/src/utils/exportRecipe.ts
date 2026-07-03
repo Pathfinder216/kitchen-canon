@@ -69,7 +69,7 @@ export function exportRecipeAsText(
     lines.push('Personal Notes:', recipe.personalNotes, '');
   }
 
-  lines.push(`v${recipe.version} · Exported from Let Them Cook`);
+  lines.push(`v${recipe.version} · Exported from Kitchen Canon`);
   downloadFile(lines.join('\n'), `${safeName(recipe.title)}.txt`, 'text/plain;charset=utf-8');
 }
 

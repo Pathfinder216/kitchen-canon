@@ -1,4 +1,4 @@
-# Let Them Cook - Technical Architecture
+# Kitchen Canon - Technical Architecture
 
 This document describes the architecture as built. Features that are planned but not yet
 implemented are explicitly marked **(planned)** — if something isn't marked, it exists in the code.
@@ -201,8 +201,8 @@ The app is multi-tenant: every user has their own private data, behind a login. 
 
 ### Session & credential model
 - **Passwords**: hashed with `bcryptjs` (cost 12). Login returns an identical 401 for unknown-email and wrong-password to avoid account enumeration.
-- **Sessions**: server-side. A `Session` row (`id`, `userId`, `expiresAt`) is created on login/register; the opaque `id` is stored in a **signed, httpOnly** cookie (`ltc_session`). `requireAuth` middleware looks the session up, verifies it is live, and derives `req.userId` from it — the client never sends or can forge a user id. Expired sessions are dropped lazily on lookup, plus opportunistic cleanup on login. Cookie `secure` flag follows `COOKIE_SECURE` (defaults to true in production; the Pi deploy sets it false for plain-HTTP LAN serving).
-- **CSRF**: `csrf-csrf` double-submit token. A JS-readable `ltc_csrf` cookie is issued by `GET /api/auth/csrf`; the SPA echoes it in an `x-csrf-token` header on POST/PATCH/DELETE. `sameSite=lax` on both cookies. Login/register are exempt (no session yet).
+- **Sessions**: server-side. A `Session` row (`id`, `userId`, `expiresAt`) is created on login/register; the opaque `id` is stored in a **signed, httpOnly** cookie (`kc_session`). `requireAuth` middleware looks the session up, verifies it is live, and derives `req.userId` from it — the client never sends or can forge a user id. Expired sessions are dropped lazily on lookup, plus opportunistic cleanup on login. Cookie `secure` flag follows `COOKIE_SECURE` (defaults to true in production; the Pi deploy sets it false for plain-HTTP LAN serving).
+- **CSRF**: `csrf-csrf` double-submit token. A JS-readable `kc_csrf` cookie is issued by `GET /api/auth/csrf`; the SPA echoes it in an `x-csrf-token` header on POST/PATCH/DELETE. `sameSite=lax` on both cookies. Login/register are exempt (no session yet).
 
 ### Auth endpoints (`/api/auth`, public)
 - `POST /register` — `{email, password, inviteCode?}` → creates user + session, sets cookies. The submitted `inviteCode` is always checked against `SIGNUP_INVITE_CODE` (constant-time, generic 403 on mismatch); the default empty `SIGNUP_INVITE_CODE` matches an empty code, so signup is open until a code is set.
@@ -289,14 +289,14 @@ On container start (`backend/docker-entrypoint.sh`):
 ### TLS / reverse proxy (host nginx)
 
 The Pi already runs host nginx terminating HTTPS for another site, so the app is **not** given a
-second `:443` from Docker. Instead a host nginx vhost (see `deploy/nginx/letthemcook.conf`)
+second `:443` from Docker. Instead a host nginx vhost (see `deploy/nginx/kitchencanon.conf`)
 `proxy_pass`es a dedicated **DuckDNS** hostname to `http://127.0.0.1:8080`, with the cert issued
 by `certbot --nginx`. DuckDNS is used (over the router's `*.tplinkdns.com` DDNS) because it is on
 the Public Suffix List, so it gets its own Let's Encrypt rate-limit bucket. Only ports 80/443 are
 forwarded at the router to the Pi; the old `:8080` forward is removed.
 
 ### Deploying: `scripts/deploy-to-pi.sh [--with-data [--force]] user@host [--invite-code CODE]`
-1. Syncs the source tree to `~/let-them-cook` on the Pi via `tar | ssh`
+1. Syncs the source tree to `~/kitchen-canon` on the Pi via `tar | ssh`
    (excludes `node_modules`, `.git`, build outputs, `data/`, and `.env` so the Pi's secret is
    never clobbered)
 2. First deploy only: generates a `.env` on the Pi with a random `SESSION_SECRET`

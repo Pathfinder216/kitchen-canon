@@ -11,8 +11,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/*.svg'],
       manifest: {
-        name: 'Let Them Cook',
-        short_name: 'Let Them Cook',
+        name: 'Kitchen Canon',
+        short_name: 'Kitchen Canon',
         description: 'Your personal recipe collection',
         theme_color: '#f97316',
         background_color: '#fafafa',

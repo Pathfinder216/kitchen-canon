@@ -123,6 +123,25 @@ describe('useRecipeFormState', () => {
     expect(payloadSteps.every((s) => !('internalId' in s) && !('timeMinutesText' in s) && !('existingId' in s))).toBe(true);
   });
 
+  it('seeds ingredient notes from initialData and carries them into the payload', () => {
+    const recipe = makeRecipe({
+      ingredients: [
+        { id: 'i1', name: 'Cheese', originalName: 'Cheese', amount: 2, unit: 'slice', isOptional: false, note: 'use Cooper brand', orderIndex: 0 },
+      ],
+    } as Partial<Recipe>);
+    const { result } = renderHook(() => useRecipeFormState({ initialData: recipe }));
+    expect(result.current.ingredients[0].note).toBe('use Cooper brand');
+    expect(result.current.getFormData().ingredients[0].note).toBe('use Cooper brand');
+  });
+
+  it('round-trips an edited ingredient note through the payload', () => {
+    const { result } = renderHook(() => useRecipeFormState({}));
+    act(() => result.current.addIngredient());
+    act(() => result.current.updateIngredient(0, 'name', 'Bread'));
+    act(() => result.current.updateIngredient(0, 'note', 'use sourdough'));
+    expect(result.current.getFormData().ingredients[0].note).toBe('use sourdough');
+  });
+
   it('renumbers ingredient orderIndex on removal', () => {
     const { result } = renderHook(() => useRecipeFormState({}));
     act(() => result.current.addIngredient());

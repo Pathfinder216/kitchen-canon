@@ -54,6 +54,8 @@ export function useRecipeFormState({ initialData, importData }: UseRecipeFormSta
       amountText: ing.amount != null ? String(ing.amount) : '',
       unit: ing.unit ?? undefined,
       isOptional: ing.isOptional,
+      // Imported recipes carry no note; only initialData (a saved Recipe) does.
+      note: (ing as { note?: string | null }).note ?? undefined,
       orderIndex: ing.orderIndex,
       internalId: ing.name || `ing_${i}`,
     })) ?? [],

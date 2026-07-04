@@ -172,7 +172,7 @@ Source of truth: `backend/prisma/schema.prisma`. Summary of models and intent:
 | `User` | Account: unique lowercased `email`, `passwordHash` (bcrypt). Deleting cascades all owned data. |
 | `Session` | Server-side session: opaque `id` (stored in signed cookie), `userId`, `expiresAt`. |
 | `Recipe` | Owned by `userId`. `title`, `servings`, `source`, `archived`, notes (`authorNotes`/`personalNotes`). Versioning: `version`, `parentId` chain, `isLatest` flag — every edit creates a new row; restore copies an old version forward as the new latest. |
-| `Ingredient` | Per recipe: `name` (standardized), `originalName`, `amount`/`unit`, `isOptional`, `orderIndex`, optional `catalogId` link to `IngredientCatalog`. |
+| `Ingredient` | Per recipe: `name` (standardized), `originalName`, `amount`/`unit`, `isOptional`, optional per-recipe `note` (brand/prep hint, display-only — excluded from matching/consolidation), `orderIndex`, optional `catalogId` link to `IngredientCatalog`. |
 | `Step` | `orderIndex`, `instruction` (may embed `{ingredientName:50%}` percent-reference tokens), `timeMinutes` (Float), `isActiveTime`. Recipe total/active time is computed from steps. |
 | `Media` | `'image' | 'video'`, `path` (`/media/{uuid}.{ext}`), attached to either a recipe or a step. |
 | `CourseType` (enum) + `RecipeCourse` | Fixed course taxonomy (APPETIZER, SOUP, SALAD, BREAD, MAIN, SIDE, DESSERT, BREAKFAST, SNACK, DRINK, TOPPING) — replaced the earlier free-form `Category` model. Free-form tagging lives in `Label` instead. |

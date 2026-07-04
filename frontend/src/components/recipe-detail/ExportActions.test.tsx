@@ -85,4 +85,21 @@ describe('ExportActions share wiring', () => {
     expect(unhandled).not.toHaveBeenCalled();
     window.removeEventListener('unhandledrejection', unhandled);
   });
+
+  it('logs instead of rejecting when the share itself fails', async () => {
+    const failure = Object.assign(new Error('denied'), { name: 'NotAllowedError' });
+    const share = vi.fn().mockRejectedValue(failure);
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true, writable: true });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const unhandled = vi.fn();
+    window.addEventListener('unhandledrejection', unhandled);
+
+    renderBar();
+    fireEvent.click(screen.getByRole('button', { name: 'Share…' }));
+
+    await waitFor(() => expect(warn).toHaveBeenCalledWith('Sharing failed', failure));
+    await Promise.resolve();
+    expect(unhandled).not.toHaveBeenCalled();
+    window.removeEventListener('unhandledrejection', unhandled);
+  });
 });

@@ -93,8 +93,9 @@ export function canShareRecipe(): boolean {
 }
 
 /**
- * Shares the recipe text via the native share sheet. User-cancellation rejects
- * with an `AbortError` which we swallow; other errors propagate to the caller.
+ * Shares the recipe text via the native share sheet. Never rejects: the caller
+ * is a fire-and-forget click handler. User-cancellation (`AbortError`) is
+ * silent; other share failures are logged.
  */
 export async function shareRecipe(
   recipe: Recipe,
@@ -107,7 +108,7 @@ export async function shareRecipe(
     await navigator.share({ title: recipe.title, text });
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') return;
-    throw err;
+    console.warn('Sharing failed', err);
   }
 }
 

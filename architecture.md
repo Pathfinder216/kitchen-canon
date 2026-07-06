@@ -132,7 +132,8 @@ routes/  (HTTP: parsing, status codes)  →  services/  (business logic, takes u
 3. `cookie-parser` signed with `SESSION_SECRET`
 4. `express.json` (10 MB limit)
 5. `morgan` logging (skipped in tests)
-6. Public: `GET /api/health`, then `/api/auth/*` (mounted before the gates)
+6. Public: `GET /api/health`, then `/api/auth/*` and `/api/shared/*` (mounted before the gates —
+   the share token is the only credential, and its media route enforces its own ownership)
 7. `/api` → CSRF validation (`csrf-csrf` double-submit) + `requireAuth` (sets `req.userId`)
 8. `/media` → `requireAuth` + `express.static` (media is private to logged-in users)
 9. Resource routers
@@ -148,9 +149,10 @@ requires a session.
 |------|-----------|
 | Health | `GET /api/health` (public) |
 | Auth | `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`, `GET /api/auth/csrf` |
+| Shared (public) | `GET /api/shared/:token` (latest-version recipe behind an active share; no personalNotes/user ids), `GET /api/shared/:token/media/:mediaId` (token-scoped media stream) — mounted before the CSRF/requireAuth gates |
 | Recipes | `GET /api/recipes` (search/filter/pagination), `POST /api/recipes`, `GET /api/recipes/:id`, `PATCH /api/recipes/:id` (creates a new version), `DELETE /api/recipes/:id` (toggle archive), `DELETE /api/recipes/:id/permanent` |
 | Versions | `GET /api/recipes/:id/versions`, `POST /api/recipes/:id/restore/:version` |
-| Recipe extras | `GET /api/recipes/:id/dietary-info`, `GET /api/recipes/:id/substitutions`, `POST /api/recipes/:id/labels`, `POST /api/recipes/:id/courses` |
+| Recipe extras | `GET /api/recipes/:id/dietary-info`, `GET /api/recipes/:id/substitutions`, `POST /api/recipes/:id/labels`, `POST /api/recipes/:id/courses`, `GET/POST/DELETE /api/recipes/:id/share` (share-link state / create / revoke) |
 | Courses | `GET /api/courses` (static enum list) |
 | Meta | `GET /api/meta` → `{ allergens, diets, allergenLabels, dietLabels }` (dietary vocabulary; single source of truth for the frontend, served from `constants/dietaryTags.ts`) |
 | Labels | `GET /api/labels`, `POST /api/labels` |
@@ -185,6 +187,7 @@ Source of truth: `backend/prisma/schema.prisma`. Summary of models and intent:
 | `MealRecipe` | Recipe-in-plan: pins `recipeVersion` used, per-plan `servings`, `substitutions` JSON (`Record<ingredientId, { toIngredient, ratio }>`). |
 | `GroceryItem` | Consolidated list rows (`ingredient`, `amount`, `unit`, `purchased`), regenerated from the plan's recipes. |
 | `UserPreferences` | One per user (`locale`, `theme`). |
+| `RecipeShare` | Public share link. `id` (uuid) doubles as the unguessable URL token; `recipeId` (any version row, resolved to the chain's latest at read), `userId` owner (cascade delete), `createdAt`, nullable `revokedAt` (set = dead link). Read via the public `/api/shared/:token` routes; never carries `personalNotes` or user ids to the viewer. |
 
 Notable design points:
 - **`orderIndex`** is the ordering field name everywhere (not `order`, a SQL keyword).
@@ -232,6 +235,9 @@ Two patterns scope data by user:
   `MEDIA_STORAGE_PATH` as flat `{uuid}.{ext}` files; the DB stores the public path
   `/media/{filename}` on the `Media` row.
 - Files are served by `express.static` behind `requireAuth` — media is not publicly readable.
+  The one exception is `GET /api/shared/:token/media/:mediaId`, which streams a single file via
+  `res.sendFile` only after confirming the media row belongs to the shared recipe's version chain
+  (authorized by the share token, not a session); the authed `/media` static mount is not widened.
 - Deleting media removes both the DB row and the file.
 - **(planned)** A `StorageProvider` abstraction (upload/download/delete/getUrl) to enable
   S3/GCS later. Today filesystem access is direct; a cloud move means introducing that

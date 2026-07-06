@@ -248,6 +248,92 @@ describe('GET /api/recipes/:id/versions', () => {
   });
 });
 
+describe('per-ingredient notes', () => {
+  const notedRecipe = {
+    title: 'Grilled Cheese',
+    servings: 1,
+    ingredients: [
+      { name: 'bread', amount: 2, unit: 'slice', isOptional: false, orderIndex: 0, note: 'use sourdough' },
+      { name: 'cheese', amount: 2, unit: 'slice', isOptional: false, orderIndex: 1, note: 'use Cooper brand' },
+      { name: 'butter', amount: 1, unit: 'tbsp', isOptional: false, orderIndex: 2 },
+    ],
+  };
+
+  it('stores and returns ingredient notes on create', async () => {
+    const res = await api.post('/api/recipes').send(notedRecipe);
+
+    expect(res.status).toBe(201);
+    const byName = Object.fromEntries(res.body.ingredients.map((i: { name: string; note: string | null }) => [i.name, i.note]));
+    expect(byName.bread).toBe('use sourdough');
+    expect(byName.cheese).toBe('use Cooper brand');
+    expect(byName.butter).toBeNull();
+  });
+
+  it('preserves notes when the recipe is edited (version copy-path)', async () => {
+    const createRes = await api.post('/api/recipes').send(notedRecipe);
+
+    // Edit only the title — ingredients are NOT resent, so the copy-path must carry notes forward.
+    const updateRes = await api
+      .patch(`/api/recipes/${createRes.body.id}`)
+      .send({ title: 'Deluxe Grilled Cheese' });
+
+    expect(updateRes.status).toBe(200);
+    expect(updateRes.body.version).toBe(2);
+    const byName = Object.fromEntries(updateRes.body.ingredients.map((i: { name: string; note: string | null }) => [i.name, i.note]));
+    expect(byName.bread).toBe('use sourdough');
+    expect(byName.cheese).toBe('use Cooper brand');
+    expect(byName.butter).toBeNull();
+  });
+
+  it('preserves notes when an old version is restored', async () => {
+    const createRes = await api.post('/api/recipes').send(notedRecipe);
+    const v1Id = createRes.body.id;
+
+    // v2 drops the notes entirely
+    await api.patch(`/api/recipes/${v1Id}`).send({
+      title: 'Plain Grilled Cheese',
+      ingredients: [
+        { name: 'bread', amount: 2, unit: 'slice', isOptional: false, orderIndex: 0 },
+        { name: 'cheese', amount: 2, unit: 'slice', isOptional: false, orderIndex: 1 },
+      ],
+    });
+
+    // Restore v1 (creates v3 from v1's data) — notes must come back.
+    const restoreRes = await api.post(`/api/recipes/${v1Id}/restore/1`);
+
+    expect(restoreRes.status).toBe(200);
+    expect(restoreRes.body.version).toBe(3);
+    const byName = Object.fromEntries(restoreRes.body.ingredients.map((i: { name: string; note: string | null }) => [i.name, i.note]));
+    expect(byName.bread).toBe('use sourdough');
+    expect(byName.cheese).toBe('use Cooper brand');
+    expect(byName.butter).toBeNull();
+  });
+
+  it('rejects a note longer than 200 characters', async () => {
+    const res = await api.post('/api/recipes').send({
+      title: 'Bad Note',
+      ingredients: [
+        { name: 'bread', isOptional: false, orderIndex: 0, note: 'x'.repeat(201) },
+      ],
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('Validation failed');
+  });
+
+  it('accepts a note of exactly 200 characters', async () => {
+    const res = await api.post('/api/recipes').send({
+      title: 'Long Note',
+      ingredients: [
+        { name: 'bread', isOptional: false, orderIndex: 0, note: 'x'.repeat(200) },
+      ],
+    });
+
+    expect(res.status).toBe(201);
+    expect(res.body.ingredients[0].note).toHaveLength(200);
+  });
+});
+
 describe('POST /api/recipes/:id/restore/:version', () => {
   it('restores an old version as a new version', async () => {
     const createRes = await api.post('/api/recipes').send(sampleRecipe);

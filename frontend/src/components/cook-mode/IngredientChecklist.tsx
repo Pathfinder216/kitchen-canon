@@ -50,6 +50,7 @@ export function IngredientChecklist({
               )}
               {swapDisplayNames.get(ing.id) ?? ing.name}
               {ing.isOptional && <span className="text-gray-400 ml-1">(optional)</span>}
+              {ing.note && <span className="text-gray-400 italic ml-1">— {ing.note}</span>}
             </label>
           </li>
         ))}

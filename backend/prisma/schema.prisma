@@ -78,6 +78,7 @@ model Ingredient {
   amount       Float?
   unit         String?
   isOptional   Boolean            @default(false)
+  note         String?            // Per-recipe note, e.g. "use Cooper brand", "chopped into 1-inch cubes"
   orderIndex   Int                // Display order
   catalogId    String?
   catalog      IngredientCatalog? @relation(fields: [catalogId], references: [id], onDelete: SetNull)

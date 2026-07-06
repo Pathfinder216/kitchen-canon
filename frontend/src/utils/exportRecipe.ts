@@ -138,14 +138,17 @@ export function buildRecipeMailto(
   return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 
-/** Opens the user's mail client with a prefilled subject + recipe body. */
+/**
+ * Opens the user's mail client with a prefilled subject + recipe body, in a
+ * new tab so a webmail handler (e.g. Gmail) doesn't replace the recipe page.
+ */
 export function emailRecipe(
   recipe: Recipe,
   finalIngredients: Ingredient[],
   swapDisplayNames: Map<string, string>,
   targetServings: number,
 ) {
-  window.location.href = buildRecipeMailto(recipe, finalIngredients, swapDisplayNames, targetServings);
+  window.open(buildRecipeMailto(recipe, finalIngredients, swapDisplayNames, targetServings), '_blank');
 }
 
 export function exportRecipeAsJson(

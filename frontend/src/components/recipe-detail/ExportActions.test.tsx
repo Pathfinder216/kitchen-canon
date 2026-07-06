@@ -54,6 +54,18 @@ describe('ExportActions share wiring', () => {
     expect(screen.getByRole('button', { name: 'Save as PDF' })).toBeInTheDocument();
   });
 
+  it('opens the mailto link in a new tab so webmail handlers keep the recipe page', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+
+    renderBar();
+    fireEvent.click(screen.getByRole('button', { name: 'Email' }));
+
+    expect(open).toHaveBeenCalledTimes(1);
+    const [href, target] = open.mock.calls[0];
+    expect(String(href).startsWith('mailto:?subject=')).toBe(true);
+    expect(target).toBe('_blank');
+  });
+
   it('shows Share and calls navigator.share with the recipe title + text', async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'share', { value: share, configurable: true, writable: true });

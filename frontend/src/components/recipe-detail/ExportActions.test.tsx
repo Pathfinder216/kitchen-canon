@@ -4,7 +4,7 @@ import { ExportActions } from './RecipeActionsBar';
 import type { Recipe, Ingredient } from '../../types/recipe';
 
 const ingredients: Ingredient[] = [
-  { id: 'i1', recipeId: 'r1', name: 'flour', originalName: null, amount: 2, unit: 'cups', isOptional: false, orderIndex: 0 },
+  { id: 'i1', recipeId: 'r1', name: 'flour', originalName: null, amount: 2, unit: 'cups', isOptional: false, note: null, orderIndex: 0 },
 ];
 
 const recipe: Recipe = {

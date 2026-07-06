@@ -3,9 +3,9 @@ import { recipeToText, buildRecipeMailto, MAILTO_BODY_MAX } from './exportRecipe
 import type { Recipe, Ingredient } from '../types/recipe';
 
 const ingredients: Ingredient[] = [
-  { id: 'i1', recipeId: 'r1', name: 'flour', originalName: null, amount: 2, unit: 'cups', isOptional: false, orderIndex: 0 },
-  { id: 'i2', recipeId: 'r1', name: 'sugar', originalName: null, amount: 1, unit: 'cup', isOptional: true, orderIndex: 1 },
-  { id: 'i3', recipeId: 'r1', name: 'salt', originalName: null, amount: null, unit: null, isOptional: false, orderIndex: 2 },
+  { id: 'i1', recipeId: 'r1', name: 'flour', originalName: null, amount: 2, unit: 'cups', isOptional: false, note: null, orderIndex: 0 },
+  { id: 'i2', recipeId: 'r1', name: 'sugar', originalName: null, amount: 1, unit: 'cup', isOptional: true, note: null, orderIndex: 1 },
+  { id: 'i3', recipeId: 'r1', name: 'salt', originalName: null, amount: null, unit: null, isOptional: false, note: 'flaky, e.g. Maldon', orderIndex: 2 },
 ];
 
 const recipe: Recipe = {
@@ -63,6 +63,20 @@ describe('recipeToText', () => {
     const text = recipeToText(recipe, ingredients, noSwaps, 4);
     expect(text).toContain('1. Mix 2 cups flour with the wet ingredients [5 min]');
     expect(text).not.toContain('{flour}');
+  });
+
+  it('appends ingredient notes after the name', () => {
+    const text = recipeToText(recipe, ingredients, noSwaps, 4);
+    expect(text).toContain('- salt — flaky, e.g. Maldon');
+    // Note-less ingredients get no dash suffix.
+    expect(text).toContain('- 2 cups flour\n');
+  });
+
+  it('keeps the note after the substitution marker', () => {
+    const noted = ingredients.map((i) => (i.id === 'i1' ? { ...i, note: 'sifted' } : i));
+    const swaps = new Map<string, string>([['i1', 'gluten-free flour']]);
+    const text = recipeToText(recipe, noted, swaps, 4);
+    expect(text).toContain('- 2 cups gluten-free flour (substituted for flour) — sifted');
   });
 
   it('notes a substitution using the swap display name', () => {

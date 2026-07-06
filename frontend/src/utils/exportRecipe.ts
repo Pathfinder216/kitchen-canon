@@ -53,7 +53,8 @@ export function recipeToText(
         : '';
       const optional = ing.isOptional ? ' (optional)' : '';
       const subNote = swapDisplayNames.has(ing.id) ? ` (substituted for ${ing.name})` : '';
-      lines.push(`- ${amt ? amt + ' ' : ''}${displayName}${optional}${subNote}`);
+      const note = ing.note ? ` — ${ing.note}` : '';
+      lines.push(`- ${amt ? amt + ' ' : ''}${displayName}${optional}${subNote}${note}`);
     }
     lines.push('');
   }
@@ -168,6 +169,7 @@ export function exportRecipeAsJson(
       amount: ing.amount,
       unit: ing.unit,
       isOptional: ing.isOptional,
+      note: ing.note,
       orderIndex: ing.orderIndex,
       ...(swapDisplayNames.has(ing.id) ? { substitutedFor: ing.name } : {}),
     })),

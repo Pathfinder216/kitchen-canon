@@ -35,9 +35,30 @@ const ALIAS_GROUPS: string[][] = [
   ['whole wheat flour', 'wholemeal flour'],
 ];
 
+// Standard global (userId: null) manual labels seeded on every reseed. These are ordinary
+// `type: 'manual'` labels — dedicated `equipment`/`makeAhead` label *types* were deliberately
+// migrated into `manual` (see the updateMany below) and must NOT be reintroduced.
+//
+// ⚠️ Stability: plan 37 (multi-device sync / timeline groundwork) references the exact names
+// below as stable strings. Do NOT rename or remove these entries — only add. Make-ahead
+// detection must not rely on string-matching these names alone; that is plan 37's concern.
 const STANDARD_LABELS: { type: string; name: string }[] = [
+  // Make-ahead / storage
   { type: 'manual', name: 'Make-ahead' },
   { type: 'manual', name: 'Freezable' },
+  { type: 'manual', name: 'Refrigerate up to 3 days' },
+  { type: 'manual', name: 'Night-before prep' },
+  // Equipment
+  { type: 'manual', name: 'Slow cooker' },
+  { type: 'manual', name: 'Instant Pot / pressure cooker' },
+  { type: 'manual', name: 'Air fryer' },
+  { type: 'manual', name: 'Oven' },
+  { type: 'manual', name: 'Stovetop only' },
+  { type: 'manual', name: 'No-cook' },
+  { type: 'manual', name: 'Grill' },
+  { type: 'manual', name: 'Blender / food processor' },
+  { type: 'manual', name: 'Stand mixer' },
+  // General
   { type: 'manual', name: 'Quick' },
   { type: 'manual', name: 'Budget-friendly' },
 ];

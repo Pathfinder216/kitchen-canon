@@ -6,6 +6,6 @@
     "declarationMap": false,
     "sourceMap": false
   },
-  "include": ["prisma/seed.ts", "src/constants/ingredientCatalog.ts"],
+  "include": ["prisma/seed.ts", "src/constants/ingredientCatalog.ts", "src/constants/substitutionSeed.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -4,6 +4,7 @@ config();
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 import { INGREDIENT_CATALOG } from '../src/constants/ingredientCatalog.js';
+import { SUBSTITUTION_SEED } from '../src/constants/substitutionSeed.js';
 import { stemVariants } from '../src/utils/stemVariants.js';
 
 const adapter = new PrismaLibSql({ url: process.env.DATABASE_URL! });
@@ -140,6 +141,27 @@ async function main() {
     }
   }
   console.log(`Seeded ${STANDARD_LABELS.length} standard labels.`);
+
+  // Seed official/global substitutions. Idempotent: unlike the catalog above we do NOT wipe the
+  // table — user-created substitutions (isOfficial: false) must survive reseeds. Compound uniques
+  // can't dedupe globals in SQLite (null createdBy is distinct in the index), so match with
+  // findFirst on (from, to, isOfficial) and create only when absent.
+  console.log('Seeding official substitutions…');
+  let createdSubs = 0;
+  for (const { from, to, ratio, notes } of SUBSTITUTION_SEED) {
+    const fromIngredient = from.toLowerCase();
+    const toIngredient = to.toLowerCase();
+    const existing = await prisma.ingredientSubstitution.findFirst({
+      where: { fromIngredient, toIngredient, isOfficial: true },
+    });
+    if (!existing) {
+      await prisma.ingredientSubstitution.create({
+        data: { fromIngredient, toIngredient, ratio, notes, isOfficial: true, createdBy: null },
+      });
+      createdSubs++;
+    }
+  }
+  console.log(`Seeded ${createdSubs} new official substitutions (${SUBSTITUTION_SEED.length} total in set).`);
 }
 
 main()

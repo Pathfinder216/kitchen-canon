@@ -14,7 +14,12 @@
 <!-- Key files/modules touched, and the why behind non-obvious decisions:
      the reasoning, trade-offs, and alternatives rejected. -->
 
-## Deploy/env changes
+## Manual steps
 
-<!-- Include this section only when relevant: new/changed .env vars,
-     migrations, docker/compose changes, deploy script updates. -->
+<!-- Everything a developer must do by hand that checking out the branch doesn't
+     cover — both to run/test this PR locally and to deploy it. List concrete
+     commands. Examples: `npm install` (new dependency), `npm run db:generate`
+     and `npm run db:push` (schema change), `npm run db:seed` (new/changed seed
+     data), new/changed .env vars, docker/compose or deploy script updates.
+     Write "None" if a plain checkout works — don't omit the section, so readers
+     can trust its absence of steps. -->

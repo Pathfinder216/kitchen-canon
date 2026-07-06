@@ -48,9 +48,9 @@ Pi; 44 is defense-in-depth after the first three.
 - [ ] [18 — Canonical ingredient units](18-unit-normalization.md) (M) — do before 19, 27
 - [ ] [19 — Import hardening](19-import-hardening.md) (M)
 - [ ] [20 — Fuzzy matching for filtering/search/typeahead](20-fuzzy-matching.md) (M) — do before 34
-- [ ] [21 — Seed global substitutions](21-global-substitutions-seed.md) (S-M)
+- [x] [21 — Seed global substitutions](21-global-substitutions-seed.md) (S-M) — `src/constants/substitutionSeed.ts` holds 43 curated `{from,to,ratio,notes}` official pairs (baking/herbs/dairy/pantry, lowercase matching catalog `displayAlias`); `seed.ts` inserts them via findFirst+create (NOT upsert — SQLite null-unique), never wiping the table so user rows (`isOfficial:false`) survive reseeds. Ratio semantics verified against `substitutions.service.ts` + the swap UI (`amount * ratio`): fresh→dried herbs at 0.333. New `substitutions-seed.test.ts` covers the full set, idempotency + user-row survival, and the 1 cup basil → 1/3 cup dried swap end-to-end
 - [ ] [22 — Implement LocalizationMapping](22-localization-mappings.md) (M)
-- [ ] [23 — Per-ingredient notes](23-ingredient-notes.md) (M)
+- [x] [23 — Per-ingredient notes](23-ingredient-notes.md) (M) — `Ingredient.note String?` (Zod `max(200)`); the version copy-paths in `recipe.service.ts` needed **no code change** — update/restore copy via rest-spreads (`({id, recipeId, ...ing}) => ing`) so `note` flows through, pinned by new create/edit/restore regression tests + 200-char boundary tests. Form: secondary note input per ingredient row in `IngredientsEditor` (omitted from the payload when empty); display as muted `— note` text in `RecipeIngredientList` and cook-mode `IngredientChecklist`. Grocery consolidation and import untouched per plan; export/print pickup deferred to the plan-29 `recipeToText` formatter as a follow-up
 - [ ] [24 — Remaining-percent ingredient refs](24-remaining-percent-refs.md) (M)
 - [ ] [25 — Equipment & make-ahead labels](25-equipment-makeahead-labels.md) (S-M)
 - [ ] [26 — Image crop + natural aspect display](26-image-crop-aspect.md) (M; needs 05)

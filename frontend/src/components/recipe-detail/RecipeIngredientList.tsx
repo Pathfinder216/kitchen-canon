@@ -82,6 +82,9 @@ export function RecipeIngredientList({
                   {ing.isOptional && (
                     <span className="text-gray-400 ml-1">(optional)</span>
                   )}
+                  {ing.note && (
+                    <span className="text-gray-500 italic ml-1">— {ing.note}</span>
+                  )}
                   {availableSubs.length > 0 && (
                     <span className="inline-block ml-2 align-middle">
                       <SubstitutionsMenu

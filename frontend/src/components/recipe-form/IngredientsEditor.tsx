@@ -185,6 +185,17 @@ export function IngredientsEditor({
                 <TrashIcon />
               </button>
             </div>
+            <div className="flex items-center gap-1.5 pl-6 pb-1">
+              <input
+                type="text"
+                value={ing.note ?? ''}
+                onChange={(e) => updateIngredient(index, 'note', e.target.value || undefined)}
+                maxLength={200}
+                placeholder="note — brand, prep, etc."
+                aria-label={`Note for ${ing.name.trim() || 'ingredient'}`}
+                className={`${base} flex-1 min-w-0 text-gray-500`}
+              />
+            </div>
             {classifyingIngredientId === ing.internalId && (
               <InlineClassifyPanel
                 ingredientName={ing.name}

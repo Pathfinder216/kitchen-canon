@@ -6,6 +6,7 @@ const ingredientSchema = z.object({
   amount: z.number().positive().optional(),
   unit: z.string().optional(),
   isOptional: z.boolean().default(false),
+  note: z.string().max(200).optional(),
   orderIndex: z.number().int().min(0),
 });
 

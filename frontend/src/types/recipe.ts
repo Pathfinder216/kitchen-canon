@@ -6,6 +6,7 @@ export interface Ingredient {
   amount: number | null;
   unit: string | null;
   isOptional: boolean;
+  note: string | null;
   orderIndex: number;
 }
 
@@ -74,6 +75,7 @@ export interface IngredientInput {
   amount?: number;
   unit?: string;
   isOptional?: boolean;
+  note?: string;
   orderIndex: number;
 }
 

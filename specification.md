@@ -187,7 +187,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 
 **Specified but not yet implemented** (all fit the current architecture; notes on how):
 - **Offline writes / background sync** — the largest gap vs. section 7. Needs an IndexedDB layer and queued mutations on the frontend; no backend changes required, though replayed mutations must fetch a fresh CSRF token. The current React Query + service-worker setup is compatible with this.
-- **Sharing (text/PDF/email, shareable links)** — text export exists; links require new public share-token routes since all routes are login-gated. Fits as an additive route + a `shareToken` column.
+- **Sharing — shareable links** — text/email/PDF sharing has shipped (Web Share API, `mailto:` email, and print-to-PDF, all fed by a shared text formatter); only shareable links remain. Links require new public share-token routes since all routes are login-gated, fitting as an additive route + a `shareToken` column.
 - **schema.org bulk export** — additive backend endpoint; the data model holds everything needed.
 - **Photo/OCR import** — feed OCR text into the existing text parser; client-side OCR preferred given Pi hardware.
 - **Equipment and make-ahead labels** — new `Label.type` values; the label system already supports types.

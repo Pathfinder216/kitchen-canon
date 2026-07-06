@@ -24,6 +24,9 @@ vi.mock('../components/StepMedia', () => ({ StepMedia: () => null }));
 vi.mock('../utils/exportRecipe', () => ({
   exportRecipeAsText: vi.fn(),
   exportRecipeAsJson: vi.fn(),
+  canShareRecipe: vi.fn(() => false),
+  shareRecipe: vi.fn(),
+  emailRecipe: vi.fn(),
 }));
 
 import { fetchRecipe, archiveRecipe } from '../api/recipes';

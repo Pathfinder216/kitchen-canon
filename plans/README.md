@@ -56,7 +56,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [ ] [26 — Image crop + natural aspect display](26-image-crop-aspect.md) (M; needs 05)
 - [ ] [27 — Unit conversion (imperial↔metric, temperatures)](27-unit-conversion.md) (M-L; needs 18)
 - [ ] [28 — Grocery aisle grouping](28-grocery-aisles.md) (M)
-- [ ] [29 — Share: native/email/PDF](29-sharing-text-pdf.md) (S-M)
+- [x] [29 — Share: native/email/PDF](29-sharing-text-pdf.md) (S-M) — extracted a shared `recipeToText` formatter from `exportRecipe.ts` (now fed by the .txt download, share sheet, and email body); RecipeDetailPage footer gains **Share…** (`navigator.share`, hidden where unsupported, swallows user-cancel `AbortError`), **Email** (`mailto:` subject + body, truncated past ~1800 chars with a "use Share or Download" notice so the action stays usable), and **Save as PDF** (`window.print()` into the existing print stylesheet; `AppLayout` header now `print:hidden` for a clean page). Ingredient `note` intentionally deferred to plan 23. New `recipeToText`/mailto unit tests + share-wiring RTL tests
 - [ ] [30 — Shareable links (public token view)](30-share-links.md) (M)
 - [ ] [31 — Bulk export (schema.org + proprietary)](31-schema-org-export.md) (M)
 - [ ] [32 — Photo/OCR import](32-ocr-import.md) (M; needs 19)

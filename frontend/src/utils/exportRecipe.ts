@@ -16,12 +16,16 @@ function downloadFile(content: string, filename: string, mimeType: string) {
   URL.revokeObjectURL(url);
 }
 
-export function exportRecipeAsText(
+/**
+ * Formats a recipe as a plain-text block. Shared by the .txt download, the
+ * native share sheet, and the email body so all three read identically.
+ */
+export function recipeToText(
   recipe: Recipe,
   finalIngredients: Ingredient[],
   swapDisplayNames: Map<string, string>,
   targetServings: number,
-) {
+): string {
   const lines: string[] = [];
 
   lines.push(recipe.title);
@@ -49,7 +53,8 @@ export function exportRecipeAsText(
         : '';
       const optional = ing.isOptional ? ' (optional)' : '';
       const subNote = swapDisplayNames.has(ing.id) ? ` (substituted for ${ing.name})` : '';
-      lines.push(`- ${amt ? amt + ' ' : ''}${displayName}${optional}${subNote}`);
+      const note = ing.note ? ` — ${ing.note}` : '';
+      lines.push(`- ${amt ? amt + ' ' : ''}${displayName}${optional}${subNote}${note}`);
     }
     lines.push('');
   }
@@ -70,7 +75,80 @@ export function exportRecipeAsText(
   }
 
   lines.push(`v${recipe.version} · Exported from Kitchen Canon`);
-  downloadFile(lines.join('\n'), `${safeName(recipe.title)}.txt`, 'text/plain;charset=utf-8');
+  return lines.join('\n');
+}
+
+export function exportRecipeAsText(
+  recipe: Recipe,
+  finalIngredients: Ingredient[],
+  swapDisplayNames: Map<string, string>,
+  targetServings: number,
+) {
+  const text = recipeToText(recipe, finalIngredients, swapDisplayNames, targetServings);
+  downloadFile(text, `${safeName(recipe.title)}.txt`, 'text/plain;charset=utf-8');
+}
+
+/** True when the browser exposes the Web Share API (mobile Safari/Chrome, etc). */
+export function canShareRecipe(): boolean {
+  return typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+}
+
+/**
+ * Shares the recipe text via the native share sheet. Never rejects: the caller
+ * is a fire-and-forget click handler. User-cancellation (`AbortError`) is
+ * silent; other share failures are logged.
+ */
+export async function shareRecipe(
+  recipe: Recipe,
+  finalIngredients: Ingredient[],
+  swapDisplayNames: Map<string, string>,
+  targetServings: number,
+): Promise<void> {
+  const text = recipeToText(recipe, finalIngredients, swapDisplayNames, targetServings);
+  try {
+    await navigator.share({ title: recipe.title, text });
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') return;
+    console.warn('Sharing failed', err);
+  }
+}
+
+/**
+ * Practical `mailto:` body ceiling. Some mail clients (and browsers building the
+ * `mailto:` URL) silently drop everything past ~2000 chars, so we truncate the
+ * body and point the reader at Share/Download for the complete recipe.
+ */
+export const MAILTO_BODY_MAX = 1800;
+const MAILTO_TRUNCATION_NOTICE =
+  '\n\n… recipe truncated here — use Share or Download for the full text.';
+
+/** Builds the `mailto:` href, truncating an over-long body (see MAILTO_BODY_MAX). */
+export function buildRecipeMailto(
+  recipe: Recipe,
+  finalIngredients: Ingredient[],
+  swapDisplayNames: Map<string, string>,
+  targetServings: number,
+): string {
+  const text = recipeToText(recipe, finalIngredients, swapDisplayNames, targetServings);
+  let body = text;
+  if (body.length > MAILTO_BODY_MAX) {
+    body = body.slice(0, MAILTO_BODY_MAX - MAILTO_TRUNCATION_NOTICE.length) + MAILTO_TRUNCATION_NOTICE;
+  }
+  const subject = `Recipe: ${recipe.title}`;
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+/**
+ * Opens the user's mail client with a prefilled subject + recipe body, in a
+ * new tab so a webmail handler (e.g. Gmail) doesn't replace the recipe page.
+ */
+export function emailRecipe(
+  recipe: Recipe,
+  finalIngredients: Ingredient[],
+  swapDisplayNames: Map<string, string>,
+  targetServings: number,
+) {
+  window.open(buildRecipeMailto(recipe, finalIngredients, swapDisplayNames, targetServings), '_blank');
 }
 
 export function exportRecipeAsJson(
@@ -94,6 +172,7 @@ export function exportRecipeAsJson(
       amount: ing.amount,
       unit: ing.unit,
       isOptional: ing.isOptional,
+      note: ing.note,
       orderIndex: ing.orderIndex,
       ...(swapDisplayNames.has(ing.id) ? { substitutedFor: ing.name } : {}),
     })),

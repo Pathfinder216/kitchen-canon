@@ -1,7 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useArchiveRecipe, useDeleteRecipePermanently } from '../../hooks/useRecipes';
-import { exportRecipeAsText, exportRecipeAsJson } from '../../utils/exportRecipe';
+import {
+  exportRecipeAsText,
+  exportRecipeAsJson,
+  canShareRecipe,
+  shareRecipe,
+  emailRecipe,
+} from '../../utils/exportRecipe';
 import { Modal } from '../ui/Modal';
 import { MediaVisibilityToggle } from '../MediaVisibilityToggle';
 import type { Recipe, Ingredient } from '../../types/recipe';
@@ -103,27 +109,45 @@ interface ExportActionsProps {
   targetServings: number;
 }
 
-/** Export (.txt / JSON) and print buttons shown in the footer. */
+const EXPORT_BTN =
+  'text-xs border border-gray-300 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-md transition-colors';
+
+/** Share, email, PDF and export (.txt / JSON) buttons shown in the footer. */
 export function ExportActions({ recipe, finalIngredients, swapDisplayNames, targetServings }: ExportActionsProps) {
   return (
-    <div className="flex gap-2 shrink-0">
+    <div className="flex flex-wrap gap-2 shrink-0 justify-end">
+      {canShareRecipe() && (
+        <button
+          onClick={() => shareRecipe(recipe, finalIngredients, swapDisplayNames, targetServings)}
+          className={EXPORT_BTN}
+        >
+          Share…
+        </button>
+      )}
+      <button
+        onClick={() => emailRecipe(recipe, finalIngredients, swapDisplayNames, targetServings)}
+        className={EXPORT_BTN}
+      >
+        Email
+      </button>
+      <button
+        onClick={() => window.print()}
+        title="Choose “Save as PDF” in the print dialog"
+        className={EXPORT_BTN}
+      >
+        Save as PDF
+      </button>
       <button
         onClick={() => exportRecipeAsText(recipe, finalIngredients, swapDisplayNames, targetServings)}
-        className="text-xs border border-gray-300 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-md transition-colors"
+        className={EXPORT_BTN}
       >
         Export .txt
       </button>
       <button
         onClick={() => exportRecipeAsJson(recipe, finalIngredients, swapDisplayNames, targetServings)}
-        className="text-xs border border-gray-300 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-md transition-colors"
+        className={EXPORT_BTN}
       >
         Export JSON
-      </button>
-      <button
-        onClick={() => window.print()}
-        className="text-xs border border-gray-300 text-gray-600 hover:bg-gray-100 px-2.5 py-1 rounded-md transition-colors"
-      >
-        Print
       </button>
     </div>
   );

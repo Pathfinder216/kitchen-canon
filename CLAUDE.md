@@ -1,1 +1,1 @@
-When creating PRs, follow the GitHub template.
+When creating PRs, follow the GitHub template. The "Manual steps" section must list every command a developer has to run by hand to test or deploy the branch (Prisma generate/push, seeding, new env vars, dependency installs) — write "None" rather than omitting it.

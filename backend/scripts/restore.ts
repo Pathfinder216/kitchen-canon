@@ -43,8 +43,8 @@ async function main() {
   // 2. Recipes — create root recipes first (parentId = null), then children.
   console.log(`Restoring ${b.recipes.length} recipes…`);
   const sorted = [
-    ...b.recipes.filter((r: any) => !r.parentId),
-    ...b.recipes.filter((r: any) => !!r.parentId),
+    ...b.recipes.filter((r) => !r.parentId),
+    ...b.recipes.filter((r) => !!r.parentId),
   ];
   for (const recipe of sorted) {
     await prisma.recipe.create({ data: recipe });
@@ -58,7 +58,7 @@ async function main() {
 
   if (b.recipeLabels.length) {
     await prisma.recipeLabel.createMany({
-      data: b.recipeLabels.map((rl: any) => ({
+      data: b.recipeLabels.map((rl) => ({
         recipeId: rl.recipeId,
         labelId: labelIdMap.get(rl.labelId) ?? rl.labelId,
       })),

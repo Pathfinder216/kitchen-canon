@@ -99,12 +99,14 @@ export function useStepTimers({ ingredients = [], steps = [], onComplete }: UseS
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Keep a ref to timers so the interval callback can read current state
   const timersRef = useRef<TimerState[]>(timers);
-  timersRef.current = timers;
   // Track when each timer last fired its completion callback (stepIndex → timestamp)
   const lastPlayedRef = useRef<Map<number, number>>(new Map());
   // Keep a stable ref to the completion callback
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    timersRef.current = timers;
+    onCompleteRef.current = onComplete;
+  });
 
   // Run a shared interval only when at least one timer is actively running
   const hasRunning = timers.some(isRunning);

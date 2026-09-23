@@ -21,12 +21,11 @@ vi.mock('../api/substitutions', () => ({
   fetchSubstitutionsForRecipe: vi.fn(),
 }));
 
-import { fetchRecipes, fetchRecipe } from '../api/recipes';
+import { fetchRecipes } from '../api/recipes';
 import { fetchMealPlan, createMealPlan, updateMealPlan } from '../api/meal-plans';
 import { fetchSubstitutionsForRecipe } from '../api/substitutions';
 
 const mockFetchRecipes = fetchRecipes as ReturnType<typeof vi.fn>;
-const mockFetchRecipe = fetchRecipe as ReturnType<typeof vi.fn>;
 const mockFetchMealPlan = fetchMealPlan as ReturnType<typeof vi.fn>;
 const mockCreateMealPlan = createMealPlan as ReturnType<typeof vi.fn>;
 const mockUpdateMealPlan = updateMealPlan as ReturnType<typeof vi.fn>;

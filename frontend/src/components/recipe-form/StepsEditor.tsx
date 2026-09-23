@@ -178,6 +178,8 @@ export function StepsEditor({
     });
   }, [steps]);
 
+  const refUsage = getRefUsage(steps);
+
   return (
     <div>
       <h3 className="text-sm font-medium text-gray-700 mb-2">Steps</h3>
@@ -220,54 +222,51 @@ export function StepsEditor({
                   className={`${inputClass} min-h-[60px]`}
                   required
                 />
-                {ingredients.some((ing) => ing.name) && (() => {
-                  const refUsage = getRefUsage(steps);
-                  return (
-                    <div className="flex flex-wrap gap-1 items-center">
-                      <span className="text-xs text-gray-400 shrink-0">Insert ingredient reference:</span>
-                      <div className="relative shrink-0 group">
-                        <button
-                          type="button"
-                          className="w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-500 text-[10px] font-bold flex items-center justify-center leading-none transition-colors"
-                          tabIndex={-1}
-                          aria-label="About ingredient references"
-                        >
-                          ?
-                        </button>
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-xs rounded-lg px-3 py-2.5 shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                          <p className="font-semibold mb-1">Ingredient references</p>
-                          <p className="text-gray-300 leading-snug">Click an ingredient button to insert a scaling ingredient reference into the step. The reference will be replaced with the ingredient amount scaled to the right serving size.</p>
-                          <p className="text-gray-300 leading-snug mt-1.5"><span className="font-mono">&#123;name:NN%&#125;</span> uses exactly that share. A plain <span className="font-mono">&#123;name&#125;</span> uses whatever is left after earlier steps.</p>
-                          <p className="text-gray-400 mt-1.5 font-mono text-[10px]">2 Tbsp butter: &#123;butter:50%&#125; in step 1 → 1 Tbsp butter; &#123;butter&#125; in step 3 → the remaining 1 Tbsp butter</p>
-                          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-                        </div>
+                {ingredients.some((ing) => ing.name) && (
+                  <div className="flex flex-wrap gap-1 items-center">
+                    <span className="text-xs text-gray-400 shrink-0">Insert ingredient reference:</span>
+                    <div className="relative shrink-0 group">
+                      <button
+                        type="button"
+                        className="w-4 h-4 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-500 text-[10px] font-bold flex items-center justify-center leading-none transition-colors"
+                        tabIndex={-1}
+                        aria-label="About ingredient references"
+                      >
+                        ?
+                      </button>
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-xs rounded-lg px-3 py-2.5 shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        <p className="font-semibold mb-1">Ingredient references</p>
+                        <p className="text-gray-300 leading-snug">Click an ingredient button to insert a scaling ingredient reference into the step. The reference will be replaced with the ingredient amount scaled to the right serving size.</p>
+                        <p className="text-gray-300 leading-snug mt-1.5"><span className="font-mono">&#123;name:NN%&#125;</span> uses exactly that share. A plain <span className="font-mono">&#123;name&#125;</span> uses whatever is left after earlier steps.</p>
+                        <p className="text-gray-400 mt-1.5 font-mono text-[10px]">2 Tbsp butter: &#123;butter:50%&#125; in step 1 → 1 Tbsp butter; &#123;butter&#125; in step 3 → the remaining 1 Tbsp butter</p>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                       </div>
-                      {ingredients.map((ing, ingIndex) => {
-                        if (!ing.name) return null;
-                        const key = refKeyForIngredient(ingredients, ingIndex);
-                        const used = refUsage[key] ?? 0;
-                        const fullyUsed = used >= 100;
-                        const overUsed = used > 100;
-                        return (
-                          <button
-                            key={ing.internalId}
-                            type="button"
-                            onClick={() => insertIngredientRef(index, ingIndex)}
-                            title={used > 0 ? `${used}% referenced across steps` : undefined}
-                            className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${overUsed
-                              ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-300'
-                              : fullyUsed
-                                ? 'bg-green-50 hover:bg-green-100 text-green-700 border-green-300'
-                                : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200'
-                              }`}
-                          >
-                            {key}{overUsed ? ' !' : fullyUsed ? ' ✓' : ''}
-                          </button>
-                        );
-                      })}
                     </div>
-                  );
-                })()}
+                    {ingredients.map((ing, ingIndex) => {
+                      if (!ing.name) return null;
+                      const key = refKeyForIngredient(ingredients, ingIndex);
+                      const used = refUsage[key] ?? 0;
+                      const fullyUsed = used >= 100;
+                      const overUsed = used > 100;
+                      return (
+                        <button
+                          key={ing.internalId}
+                          type="button"
+                          onClick={() => insertIngredientRef(index, ingIndex)}
+                          title={used > 0 ? `${used}% referenced across steps` : undefined}
+                          className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${overUsed
+                            ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-300'
+                            : fullyUsed
+                              ? 'bg-green-50 hover:bg-green-100 text-green-700 border-green-300'
+                              : 'bg-orange-50 hover:bg-orange-100 text-orange-700 border-orange-200'
+                            }`}
+                        >
+                          {key}{overUsed ? ' !' : fullyUsed ? ' ✓' : ''}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="flex gap-3 items-center flex-wrap">
                   <StepTimeInput
                     valueMinutes={step.timeMinutesText}

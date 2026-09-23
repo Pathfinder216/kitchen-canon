@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
     steps:
       - uses: actions/checkout@v5
       - uses: dorny/paths-filter@v3
@@ -28,6 +30,54 @@ jobs:
               # NOT '**.md' — picomatch degrades that to '*.md' (root only),
               # so docs under plans/ slip through and force a full CI run.
               - '!**/*.md'
+            # Per-package code, for the lint jobs. Patterns in a filter are
+            # ORed, so docs are excluded inline with the '!(*.md)' extglob —
+            # a separate '!**/*.md' line would match every non-doc file in the
+            # repo. Editing this workflow re-runs both.
+            backend:
+              - 'backend/**/!(*.md)'
+              - '.github/workflows/ci.yml'
+            frontend:
+              - 'frontend/**/!(*.md)'
+              - '.github/workflows/ci.yml'
+
+  # Two plain jobs rather than a matrix: a matrix job skipped via `if:` reports
+  # under its unexpanded name, leaving required checks stuck on docs-only PRs.
+  backend-lint:
+    name: Backend lint
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  frontend-lint:
+    name: Frontend lint
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
 
   backend:
     name: Backend tests

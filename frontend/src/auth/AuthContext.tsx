@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   type AuthUser,
   getCurrentUser,
@@ -8,18 +8,7 @@ import {
   fetchCsrfToken,
 } from '../api/auth';
 import { queryClient } from '../queryClient';
-
-type AuthStatus = 'loading' | 'authed' | 'anon';
-
-interface AuthContextValue {
-  user: AuthUser | null;
-  status: AuthStatus;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, inviteCode?: string) => Promise<void>;
-  logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+import { AuthContext, type AuthStatus } from './useAuth';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -87,10 +76,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within an AuthProvider');
-  return ctx;
 }

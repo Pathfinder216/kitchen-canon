@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc && tsc -p tsconfig.seed.json",
+    "lint": "eslint .",
     "start": "node dist/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -45,6 +46,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.17",
@@ -54,9 +56,12 @@
     "@types/pdf-parse": "^1.1.5",
     "@types/supertest": "^7.2.1",
     "@types/uuid": "^10.0.0",
+    "eslint": "^10.11.0",
+    "globals": "^17.12.0",
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",
-    "typescript": "^7.0.2",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.1",
     "vitest": "^5.0.1"
   },
   "overrides": {

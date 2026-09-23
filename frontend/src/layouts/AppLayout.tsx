@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 
 const navItems = [
   { path: '/', label: 'Recipes' },
@@ -18,12 +18,14 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
+  // The pathname the mobile menu was opened on. Deriving `menuOpen` from it
+  // closes the menu whenever the route changes.
+  const [menuOpenedAt, setMenuOpenedAt] = useState<string | null>(null);
+  const menuOpen = menuOpenedAt === location.pathname;
 
-  // Close the mobile menu whenever the route changes.
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [location.pathname]);
+  function setMenuOpen(open: boolean) {
+    setMenuOpenedAt(open ? location.pathname : null);
+  }
 
   async function handleLogout() {
     setMenuOpen(false);
@@ -70,7 +72,7 @@ export function AppLayout() {
           {/* Mobile hamburger toggle */}
           <button
             type="button"
-            onClick={() => setMenuOpen((open) => !open)}
+            onClick={() => setMenuOpen(!menuOpen)}
             className="sm:hidden text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md p-2"
             aria-label="Toggle navigation menu"
             aria-expanded={menuOpen}

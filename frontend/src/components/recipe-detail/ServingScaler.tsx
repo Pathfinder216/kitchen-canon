@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { NumberField } from '../ui/NumberField';
 
 interface ServingScalerProps {
@@ -15,7 +15,11 @@ export function ServingScaler({ baseServings, targetServings, setTargetServings 
   const [draft, setDraft] = useState(String(targetServings));
 
   // Re-sync when the value changes from outside (the +/- buttons, or navigation).
-  useEffect(() => { setDraft(String(targetServings)); }, [targetServings]);
+  const [syncedServings, setSyncedServings] = useState(targetServings);
+  if (targetServings !== syncedServings) {
+    setSyncedServings(targetServings);
+    setDraft(String(targetServings));
+  }
 
   function handleChange(value: string) {
     setDraft(value);

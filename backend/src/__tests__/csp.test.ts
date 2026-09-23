@@ -43,8 +43,13 @@ describe('Content-Security-Policy', () => {
       expect(csp).toBeDefined();
       expect(csp).toContain("default-src 'self'");
       expect(csp).toContain("object-src 'none'");
-      // scriptSrc must never relax to 'unsafe-inline'
-      expect(csp).toMatch(/script-src 'self'(;|$)/);
+      // scriptSrc must never relax to 'unsafe-inline' / 'unsafe-eval' or a remote host. The only
+      // extra keyword is 'wasm-unsafe-eval', which the in-browser OCR (plan 32) needs to compile
+      // tesseract's WebAssembly core.
+      expect(csp).toMatch(/script-src 'self' 'wasm-unsafe-eval'(;|$)/);
+      expect(csp).not.toMatch(/script-src[^;]*'unsafe-(inline|eval)'/);
+      // The OCR worker is spawned from a same-origin URL (not a blob:), so worker-src stays 'self'.
+      expect(csp).toMatch(/worker-src 'self'(;|$)/);
     });
   });
 });

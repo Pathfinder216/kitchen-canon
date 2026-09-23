@@ -208,6 +208,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - per-recipe and per-step media
 - search + include/exclude-ingredient + label/course/diet filtering
 - meal planning with consolidated editable grocery list (copy to clipboard) and remake
+- grocery list grouped by store aisle with zero setup (default aisles seeded on the built-in catalog, unknown items under "Other" last; copied text keeps the aisle headers) and a per-item **Change aisle** action that reassigns the ingredient privately via the catalog customize/shadow flow
 - cook mode (step navigation via buttons or swipe, screen wake lock — requires a secure context, satisfied by the HTTPS deployment; on plain HTTP a one-line notice explains the screen may sleep — per-step timers with audio alert, ingredient checklist, multi-recipe plans)
 - per-recipe export to .txt/.json and a print layout (title, times, source, courses, ingredients with their per-ingredient notes, steps, and author + personal notes — note sections are omitted when empty)
 - sharing via native share sheet, email, and print-to-PDF plus revocable token-gated public links (anyone can open a read-only recipe with images at `/shared/:token` without an account; the owner's personal notes are never exposed)

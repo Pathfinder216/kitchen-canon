@@ -45,9 +45,11 @@ const STANDARD_LABELS: { type: string; name: string }[] = [
 async function main() {
   console.log('Seeding ingredient catalog…');
 
-  // Full reseed — wipe existing catalog and aliases
-  await prisma.ingredientAlias.deleteMany({});
-  await prisma.ingredientCatalog.deleteMany({});
+  // Full reseed of the GLOBAL catalog — wipe existing global entries and aliases. User-private
+  // entries (userId non-null — classifications, customized shadows incl. aisle reassignments)
+  // must survive reseeds, which run on every container start.
+  await prisma.ingredientAlias.deleteMany({ where: { userId: null } });
+  await prisma.ingredientCatalog.deleteMany({ where: { userId: null } });
 
   const catalogNameSet = new Set(INGREDIENT_CATALOG.map(([name]) => name.toLowerCase()));
 
@@ -72,12 +74,12 @@ async function main() {
   // Create catalog entries (skip secondary names — they become aliases of their canonical)
   const catalogIds = new Map<string, string>(); // canonical name → catalog ID
 
-  for (const [name, allergens, diets] of INGREDIENT_CATALOG) {
+  for (const [name, allergens, diets, aisle] of INGREDIENT_CATALOG) {
     const lower = name.toLowerCase();
     if (secondaryNames.has(lower)) continue;
 
     const entry = await prisma.ingredientCatalog.create({
-      data: { displayAlias: lower, allergens, diets, isUserAdded: false },
+      data: { displayAlias: lower, allergens, diets, aisle, isUserAdded: false },
     });
     catalogIds.set(lower, entry.id);
   }

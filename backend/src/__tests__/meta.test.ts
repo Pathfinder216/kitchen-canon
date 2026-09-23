@@ -27,10 +27,15 @@ describe('GET /api/meta', () => {
       diets: expect.any(Array),
       allergenLabels: expect.any(Object),
       dietLabels: expect.any(Object),
+      aisles: expect.any(Array),
+      aisleLabels: expect.any(Object),
     });
     expect(res.body.allergens).toContain('dairy');
     expect(res.body.diets).toContain('vegan');
     expect(res.body.allergenLabels.dairy).toBe('Dairy');
     expect(res.body.dietLabels.vegan).toBe('Vegan');
+    expect(res.body.aisles[0]).toBe('produce');
+    expect(res.body.aisles.at(-1)).toBe('household-other');
+    expect(res.body.aisleLabels['household-other']).toBe('Other');
   });
 });

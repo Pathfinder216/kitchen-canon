@@ -198,6 +198,7 @@ model IngredientCatalog {
   displayAlias String            // Human-readable display name shown in UI
   allergens    Json              @default("[]") // string[]
   diets        Json              @default("[]") // string[] — diets this ingredient is compatible with
+  aisle        String?           // grocery aisle key (see constants/aisles.ts); null = unassigned
   isUserAdded  Boolean           @default(false)
   createdAt    DateTime          @default(now())
   userId       String?           // null = global/seeded, non-null = user's private ingredient

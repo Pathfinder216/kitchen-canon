@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchCourses } from '../api/courses';
 import { fetchLabels } from '../api/labels';
@@ -131,9 +131,15 @@ export function FilterPanel({ onFilterChange }: FilterPanelProps) {
 
   const otherLabels = allLabels?.filter((l) => l.type === 'manual') ?? [];
 
+  // Track the latest callback so an inline parent handler doesn't re-trigger the debounce.
+  const onFilterChangeRef = useRef(onFilterChange);
+  useEffect(() => {
+    onFilterChangeRef.current = onFilterChange;
+  });
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      onFilterChange({
+      onFilterChangeRef.current({
         includeIngredients: includeIngs.length > 0 ? includeIngs.join(',') : undefined,
         excludeIngredients: excludeIngs.length > 0 ? excludeIngs.join(',') : undefined,
         labels: selectedLabels.length > 0 ? selectedLabels.join(',') : undefined,

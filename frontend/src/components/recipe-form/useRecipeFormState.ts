@@ -61,7 +61,7 @@ export function useRecipeFormState({ initialData, importData }: UseRecipeFormSta
     })) ?? [],
   );
 
-  const [steps, setSteps] = useState<StepFormItem[]>(
+  const [steps, setSteps] = useState<StepFormItem[]>(() =>
     seed?.steps.map((step, i) => ({
       internalId: `step_${i}_${Date.now()}`,
       // Preserve DB id only when coming from initialData (not importData)

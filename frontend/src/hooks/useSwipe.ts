@@ -27,7 +27,9 @@ const VERTICAL_TOLERANCE = 40;
 export function useSwipe({ onSwipeLeft, onSwipeRight, exclude }: UseSwipeOptions): void {
   // Track the latest callbacks without re-binding the document listeners.
   const callbacks = useRef({ onSwipeLeft, onSwipeRight });
-  callbacks.current = { onSwipeLeft, onSwipeRight };
+  useEffect(() => {
+    callbacks.current = { onSwipeLeft, onSwipeRight };
+  });
 
   useEffect(() => {
     let start: { x: number; y: number } | null = null;

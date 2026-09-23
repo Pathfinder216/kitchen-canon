@@ -244,7 +244,7 @@ describe('Recipe Filtering', () => {
       steps: [{ orderIndex: 0, instruction: 'Heat.' }],
     });
     // Recipe without dairy
-    const r2 = await api.post('/api/recipes').send({
+    await api.post('/api/recipes').send({
       title: 'Mushroom Soup',
       ingredients: [
         { name: 'mushrooms', amount: 8, unit: 'oz', orderIndex: 0 },

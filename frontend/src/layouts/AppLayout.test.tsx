@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../test/utils';
 import { AppLayout } from './AppLayout';
 
-vi.mock('../auth/AuthContext', () => ({
+vi.mock('../auth/useAuth', () => ({
   useAuth: () => ({ user: { id: 'u1', email: 'user@example.com' }, logout: vi.fn() }),
 }));
 

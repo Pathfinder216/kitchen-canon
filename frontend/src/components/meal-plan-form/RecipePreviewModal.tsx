@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '../../api/client';
@@ -36,12 +36,10 @@ export function RecipePreviewModal({ recipeId, isAdded, currentServings, current
     staleTime: 60_000,
   });
 
-  const [servings, setServings] = useState(currentServings ?? '1');
+  // Until the user edits the field, show the plan's servings or the recipe's default.
+  const [editedServings, setServings] = useState<string | undefined>(undefined);
+  const servings = editedServings ?? currentServings ?? (recipe ? String(recipe.servings) : '1');
   const [activeSwaps, setActiveSwaps] = useState<ActiveSwaps>(currentSwaps);
-
-  useEffect(() => {
-    if (recipe) setServings(currentServings ?? String(recipe.servings));
-  }, [recipe, currentServings]);
 
   // Group substitutions by ingredient name
   const subsByName = new Map<string, Substitution[]>();

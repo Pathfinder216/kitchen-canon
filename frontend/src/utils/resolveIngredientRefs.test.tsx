@@ -51,6 +51,12 @@ describe('computeRemainingPercents', () => {
     expect(result.map((refs) => refs[0].pct)).toEqual([25, 75, 0]);
   });
 
+  it('treats float-noise remainders as exactly 0', () => {
+    // 100 - (0.1 + 64.1 + 35.8) === 1.4e-14 in IEEE doubles
+    const result = computeRemainingPercents(['{butter:0.1%} {butter:64.1%} {butter:35.8%}', '{butter}']);
+    expect(result[1][0].pct).toBe(0);
+  });
+
   it('consumes in token order within a single step', () => {
     expect(computeRemainingPercents(['{butter}, {butter:10%}'])[0].map((r) => r.pct)).toEqual([100, 10]);
     expect(computeRemainingPercents(['{butter:10%}, {butter}'])[0].map((r) => r.pct)).toEqual([10, 90]);
@@ -117,6 +123,22 @@ describe('resolveIngredientRefs', () => {
     expect(span).toHaveAttribute('data-exhausted', 'true');
     expect(span.className).toMatch(/text-red-700/);
     expect(span.getAttribute('title')).toMatch(/nothing left of butter/i);
+  });
+
+  it('flags a bare ref left with only float noise as exhausted', () => {
+    const { container } = renderAt(['{butter:0.1%} {butter:64.1%} {butter:35.8%}', 'Add {butter}.'], 1);
+    const span = container.querySelector('span')!;
+    expect(span).toHaveTextContent('0 tbsp butter');
+    expect(span).toHaveAttribute('data-exhausted', 'true');
+  });
+
+  it('does not flag an explicit 0% ref as exhausted', () => {
+    const { container } = renderAt(['Add {butter:0%}.'], 0);
+    const span = container.querySelector('span')!;
+    expect(span).toHaveTextContent('0 tbsp butter');
+    expect(span).not.toHaveAttribute('data-exhausted');
+    expect(span.className).not.toMatch(/text-red-700/);
+    expect(span).toHaveAttribute('title', '0% of butter');
   });
 
   it('renders the same numbers as the text variant', () => {

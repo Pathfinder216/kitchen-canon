@@ -25,6 +25,15 @@ describe('getRefUsage (remaining-percent semantics)', () => {
     expect(getOverReferencedIngredients(steps('{butter:80%}', '{butter:40%}'))).toEqual(['butter (120%)']);
   });
 
+  it('treats a float-noise split as exactly 100% (neither under- nor over-referenced)', () => {
+    const s = steps('{butter:0.1%} {butter:64.1%}', '{butter:35.8%}');
+    expect(getRefUsage(s)).toEqual({ butter: 100 });
+    expect(getUnderReferencedIngredients([butter], s)).toEqual([]);
+    // ...and a following bare ref is exhausted, not a sliver
+    expect(getOverReferencedIngredients(steps('{butter:0.1%} {butter:64.1%} {butter:35.8%}', '{butter}')))
+      .toEqual(['butter (a bare {butter} has nothing left)']);
+  });
+
   it('flags a bare ref that has nothing left', () => {
     expect(getOverReferencedIngredients(steps('{butter}', '{butter}'))).toEqual(['butter (a bare {butter} has nothing left)']);
   });

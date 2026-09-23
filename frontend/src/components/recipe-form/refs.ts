@@ -25,6 +25,8 @@ export function getRefUsage(steps: StepFormItem[]): Record<string, number> {
   for (const refs of computeRemainingPercents(steps.map((s) => s.instruction))) {
     for (const { key, pct } of refs) refUsage[key] = (refUsage[key] ?? 0) + pct;
   }
+  // Round away float noise so e.g. 0.1 + 64.1 + 35.8 compares (and displays) as exactly 100.
+  for (const key of Object.keys(refUsage)) refUsage[key] = Math.round(refUsage[key] * 1e6) / 1e6;
   return refUsage;
 }
 

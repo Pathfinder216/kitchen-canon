@@ -53,6 +53,9 @@ function formatIngredientLine(ing: ExportIngredient): string {
 
 const REF_PATTERN = /\{([^}:]+)(?::(\d+(?:\.\d+)?)%)?\}/g;
 
+/** A remainder below this is float noise (e.g. 100 − (33.3 + 33.3 + 33.4)) and counts as 0. */
+const REMAINING_EPSILON = 1e-6;
+
 /** Build a name → ingredient map, disambiguating duplicate names with " 1", " 2", … suffixes. */
 function buildIngredientMap(ingredients: ExportIngredient[]): Map<string, ExportIngredient> {
   const totals = new Map<string, number>();
@@ -83,7 +86,8 @@ export function resolveIngredientRefsText(
   const consumed = new Map<string, number>();
   const consume = (key: string, pctStr: string | undefined): number => {
     const used = consumed.get(key) ?? 0;
-    const pct = pctStr !== undefined ? parseFloat(pctStr) : Math.max(0, 100 - used);
+    const remaining = 100 - used;
+    const pct = pctStr !== undefined ? parseFloat(pctStr) : remaining < REMAINING_EPSILON ? 0 : remaining;
     consumed.set(key, used + pct);
     return pct;
   };

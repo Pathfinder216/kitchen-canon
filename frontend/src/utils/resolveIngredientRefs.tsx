@@ -3,6 +3,9 @@ import { formatScaledAmount } from '../hooks/useScaling';
 
 const REF_PATTERN = /\{([^}:]+)(?::(\d+(?:\.\d+)?)%)?\}/g;
 
+/** A remainder below this is float noise (e.g. 100 − (33.3 + 33.3 + 33.4)) and counts as 0. */
+const REMAINING_EPSILON = 1e-6;
+
 /** Build a name → ingredient map. Unique names get the bare name as key.
  *  When a name appears multiple times all occurrences are numbered: "butter 1", "butter 2", … */
 function buildIngredientMap(ingredients: Ingredient[]): Map<string, Ingredient> {
@@ -49,7 +52,8 @@ export function computeRemainingPercents(instructions: string[]): ResolvedRefPer
       const [, key, pctStr] = match;
       const used = consumed.get(key) ?? 0;
       const bare = pctStr === undefined;
-      const pct = bare ? Math.max(0, 100 - used) : parseFloat(pctStr);
+      const remaining = 100 - used;
+      const pct = bare ? (remaining < REMAINING_EPSILON ? 0 : remaining) : parseFloat(pctStr);
       consumed.set(key, used + pct);
       refs.push({ key, pct, bare });
     }
@@ -113,7 +117,8 @@ export function resolveIngredientRefs(
 
     const ing = ingByInternalId.get(internalId);
     if (ing) {
-      const exhausted = pct === 0;
+      // Only a bare ref can be "exhausted"; an explicit {x:0%} is taken as written.
+      const exhausted = bare && pct === 0;
       const title = exhausted
         ? `Nothing left of ${ing.name} — earlier steps already use 100%`
         : `${bare ? 'remaining ' : ''}${formatPct(pct)}% of ${ing.name}`;

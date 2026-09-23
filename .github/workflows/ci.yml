@@ -29,6 +29,44 @@ jobs:
               # so docs under plans/ slip through and force a full CI run.
               - '!**/*.md'
 
+  # Two plain jobs rather than a matrix: a matrix job skipped via `if:` reports
+  # under its unexpanded name, leaving required checks stuck on docs-only PRs.
+  backend-lint:
+    name: Backend lint
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  frontend-lint:
+    name: Frontend lint
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
   backend:
     name: Backend tests
     needs: changes
@@ -47,9 +85,6 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      # Lint runs inside the existing required checks (the ruleset matches them
-      # by job name), so a lint failure blocks the merge like a test failure.
-      - run: npm run lint
       - run: npx prisma generate
       - run: npm test
 
@@ -69,7 +104,6 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run lint
       - run: npm test
       - run: npm run build
 

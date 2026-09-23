@@ -75,6 +75,24 @@ describe('GET /api/export', () => {
       expect(recipe.url).toBe('https://example.com/scrambled-eggs');
     });
 
+    it('resolves a bare {ref} to the percent remaining after earlier steps', async () => {
+      await api.post('/api/recipes').send({
+        ...sampleRecipe,
+        steps: [
+          { orderIndex: 0, instruction: 'Melt {butter:25%} and add {eggs}.', timeMinutes: 2, isActiveTime: true },
+          { orderIndex: 1, instruction: 'Fold in {butter}, then {butter}.', timeMinutes: 1, isActiveTime: true },
+        ],
+      });
+      const res = await api.get('/api/export?format=schema-org');
+
+      expect(res.status).toBe(200);
+      expect(res.body[0].recipeInstructions).toEqual([
+        { '@type': 'HowToStep', text: 'Melt ¼ tbsp butter and add 4 large eggs.' },
+        // first bare ref takes the remaining 75%; the second has nothing left
+        { '@type': 'HowToStep', text: 'Fold in ¾ tbsp butter, then 0 tbsp butter.' },
+      ]);
+    });
+
     it('omits url when source is not a parseable http(s) URL', async () => {
       await api.post('/api/recipes').send({ title: 'Family Recipe', source: "Grandma's binder" });
       const res = await api.get('/api/export?format=schema-org');

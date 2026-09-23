@@ -91,6 +91,24 @@ describe('CookModePage', () => {
     expect(screen.getByText(/step 2 of 3/i)).toBeInTheDocument();
   });
 
+  it('resolves a bare step ref to the percent remaining after earlier steps', async () => {
+    mockFetchRecipe.mockResolvedValue({
+      ...mockRecipe,
+      steps: [
+        { id: 's1', recipeId: 'r1', orderIndex: 0, instruction: 'Whisk {Flour:25%} in', timeMinutes: 5, isActiveTime: true },
+        { id: 's2', recipeId: 'r1', orderIndex: 1, instruction: 'Fold in {Flour}', timeMinutes: null, isActiveTime: true },
+      ],
+    });
+    renderPage();
+    await screen.findByText(/step 1 of 2/i);
+    // Next-step preview (plain text) already knows step 1 used 25% of the 2 cups.
+    expect(screen.getByText('Fold in 1 ½ cups Flour')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /next/i }));
+    const ref = screen.getByTitle('remaining 75% of Flour');
+    expect(ref).toHaveTextContent('1 ½ cups Flour');
+  });
+
   it('shows Finish link on last step', async () => {
     renderPage();
     await screen.findByText('Mix the flour');

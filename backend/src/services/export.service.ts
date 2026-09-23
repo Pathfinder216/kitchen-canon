@@ -69,13 +69,31 @@ function buildIngredientMap(ingredients: ExportIngredient[]): Map<string, Export
   return result;
 }
 
-/** Resolves {ref}/{ref:pct%} tokens in a step instruction to plain text (server-side port). */
-export function resolveIngredientRefsText(instruction: string, ingredients: ExportIngredient[]): string {
+/**
+ * Resolves {ref}/{ref:pct%} tokens in a step instruction to plain text (server-side port).
+ * `{ref:NN%}` is NN% as written; a bare `{ref}` is whatever remains after the references in
+ * `priorInstructions` (earlier steps, in order) and earlier tokens in this instruction.
+ */
+export function resolveIngredientRefsText(
+  instruction: string,
+  ingredients: ExportIngredient[],
+  priorInstructions: string[] = [],
+): string {
   const ingByInternalId = buildIngredientMap(ingredients);
-  return instruction.replace(REF_PATTERN, (full, internalId, pctStr) => {
+  const consumed = new Map<string, number>();
+  const consume = (key: string, pctStr: string | undefined): number => {
+    const used = consumed.get(key) ?? 0;
+    const pct = pctStr !== undefined ? parseFloat(pctStr) : Math.max(0, 100 - used);
+    consumed.set(key, used + pct);
+    return pct;
+  };
+  for (const prior of priorInstructions) {
+    for (const [, key, pctStr] of prior.matchAll(REF_PATTERN)) consume(key, pctStr);
+  }
+  return instruction.replace(REF_PATTERN, (full, internalId: string, pctStr: string | undefined) => {
+    const pct = consume(internalId, pctStr) / 100;
     const ing = ingByInternalId.get(internalId);
     if (!ing) return full;
-    const pct = (pctStr !== undefined ? parseFloat(pctStr) : 100) / 100;
     const scaledAmount = ing.amount !== null ? ing.amount * pct : null;
     const amountStr = scaledAmount !== null ? formatAmount(scaledAmount) : null;
     return [amountStr, ing.unit, ing.name].filter(Boolean).join(' ');
@@ -162,9 +180,13 @@ export async function exportSchemaOrg(userId: string): Promise<SchemaOrgRecipe[]
       totalTime: minutesToIsoDuration(totalMinutes(recipe.steps)),
       prepTime: minutesToIsoDuration(activeMinutes(recipe.steps)),
       recipeIngredient: ingredients.map(formatIngredientLine),
-      recipeInstructions: recipe.steps.map((step) => ({
+      recipeInstructions: recipe.steps.map((step, index) => ({
         '@type': 'HowToStep' as const,
-        text: resolveIngredientRefsText(step.instruction, ingredients),
+        text: resolveIngredientRefsText(
+          step.instruction,
+          ingredients,
+          recipe.steps.slice(0, index).map((s) => s.instruction),
+        ),
       })),
       recipeCategory: recipe.courses.length ? recipe.courses.map((c) => c.courseType) : undefined,
       keywords: recipe.labels.length ? recipe.labels.map((rl) => rl.label.name).join(', ') : undefined,

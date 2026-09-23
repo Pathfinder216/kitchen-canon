@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Ingredient, Step } from '../types/recipe';
-import { resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
+import { priorInstructions, resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
 
 // ---------------------------------------------------------------------------
 // Timer state
@@ -77,6 +77,8 @@ export function playTimerSound() {
 export interface UseStepTimersOptions {
   /** Ingredients for resolving the step label text. */
   ingredients?: Ingredient[];
+  /** All recipe steps in order, so bare `{ingredient}` refs resolve to the remaining percent. */
+  steps?: Step[];
   /** Called when a running timer completes (fires repeatedly until reset). */
   onComplete?: () => void;
 }
@@ -90,7 +92,7 @@ export interface UseStepTimers {
   dismissTimer: (stepIndex: number) => void;
 }
 
-export function useStepTimers({ ingredients = [], onComplete }: UseStepTimersOptions = {}): UseStepTimers {
+export function useStepTimers({ ingredients = [], steps = [], onComplete }: UseStepTimersOptions = {}): UseStepTimers {
   const [timers, setTimers] = useState<TimerState[]>([]);
   // Tick state: forces re-render every second so countdowns update
   const [, setTick] = useState(0);
@@ -153,14 +155,14 @@ export function useStepTimers({ ingredients = [], onComplete }: UseStepTimersOpt
         ...prev,
         {
           stepIndex,
-          stepLabel: stepLabel(stepIndex, resolveIngredientRefsText(step.instruction, ingredients)),
+          stepLabel: stepLabel(stepIndex, resolveIngredientRefsText(step.instruction, ingredients, 1, undefined, priorInstructions(steps, stepIndex))),
           totalSeconds,
           accumulatedSeconds: 0,
           startedAt: Date.now(),
         },
       ];
     });
-  }, [ingredients]);
+  }, [ingredients, steps]);
 
   const pauseTimer = useCallback((stepIndex: number) => {
     setTimers((prev) =>

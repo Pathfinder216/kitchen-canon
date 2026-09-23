@@ -197,7 +197,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - recipe CRUD with full versioning (view/restore, meal history pins the version cooked)
 - archiving
 - author + personal notes
-- import from URL (schema.org JSON-LD + text fallback), .docx, .pdf, .txt
+- import from URL (schema.org JSON-LD + text fallback), .docx, .pdf, .txt, and photos of printed recipe cards/cookbook pages (OCR runs in the browser via tesseract.js; the extracted text is editable before it is parsed — handwriting OCRs poorly)
 - ingredient catalog with aliases, typeahead, and user classification of unknown ingredients (built-in entries are read-only in the UI with an explicit customize/reset-to-default override flow)
 - auto dietary/allergen labels
 - substitutions (official + user-contributed, applied per meal-plan recipe with ratio conversion)
@@ -219,7 +219,6 @@ A recipe management application for collecting, consolidating, using, updating, 
 
 **Specified but not yet implemented** (all fit the current architecture; notes on how):
 - **Offline writes / background sync** — the largest gap vs. section 7. Needs an IndexedDB layer and queued mutations on the frontend; no backend changes required, though replayed mutations must fetch a fresh CSRF token. The current React Query + service-worker setup is compatible with this.
-- **Photo/OCR import** — feed OCR text into the existing text parser; client-side OCR preferred given Pi hardware.
 - **Equipment and make-ahead labels** — *not planned* (see `plans/25-equipment-makeahead-labels.md`): users can already create manual labels for these, and dedicated `Label.type` values were deliberately removed once before.
 - **Component recipes** — see section below; additive schema changes.
 - **Cooking timeline** — steps already carry `timeMinutes` + active/passive flags, which is the data the scheduler needs; this remains a pure algorithm + UI layer on top.

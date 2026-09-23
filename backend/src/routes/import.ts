@@ -1,8 +1,14 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import multer from 'multer';
-import { z } from 'zod';
-import { importFromDocx, importFromPdf, importFromUrl } from '../services/import.service.js';
+import {
+  importFromDocx,
+  importFromPdf,
+  importFromUrl,
+  parseTextRecipe,
+} from '../services/import.service.js';
 import { importLimiter } from '../middleware/rateLimits.js';
+import { validate } from '../middleware/validate.js';
+import { importTextSchema, importUrlSchema } from '../schemas/import.schema.js';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -13,16 +19,28 @@ function asyncHandler(fn: (req: Request, res: Response, next: NextFunction) => P
   };
 }
 
-const urlSchema = z.object({ url: z.string().url() });
-
 // POST /api/import/url
 router.post(
   '/url',
   importLimiter,
   asyncHandler(async (req, res) => {
-    const { url } = urlSchema.parse(req.body);
+    const { url } = importUrlSchema.parse(req.body);
     const recipe = await importFromUrl(url);
     res.json(recipe);
+  }),
+);
+
+// POST /api/import/text  { text }
+// Parses already-extracted plain text: the photo/OCR import (plan 32) runs tesseract in the
+// browser and sends the user-corrected text here. Deliberately not behind importLimiter — there is
+// no outbound fetch or document decoding, just the in-process heuristic parser on length-capped
+// input — and users naturally re-parse a few times while fixing OCR mistakes.
+router.post(
+  '/text',
+  validate(importTextSchema),
+  asyncHandler(async (req, res) => {
+    const { text } = req.body as { text: string };
+    res.json(parseTextRecipe(text));
   }),
 );
 
@@ -49,7 +67,6 @@ router.post(
     } else if (mimetype === 'application/pdf' || ext === 'pdf') {
       recipe = await importFromPdf(buffer);
     } else if (mimetype.startsWith('text/')) {
-      const { parseTextRecipe } = await import('../services/import.service.js');
       recipe = parseTextRecipe(buffer.toString('utf-8'));
     } else {
       res.status(400).json({ error: 'Unsupported file type. Supported: .docx, .pdf, .txt' });

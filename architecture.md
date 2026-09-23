@@ -159,7 +159,7 @@ requires a session.
 | Meta | `GET /api/meta` → `{ allergens, diets, allergenLabels, dietLabels, aisles, aisleLabels }` (dietary + grocery-aisle vocabulary; single source of truth for the frontend, served from `constants/dietaryTags.ts` and `constants/aisles.ts`) |
 | Labels | `GET /api/labels`, `POST /api/labels` |
 | Meal plans | `GET /api/meal-plans`, `POST /api/meal-plans`, `GET /api/meal-plans/:id`, `PATCH /api/meal-plans/:id`, `PATCH /api/meal-plans/:id/grocery/:itemId` (toggle purchased), `POST /api/meal-plans/:id/recalculate` (recompute dietary info), `POST /api/meal-plans/:id/remake` (clone) |
-| Import | `POST /api/import/url`, `POST /api/import/file` (multipart: .docx/.pdf/.txt) |
+| Import | `POST /api/import/url`, `POST /api/import/file` (multipart: .docx/.pdf/.txt), `POST /api/import/text` (`{ text }` → text parser; used by photo/OCR import) |
 | Ingredients (catalog) | `GET /api/ingredients?q=` (typeahead), `POST /api/ingredients`, `PATCH /api/ingredients/:id`, `DELETE /api/ingredients/:id` |
 | Substitutions | `GET /api/substitutions?from=`, `POST /api/substitutions`, `DELETE /api/substitutions/:id` |
 | Media | `POST/GET /api/recipes/:id/media`, `DELETE /api/recipes/:id/media/:mediaId`, `POST/GET /api/steps/:stepId/media`, `DELETE /api/steps/:stepId/media/:mediaId`; files served at `GET /media/:filename` (authed) |
@@ -217,7 +217,7 @@ The app is multi-tenant: every user has their own private data, behind a login. 
 - `GET /csrf` — issues a CSRF token
 
 ### Rate limiting
-Per-IP limits via `express-rate-limit` (`src/middleware/rateLimits.ts`), keyed off `trust proxy` so they see real client IPs behind nginx. Disabled when `NODE_ENV=test`. Login 10/15 min, register 5/hour, the rest of `/api/auth` 60/15 min, import (`/api/import/url`, `/file`) 20/hour, and the public share routes (`/api/shared/*`) 100/15 min — sized for a recipe page plus its media files. Over-limit responses are `429` with the app's `{ error }` shape and `RateLimit-*` headers.
+Per-IP limits via `express-rate-limit` (`src/middleware/rateLimits.ts`), keyed off `trust proxy` so they see real client IPs behind nginx. Disabled when `NODE_ENV=test`. Login 10/15 min, register 5/hour, the rest of `/api/auth` 60/15 min, import (`/api/import/url`, `/file`) 20/hour (`/text` is unlimited — no fetch or decoding, just the parser on ≤50k chars), and the public share routes (`/api/shared/*`) 100/15 min — sized for a recipe page plus its media files. Over-limit responses are `429` with the app's `{ error }` shape and `RateLimit-*` headers.
 
 All other `/api` routes sit behind `requireAuth` (and CSRF for mutations); `/media` is also gated. The auth routes are mounted before those gates.
 
@@ -255,8 +255,18 @@ Two patterns scope data by user:
   lines; ingredient lines parsed by regex (unicode/slash fractions, units, "optional" flag).
   Two regex gotchas are encoded in tests: bullet-stripping must not eat standalone digits, and
   slash fractions must be matched before bare integers.
-- **(planned)** OCR import of recipe photos (Tesseract). Given Pi hardware, client-side OCR
-  (tesseract.js in the browser) is the more realistic option, feeding the same text parser.
+- **Photo/OCR import**: OCR runs **client-side** with **tesseract.js** (the Pi is too weak for
+  server OCR, and the image never leaves the device). `ImportPage` → `components/PhotoImport.tsx`
+  → `utils/ocr.ts`: the photo is downscaled to ≤1600px on a canvas, tesseract.js is loaded via
+  dynamic `import()` (own chunk, not in the main bundle), the text lands in an editable textarea,
+  and "Parse" posts it to `POST /api/import/text` → `parseTextRecipe` → pre-filled `RecipeForm`.
+  All OCR assets are self-hosted under `/ocr/` (no CDN): `eng.traineddata.gz` (LSTM `best_int`)
+  is committed in `frontend/public/ocr/`; the worker script and the three LSTM WASM cores are
+  copied from `node_modules` by the `tesseractAssets` plugin in `vite.config.ts` (served in dev,
+  emitted unhashed in build — the worker derives the core filename itself). The worker is spawned
+  from its URL (`workerBlobURL: false`) so the production CSP's `worker-src 'self'` holds; the CSP's
+  `script-src` adds `'wasm-unsafe-eval'` (WebAssembly compilation only, not `eval`). `/ocr/**` is
+  excluded from the PWA precache and cached network-first on first use.
 
 ## Configuration (`backend/src/config.ts`, Zod-validated)
 
@@ -450,6 +460,6 @@ move to Postgres if the host's volume story is weak.
 | Validation | Zod | Requests + env config |
 | Auth | bcryptjs + signed cookies + csrf-csrf | Server-side sessions |
 | Uploads | multer | Flat UUID files in `MEDIA_STORAGE_PATH` |
-| Import parsing | JSON-LD extraction, mammoth, pdf-parse, custom text parser | No cheerio/OCR (OCR planned) |
+| Import parsing | JSON-LD extraction, mammoth, pdf-parse, custom text parser; tesseract.js (browser OCR) | No cheerio; no server-side OCR |
 | Deployment | Docker Compose on Raspberry Pi | `scripts/deploy-to-pi.sh`; data in named volume |
 | Testing | Vitest (+ Supertest, RTL) | No E2E/CI yet |

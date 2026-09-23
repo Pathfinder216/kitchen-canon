@@ -45,12 +45,15 @@ export function createApp() {
           ? {
               directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'"],
+                // 'wasm-unsafe-eval' lets the self-hosted tesseract core (plan 32, /ocr/*.wasm.js)
+                // compile its WebAssembly. It permits WebAssembly.compile/instantiate only — not
+                // eval()/new Function — and the wasm itself still has to arrive via a 'self' script.
+                scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
                 styleSrc: ["'self'", "'unsafe-inline'"], // style attributes (React inline styles, FLIP animation)
                 imgSrc: ["'self'", 'blob:', 'data:'], // blob: for crop previews (plan 26), data: for icons
                 mediaSrc: ["'self'", 'blob:'],
                 connectSrc: ["'self'"], // API + service worker fetches
-                workerSrc: ["'self'"], // PWA service worker; tesseract worker (plan 32) is same-origin
+                workerSrc: ["'self'"], // PWA service worker; tesseract worker (plan 32) is /ocr/worker.min.js, not a blob:
                 objectSrc: ["'none'"],
                 baseUri: ["'self'"],
                 frameAncestors: ["'self'"],

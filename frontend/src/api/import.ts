@@ -31,6 +31,11 @@ export async function importFromUrl(url: string): Promise<ParsedRecipe> {
   return apiPost<ParsedRecipe>('/import/url', { url });
 }
 
+/** Parse already-extracted plain text (e.g. OCR output from a photo) into a recipe. */
+export async function importFromText(text: string): Promise<ParsedRecipe> {
+  return apiPost<ParsedRecipe>('/import/text', { text });
+}
+
 export async function importFromFile(file: File): Promise<ParsedRecipe> {
   return apiUpload<ParsedRecipe>('/import/file', file);
 }

@@ -2,9 +2,16 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { importFromFile, importFromUrl, type ParsedRecipe } from '../api/import';
 import { useCreateRecipe } from '../hooks/useRecipes';
+import { PhotoImport } from '../components/PhotoImport';
 import { formatDuration } from '../utils/formatDuration';
 
-type ImportMode = 'url' | 'file';
+type ImportMode = 'url' | 'file' | 'photo';
+
+const MODE_LABELS: Record<ImportMode, string> = {
+  url: 'From URL',
+  file: 'From File',
+  photo: 'From Photo',
+};
 type ImportStatus = 'idle' | 'loading' | 'preview' | 'error';
 
 export function ImportPage() {
@@ -73,7 +80,7 @@ export function ImportPage() {
 
       {/* Mode toggle */}
       <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-lg w-fit">
-        {(['url', 'file'] as const).map((m) => (
+        {(['url', 'file', 'photo'] as const).map((m) => (
           <button
             key={m}
             onClick={() => { setMode(m); setStatus('idle'); setPreview(null); }}
@@ -81,13 +88,17 @@ export function ImportPage() {
               mode === m ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            {m === 'url' ? 'From URL' : 'From File'}
+            {MODE_LABELS[m]}
           </button>
         ))}
       </div>
 
       {/* Input */}
-      {mode === 'url' ? (
+      {mode === 'photo' ? (
+        // Photo import owns its whole flow (OCR → editable text → parse); the parsed result goes
+        // straight to the pre-filled recipe form, same as file import.
+        <PhotoImport onParsed={(parsed) => navigate('/recipes/new', { state: { importData: parsed } })} />
+      ) : mode === 'url' ? (
         <div className="mb-4">
           <label htmlFor="import-url" className="block text-sm font-medium text-gray-700 mb-1">
             Recipe URL
@@ -121,7 +132,7 @@ export function ImportPage() {
         </div>
       )}
 
-      {status !== 'preview' && (
+      {mode !== 'photo' && status !== 'preview' && (
         <button
           onClick={handleImport}
           disabled={status === 'loading'}

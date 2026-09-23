@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useRecipe } from '../hooks/useRecipes';
-import { resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
+import { priorInstructions, resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
 import { formatDuration } from '../utils/formatDuration';
 import { playTimerSound, useStepTimers } from '../hooks/useStepTimers';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -25,6 +25,7 @@ export function CookModePage() {
 
   const { timers, startTimer, pauseTimer, resumeTimer, resetTimer, dismissTimer } = useStepTimers({
     ingredients: recipe?.ingredients ?? [],
+    steps: recipe?.steps ?? [],
     onComplete: playTimerSound,
   });
 
@@ -114,6 +115,7 @@ export function CookModePage() {
             <StepCard
               step={step}
               stepIndex={currentStep}
+              priorInstructions={priorInstructions(steps, currentStep)}
               scaledIngredients={scaledIngredients}
               swapDisplayNames={swapDisplayNames}
               timer={currentTimer}
@@ -145,7 +147,7 @@ export function CookModePage() {
           <div className="mt-4 border border-gray-200 rounded-xl px-4 py-3 bg-gray-50">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Next step</p>
             <p className="text-sm text-gray-500 line-clamp-2 leading-snug">
-              {resolveIngredientRefsText(steps[currentStep + 1].instruction, scaledIngredients, 1, swapDisplayNames)}
+              {resolveIngredientRefsText(steps[currentStep + 1].instruction, scaledIngredients, 1, swapDisplayNames, priorInstructions(steps, currentStep + 1))}
             </p>
             {!!steps[currentStep + 1].timeMinutes && (
               <p className="text-xs text-gray-400 mt-1">{formatDuration(steps[currentStep + 1].timeMinutes)}</p>

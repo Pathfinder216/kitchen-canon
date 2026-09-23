@@ -85,8 +85,8 @@ export function StepsEditor({
   function insertIngredientRef(stepIndex: number, ingIndex: number) {
     const textarea = stepTextareaRefs.current.get(steps[stepIndex].internalId);
     const key = refKeyForIngredient(ingredients, ingIndex);
-    const hasAmount = ingredients[ingIndex].amountText.trim() !== '';
-    const token = hasAmount ? `{${key}:100%}` : `{${key}}`;
+    // Bare token = "whatever remains" after earlier steps; edit in ":NN%" to take a fixed share.
+    const token = `{${key}}`;
     let cursorPos: number | null = null;
     setSteps((prev) => prev.map((step, i) => {
       if (i !== stepIndex) return step;
@@ -237,7 +237,8 @@ export function StepsEditor({
                         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-900 text-white text-xs rounded-lg px-3 py-2.5 shadow-lg pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-10">
                           <p className="font-semibold mb-1">Ingredient references</p>
                           <p className="text-gray-300 leading-snug">Click an ingredient button to insert a scaling ingredient reference into the step. The reference will be replaced with the ingredient amount scaled to the right serving size.</p>
-                          <p className="text-gray-400 mt-1.5 font-mono text-[10px]">2 Tbsp butter referenced as &#123;butter:50%&#125; → 1 Tbsp butter</p>
+                          <p className="text-gray-300 leading-snug mt-1.5"><span className="font-mono">&#123;name:NN%&#125;</span> uses exactly that share. A plain <span className="font-mono">&#123;name&#125;</span> uses whatever is left after earlier steps.</p>
+                          <p className="text-gray-400 mt-1.5 font-mono text-[10px]">2 Tbsp butter: &#123;butter:50%&#125; in step 1 → 1 Tbsp butter; &#123;butter&#125; in step 3 → the remaining 1 Tbsp butter</p>
                           <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                         </div>
                       </div>

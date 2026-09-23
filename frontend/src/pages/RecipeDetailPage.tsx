@@ -7,7 +7,7 @@ import { RecipeMedia } from '../components/RecipeMedia';
 import { StepMedia } from '../components/StepMedia';
 import type { Recipe } from '../types/recipe';
 import { COURSE_DISPLAY_NAMES } from '../api/courses';
-import { resolveIngredientRefs } from '../utils/resolveIngredientRefs';
+import { priorInstructions, resolveIngredientRefs } from '../utils/resolveIngredientRefs';
 import { formatDuration } from '../utils/formatDuration';
 import { fetchSubstitutionsForRecipe, type Substitution } from '../api/substitutions';
 import { apiGet } from '../api/client';
@@ -164,7 +164,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                   </span>
                   <div className="flex-1 pt-0.5">
                     <p className="text-gray-900 text-sm">
-                      {resolveIngredientRefs(step.instruction, finalIngredients, 1, swapDisplayNames)}
+                      {resolveIngredientRefs(step.instruction, finalIngredients, 1, swapDisplayNames, priorInstructions(recipe.steps, index))}
                     </p>
                     {!!step.timeMinutes && (
                       <p className="text-xs text-gray-500 mt-1">

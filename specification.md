@@ -48,7 +48,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 ### Steps
 - **Step-level timing**: Specify time required for each step
 - **Active vs. inactive time**: Distinguish active work (chopping, stirring) from passive time (baking, simmering)
-- **Percent-based ingredient references**: Steps can reference ingredients by percentage (e.g., "add half the oil"), automatically calculated based on scaled serving size
+- **Percent-based ingredient references**: Steps can reference ingredients by percentage (e.g., "add half the oil"), automatically calculated based on scaled serving size. `{oil:50%}` uses exactly that share; a bare `{oil}` uses whatever remains after earlier steps' references
 
 ### Media
 - **Images**: Support for finished product photo and per-step images
@@ -192,7 +192,29 @@ A recipe management application for collecting, consolidating, using, updating, 
 
 ### Implementation Status (as of June 2026)
 
-**Implemented**: recipe CRUD with full versioning (view/restore, meal history pins the version cooked); archiving; author + personal notes; import from URL (schema.org JSON-LD + text fallback), .docx, .pdf, .txt, and photos of printed recipe cards/cookbook pages (OCR runs in the browser via tesseract.js; the extracted text is editable before it is parsed — handwriting OCRs poorly); ingredient catalog with aliases, typeahead, and user classification of unknown ingredients (built-in entries are read-only in the UI with an explicit customize/reset-to-default override flow); auto dietary/allergen labels; substitutions (official + user-contributed, applied per meal-plan recipe with ratio conversion); optional ingredients; per-ingredient notes (e.g. "use Cooper brand", "chopped into 1-inch cubes") shown in the recipe detail list and cook-mode checklist and preserved across version edits/restores, excluded from grocery consolidation; canonical ingredient units (free-text unit entry normalized to consistent abbreviations at write time — create/update/import — so displays are uniform and grocery consolidation merges spelling variants like `tbsp`/`tablespoon`); serving scaling with percent-based ingredient references in steps; per-recipe and per-step media; search + include/exclude-ingredient + label/course/diet filtering; meal planning with consolidated editable grocery list (copy to clipboard) and remake; cook mode (step navigation via buttons or swipe, screen wake lock — requires a secure context, satisfied by the HTTPS deployment; on plain HTTP a one-line notice explains the screen may sleep — per-step timers with audio alert, ingredient checklist, multi-recipe plans); per-recipe export to .txt/.json and a print layout (title, times, source, courses, ingredients with their per-ingredient notes, steps, and author + personal notes — note sections are omitted when empty); sharing via native share sheet, email, and print-to-PDF plus revocable token-gated public links (anyone can open a read-only recipe with images at `/shared/:token` without an account; the owner's personal notes are never exposed); PWA install with cached read-only offline viewing; multi-user accounts; media visibility toggle (device-local preference hiding recipe/step media on the detail page and in cook mode); bulk export of all recipes as schema.org JSON or a proprietary full-backup JSON (versions, notes, private catalog/substitution/localization data, media manifest) from the recipe list's Export menu.
+**Implemented**:
+
+- recipe CRUD with full versioning (view/restore, meal history pins the version cooked)
+- archiving
+- author + personal notes
+- import from URL (schema.org JSON-LD + text fallback), .docx, .pdf, .txt, and photos of printed recipe cards/cookbook pages (OCR runs in the browser via tesseract.js; the extracted text is editable before it is parsed — handwriting OCRs poorly)
+- ingredient catalog with aliases, typeahead, and user classification of unknown ingredients (built-in entries are read-only in the UI with an explicit customize/reset-to-default override flow)
+- auto dietary/allergen labels
+- substitutions (official + user-contributed, applied per meal-plan recipe with ratio conversion)
+- optional ingredients
+- per-ingredient notes (e.g. "use Cooper brand", "chopped into 1-inch cubes") shown in the recipe detail list and cook-mode checklist and preserved across version edits/restores, excluded from grocery consolidation
+- canonical ingredient units (free-text unit entry normalized to consistent abbreviations at write time — create/update/import — so displays are uniform and grocery consolidation merges spelling variants like `tbsp`/`tablespoon`)
+- serving scaling with percent-based ingredient references in steps (a bare reference takes the remaining percent after earlier steps)
+- per-recipe and per-step media
+- search + include/exclude-ingredient + label/course/diet filtering
+- meal planning with consolidated editable grocery list (copy to clipboard) and remake
+- cook mode (step navigation via buttons or swipe, screen wake lock — requires a secure context, satisfied by the HTTPS deployment; on plain HTTP a one-line notice explains the screen may sleep — per-step timers with audio alert, ingredient checklist, multi-recipe plans)
+- per-recipe export to .txt/.json and a print layout (title, times, source, courses, ingredients with their per-ingredient notes, steps, and author + personal notes — note sections are omitted when empty)
+- sharing via native share sheet, email, and print-to-PDF plus revocable token-gated public links (anyone can open a read-only recipe with images at `/shared/:token` without an account; the owner's personal notes are never exposed)
+- PWA install with cached read-only offline viewing
+- multi-user accounts
+- media visibility toggle (device-local preference hiding recipe/step media on the detail page and in cook mode)
+- bulk export of all recipes as schema.org JSON or a proprietary full-backup JSON (versions, notes, private catalog/substitution/localization data, media manifest) from the recipe list's Export menu
 
 **Specified but not yet implemented** (all fit the current architecture; notes on how):
 - **Offline writes / background sync** — the largest gap vs. section 7. Needs an IndexedDB layer and queued mutations on the frontend; no backend changes required, though replayed mutations must fetch a fresh CSRF token. The current React Query + service-worker setup is compatible with this.

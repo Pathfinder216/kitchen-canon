@@ -2,6 +2,7 @@ import request from 'supertest';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createApp } from '../app.js';
 import { createAuthedApi, cleanupUsers, type AuthedApi } from './helpers/auth.js';
+import { resolveIngredientRefsText } from '../services/export.service.js';
 
 const app = createApp();
 let api: AuthedApi;
@@ -73,6 +74,32 @@ describe('GET /api/export', () => {
       expect(recipe.prepTime).toBe('PT7M');
       expect(recipe.author).toBeUndefined();
       expect(recipe.url).toBe('https://example.com/scrambled-eggs');
+    });
+
+    it('resolves a bare {ref} to the percent remaining after earlier steps', async () => {
+      await api.post('/api/recipes').send({
+        ...sampleRecipe,
+        steps: [
+          { orderIndex: 0, instruction: 'Melt {butter:25%} and add {eggs}.', timeMinutes: 2, isActiveTime: true },
+          { orderIndex: 1, instruction: 'Fold in {butter}, then {butter}.', timeMinutes: 1, isActiveTime: true },
+        ],
+      });
+      const res = await api.get('/api/export?format=schema-org');
+
+      expect(res.status).toBe(200);
+      expect(res.body[0].recipeInstructions).toEqual([
+        { '@type': 'HowToStep', text: 'Melt ¼ tbsp butter and add 4 large eggs.' },
+        // first bare ref takes the remaining 75%; the second has nothing left
+        { '@type': 'HowToStep', text: 'Fold in ¾ tbsp butter, then 0 tbsp butter.' },
+      ]);
+    });
+
+    it('treats a float-noise remainder as 0 for a bare {ref}', () => {
+      // 100 - (0.1 + 64.1 + 35.8) === 1.4e-14 in IEEE doubles; a huge amount makes any
+      // leftover noise visible (1.4e-14% of 1e15 would print as 0.14).
+      const huge = [{ id: 'i1', name: 'eggs', amount: 1e15, unit: null, isOptional: false, note: null }];
+      const prior = ['Add {eggs:0.1%}, {eggs:64.1%}, {eggs:35.8%}.'];
+      expect(resolveIngredientRefsText('Then {eggs}.', huge, prior)).toBe('Then 0 eggs.');
     });
 
     it('omits url when source is not a parseable http(s) URL', async () => {

@@ -1,7 +1,7 @@
 import type { Recipe, Ingredient } from '../../types/recipe';
 import { formatScaledAmount } from '../../hooks/useScaling';
 import { COURSE_DISPLAY_NAMES } from '../../api/courses';
-import { resolveIngredientRefsText } from '../../utils/resolveIngredientRefs';
+import { priorInstructions, resolveIngredientRefsText } from '../../utils/resolveIngredientRefs';
 import { formatDuration } from '../../utils/formatDuration';
 
 interface PrintLayoutProps {
@@ -55,7 +55,7 @@ export function PrintLayout({ recipe, finalIngredients, swapDisplayNames, target
           <li key={step.id} className="flex gap-2">
             <span className="font-semibold shrink-0">{index + 1}.</span>
             <span>
-              {resolveIngredientRefsText(step.instruction, finalIngredients, 1, swapDisplayNames)}
+              {resolveIngredientRefsText(step.instruction, finalIngredients, 1, swapDisplayNames, priorInstructions(recipe.steps, index))}
               {!!step.timeMinutes && (
                 <span className="text-gray-500"> ({formatDuration(step.timeMinutes)}{step.isActiveTime ? ', active' : ''})</span>
               )}

@@ -113,6 +113,25 @@ describe('RecipeDetailPage', () => {
     expect(screen.queryByText(/\(coriander\)/)).not.toBeInTheDocument();
   });
 
+  it('resolves a bare step ref to the percent remaining after earlier steps', async () => {
+    mockFetchRecipe.mockResolvedValue({
+      ...mockRecipe,
+      steps: [
+        { id: 's1', recipeId: 'r1', orderIndex: 0, instruction: 'Whisk {Flour:25%} in', timeMinutes: 5, isActiveTime: true },
+        { id: 's2', recipeId: 'r1', orderIndex: 1, instruction: 'Fold in {Flour}', timeMinutes: null, isActiveTime: false },
+      ],
+    });
+    renderPage();
+    await screen.findAllByRole('heading', { name: 'Test Recipe', level: 1 });
+
+    // 2 cups flour: 25% = ½ cups in step 1, the remaining 75% = 1 ½ cups in step 2.
+    const remaining = screen.getAllByTitle('remaining 75% of Flour');
+    expect(remaining.length).toBeGreaterThan(0);
+    remaining.forEach((el) => expect(el).toHaveTextContent('1 ½ cups Flour'));
+    // Print layout (plain text) agrees with the on-screen list.
+    expect(screen.getAllByText(/Fold in 1 ½ cups Flour/).length).toBeGreaterThan(0);
+  });
+
   it('doubles displayed ingredient amounts when servings are doubled', async () => {
     renderPage();
     await screen.findAllByRole('heading', { name: 'Test Recipe', level: 1 });

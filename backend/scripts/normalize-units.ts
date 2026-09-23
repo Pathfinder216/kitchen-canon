@@ -9,7 +9,7 @@
  */
 
 import { config } from 'dotenv';
-config();
+config({ quiet: true });
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';

@@ -22,7 +22,7 @@ A personal recipe management app for collecting, organizing, and cooking from yo
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) v24 (matches CI and the Docker image; v20.19+ is the floor for the Vite 7 build)
+- [Node.js](https://nodejs.org/) v24 (matches CI and the Docker image; v22.22+ is the floor for Vitest 5 and jsdom 29)
 
 ### Setup
 

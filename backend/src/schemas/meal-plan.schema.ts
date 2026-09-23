@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 const substitutionsSchema = z.record(
+  z.string(),
   z.object({
     toIngredient: z.string(),
     ratio: z.number().positive(),

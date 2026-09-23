@@ -1,4 +1,5 @@
 import type { IngredientFormItem, StepFormItem } from './useRecipeFormState';
+import { computeRemainingPercents } from '../../utils/resolveIngredientRefs';
 
 /**
  * The key used to reference an ingredient inside a step instruction. Duplicate
@@ -15,24 +16,35 @@ export function refKeyForIngredient(ingredients: IngredientFormItem[], ingIndex:
   return `${name} ${rank}`;
 }
 
-const REF_PATTERN = /\{([^}:]+)(?::(\d+(?:\.\d+)?)%)?\}/g;
-
-/** Sum the referenced percentage for every ingredient key across all steps. */
+/**
+ * Sum the referenced percentage for every ingredient key across all steps. A bare
+ * `{key}` counts as whatever remained at that point (see computeRemainingPercents).
+ */
 export function getRefUsage(steps: StepFormItem[]): Record<string, number> {
   const refUsage: Record<string, number> = {};
-  for (const s of steps) {
-    let m: RegExpExecArray | null;
-    REF_PATTERN.lastIndex = 0;
-    while ((m = REF_PATTERN.exec(s.instruction)) !== null) {
-      refUsage[m[1]] = (refUsage[m[1]] ?? 0) + (m[2] !== undefined ? parseFloat(m[2]) : 100);
-    }
+  for (const refs of computeRemainingPercents(steps.map((s) => s.instruction))) {
+    for (const { key, pct } of refs) refUsage[key] = (refUsage[key] ?? 0) + pct;
   }
+  // Round away float noise so e.g. 0.1 + 64.1 + 35.8 compares (and displays) as exactly 100.
+  for (const key of Object.keys(refUsage)) refUsage[key] = Math.round(refUsage[key] * 1e6) / 1e6;
   return refUsage;
+}
+
+/** Keys with a bare `{key}` reference that resolves to 0% because earlier references used it all up. */
+function getExhaustedBareRefKeys(steps: StepFormItem[]): Set<string> {
+  const keys = new Set<string>();
+  for (const refs of computeRemainingPercents(steps.map((s) => s.instruction))) {
+    for (const { key, pct, bare } of refs) if (bare && pct === 0) keys.add(key);
+  }
+  return keys;
 }
 
 export function getOverReferencedIngredients(steps: StepFormItem[]): string[] {
   const usage = getRefUsage(steps);
-  return Object.entries(usage).filter(([, pct]) => pct > 100).map(([key, pct]) => `${key} (${pct}%)`);
+  const exhausted = getExhaustedBareRefKeys(steps);
+  return Object.entries(usage)
+    .filter(([key, pct]) => pct > 100 || exhausted.has(key))
+    .map(([key, pct]) => (pct > 100 ? `${key} (${pct}%)` : `${key} (a bare {${key}} has nothing left)`));
 }
 
 export function getUnderReferencedIngredients(ingredients: IngredientFormItem[], steps: StepFormItem[]): string[] {

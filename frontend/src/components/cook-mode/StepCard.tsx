@@ -9,6 +9,8 @@ import type { TimerState } from '../../hooks/useStepTimers';
 interface StepCardProps {
   step: Step;
   stepIndex: number;
+  /** Instructions of the earlier steps: resolves bare `{ingredient}` refs to the remaining percent. */
+  priorInstructions: string[];
   scaledIngredients: Ingredient[];
   swapDisplayNames: Map<string, string>;
   timer: TimerState | undefined;
@@ -22,6 +24,7 @@ interface StepCardProps {
 export function StepCard({
   step,
   stepIndex,
+  priorInstructions,
   scaledIngredients,
   swapDisplayNames,
   timer,
@@ -44,7 +47,7 @@ export function StepCard({
         )}
       </div>
       <p className="text-gray-800 text-lg leading-relaxed">
-        {resolveIngredientRefs(step.instruction, scaledIngredients, 1, swapDisplayNames)}
+        {resolveIngredientRefs(step.instruction, scaledIngredients, 1, swapDisplayNames, priorInstructions)}
       </p>
       <StepMedia stepId={step.id} readOnly />
       {!step.isActiveTime && (

@@ -104,7 +104,8 @@ see real client IPs).
   sends credentials, and attaches the `x-csrf-token` header on mutations
 - `src/hooks/` — React Query hooks (`useRecipes`, `useMealPlans`, `useScaling`, `useIngredients`)
 - `src/utils/` — `resolveIngredientRefs` (renders `{ingredient:50%}` step tokens with scaled
-  amounts), `exportRecipe` (.txt/.json download), ingredient alias localization
+  amounts; a bare `{ingredient}` resolves to the percent remaining after earlier steps, so
+  callers pass the prior steps' instructions), `exportRecipe` (.txt/.json download), ingredient alias localization
 
 ### Backend (`backend/`)
 

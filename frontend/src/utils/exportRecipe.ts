@@ -1,6 +1,6 @@
 import type { Recipe, Ingredient } from '../types/recipe';
 import { formatScaledAmount } from '../hooks/useScaling';
-import { resolveIngredientRefsText } from './resolveIngredientRefs';
+import { priorInstructions, resolveIngredientRefsText } from './resolveIngredientRefs';
 
 function safeName(title: string): string {
   return title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
@@ -62,9 +62,9 @@ export function recipeToText(
   if (recipe.steps.length) {
     lines.push('Instructions');
     lines.push('------------');
-    for (const step of recipe.steps) {
+    for (const [index, step] of recipe.steps.entries()) {
       const time = step.timeMinutes ? ` [${step.timeMinutes} min]` : '';
-      const text = resolveIngredientRefsText(step.instruction, finalIngredients, 1, swapDisplayNames);
+      const text = resolveIngredientRefsText(step.instruction, finalIngredients, 1, swapDisplayNames, priorInstructions(recipe.steps, index));
       lines.push(`${step.orderIndex + 1}. ${text}${time}`);
     }
     lines.push('');
@@ -176,9 +176,9 @@ export function exportRecipeAsJson(
       orderIndex: ing.orderIndex,
       ...(swapDisplayNames.has(ing.id) ? { substitutedFor: ing.name } : {}),
     })),
-    steps: recipe.steps.map((step) => ({
+    steps: recipe.steps.map((step, index) => ({
       orderIndex: step.orderIndex,
-      instruction: resolveIngredientRefsText(step.instruction, finalIngredients, 1, swapDisplayNames),
+      instruction: resolveIngredientRefsText(step.instruction, finalIngredients, 1, swapDisplayNames, priorInstructions(recipe.steps, index)),
       timeMinutes: step.timeMinutes,
       isActiveTime: step.isActiveTime,
     })),

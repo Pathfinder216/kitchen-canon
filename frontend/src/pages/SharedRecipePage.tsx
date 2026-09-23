@@ -2,7 +2,7 @@ import { useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { fetchSharedRecipe, sharedMediaUrl, type SharedRecipe } from '../api/shares';
 import { COURSE_DISPLAY_NAMES } from '../api/courses';
-import { resolveIngredientRefs } from '../utils/resolveIngredientRefs';
+import { priorInstructions, resolveIngredientRefs } from '../utils/resolveIngredientRefs';
 import { formatDuration } from '../utils/formatDuration';
 import { RecipeIngredientList } from '../components/recipe-detail/RecipeIngredientList';
 import { RecipeNotes } from '../components/recipe-detail/RecipeNotes';
@@ -96,7 +96,7 @@ function SharedRecipeView({ token, recipe }: { token: string; recipe: SharedReci
                 </span>
                 <div className="flex-1 pt-0.5">
                   <p className="text-gray-900 text-sm">
-                    {resolveIngredientRefs(step.instruction, ingredients)}
+                    {resolveIngredientRefs(step.instruction, ingredients, 1, undefined, priorInstructions(recipe.steps, index))}
                   </p>
                   {!!step.timeMinutes && (
                     <p className="text-xs text-gray-500 mt-1">

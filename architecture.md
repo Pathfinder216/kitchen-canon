@@ -155,7 +155,7 @@ requires a session.
 | Versions | `GET /api/recipes/:id/versions`, `POST /api/recipes/:id/restore/:version` |
 | Recipe extras | `GET /api/recipes/:id/dietary-info`, `GET /api/recipes/:id/substitutions`, `POST /api/recipes/:id/labels`, `POST /api/recipes/:id/courses`, `GET/POST/DELETE /api/recipes/:id/share` (share-link state / create / revoke) |
 | Courses | `GET /api/courses` (static enum list) |
-| Meta | `GET /api/meta` → `{ allergens, diets, allergenLabels, dietLabels }` (dietary vocabulary; single source of truth for the frontend, served from `constants/dietaryTags.ts`) |
+| Meta | `GET /api/meta` → `{ allergens, diets, allergenLabels, dietLabels, aisles, aisleLabels }` (dietary + grocery-aisle vocabulary; single source of truth for the frontend, served from `constants/dietaryTags.ts` and `constants/aisles.ts`) |
 | Labels | `GET /api/labels`, `POST /api/labels` |
 | Meal plans | `GET /api/meal-plans`, `POST /api/meal-plans`, `GET /api/meal-plans/:id`, `PATCH /api/meal-plans/:id`, `PATCH /api/meal-plans/:id/grocery/:itemId` (toggle purchased), `POST /api/meal-plans/:id/recalculate` (recompute dietary info), `POST /api/meal-plans/:id/remake` (clone) |
 | Import | `POST /api/import/url`, `POST /api/import/file` (multipart: .docx/.pdf/.txt) |
@@ -180,13 +180,13 @@ Source of truth: `backend/prisma/schema.prisma`. Summary of models and intent:
 | `Media` | `'image' | 'video'`, `path` (`/media/{uuid}.{ext}`), attached to either a recipe or a step. |
 | `CourseType` (enum) + `RecipeCourse` | Fixed course taxonomy (APPETIZER, SOUP, SALAD, BREAD, MAIN, SIDE, DESSERT, BREAKFAST, SNACK, DRINK, TOPPING) — replaced the earlier free-form `Category` model. Free-form tagging lives in `Label` instead. |
 | `Label` + `RecipeLabel` | `type`: `'dietary' | 'allergen' | 'manual'`. Dietary/allergen labels are auto-computed from the ingredient catalog; manual labels are user-created. Nullable `userId` (null = global/seeded). |
-| `IngredientCatalog` | Canonical ingredients with `allergens` and `diets` JSON arrays; powers dietary auto-labeling and typeahead. Nullable `userId` (null = global seed of ~258 entries; non-null = user's private entry, preferred on lookup). |
+| `IngredientCatalog` | Canonical ingredients with `allergens` and `diets` JSON arrays and an optional grocery `aisle` (fixed vocabulary in `constants/aisles.ts`); powers dietary auto-labeling, typeahead, and grocery aisle grouping. Nullable `userId` (null = global seed of ~258 entries; non-null = user's private entry, preferred on lookup — also how a user reassigns an aisle). |
 | `IngredientAlias` | Lowercased synonyms/stem variants → catalog entry; how free-text ingredient names resolve to the catalog. Nullable `userId`. |
 | `IngredientSubstitution` | `fromIngredient` → `toIngredient` with `ratio` + notes. `isOfficial`/null `createdBy` = global; user-created rows are private and deletable. |
 | `LocalizationMapping` | Locale-specific ingredient names (e.g. en-GB "coriander" → en-US "cilantro"). Nullable `userId`. |
 | `MealPlan` | Owned by `userId`. `name`, `date`/`time` strings, `notes`, `cookedAt`, `dietaryInfo` JSON (`allergens`, `diets`, `unknownIngredients` — computed across recipes after substitutions; optional ingredients excluded from allergen detection). |
 | `MealRecipe` | Recipe-in-plan: pins `recipeVersion` used, per-plan `servings`, `substitutions` JSON (`Record<ingredientId, { toIngredient, ratio }>`). |
-| `GroceryItem` | Consolidated list rows (`ingredient`, `amount`, `unit`, `purchased`), regenerated from the plan's recipes. |
+| `GroceryItem` | Consolidated list rows (`ingredient`, `amount`, `unit`, `purchased`), regenerated from the plan's recipes. Meal-plan responses attach a read-time `aisle` per item (resolved name → catalog, user's entry first; not stored). |
 | `UserPreferences` | One per user (`locale`, `theme`). |
 | `RecipeShare` | Public share link. `id` (uuid) doubles as the unguessable URL token; `recipeId` (any version row, resolved to the chain's latest at read), `userId` owner (cascade delete), `createdAt`, nullable `revokedAt` (set = dead link). Read via the public `/api/shared/:token` routes; never carries `personalNotes` or user ids to the viewer. |
 

@@ -4,6 +4,7 @@ import { prisma } from '../db.js';
 import { validate } from '../middleware/validate.js';
 import { AppError } from '../middleware/errorHandler.js';
 import { ALLERGENS, DIETS } from '../constants/dietaryTags.js';
+import { AISLES } from '../constants/aisles.js';
 import { stemVariants } from '../utils/stemVariants.js';
 
 const router = Router();
@@ -18,11 +19,15 @@ const createSchema = z.object({
   name: z.string().min(1).max(100).transform((s) => s.toLowerCase().trim()),
   allergens: z.array(z.enum(ALLERGENS)).default([]),
   diets: z.array(z.enum(DIETS)).default([]),
+  // Grocery aisle. Omitted = keep the existing value (or, for a new shadow of a built-in entry,
+  // inherit the built-in's aisle); null = unassigned.
+  aisle: z.enum(AISLES).nullable().optional(),
 });
 
 const updateSchema = z.object({
   allergens: z.array(z.enum(ALLERGENS)),
   diets: z.array(z.enum(DIETS)),
+  aisle: z.enum(AISLES).nullable().optional(),
 });
 
 // GET /api/ingredients?q= — typeahead / full list (global catalog plus the user's own)
@@ -53,7 +58,7 @@ router.post(
   '/',
   validate(createSchema),
   asyncHandler(async (req, res) => {
-    const { name, allergens, diets } = req.body as z.infer<typeof createSchema>;
+    const { name, allergens, diets, aisle } = req.body as z.infer<typeof createSchema>;
     const userId = req.userId!;
 
     // If this name is already one of the user's own aliases, update that private entry.
@@ -64,17 +69,28 @@ router.post(
     if (ownAlias) {
       const entry = await prisma.ingredientCatalog.update({
         where: { id: ownAlias.catalogId },
-        data: { allergens, diets },
+        data: { allergens, diets, ...(aisle !== undefined && { aisle }) },
         include: aliasInclude,
       });
       res.json(entry);
       return;
     }
 
+    // A new private entry that shadows a built-in inherits the built-in's aisle unless one was
+    // given, so customizing only the dietary tags doesn't drop the item into "Other".
+    let resolvedAisle: string | null | undefined = aisle;
+    if (resolvedAisle === undefined) {
+      const globalAlias = await prisma.ingredientAlias.findFirst({
+        where: { alias: name, userId: null },
+        include: { catalog: { select: { aisle: true } } },
+      });
+      resolvedAisle = globalAlias?.catalog.aisle ?? null;
+    }
+
     // New private entry — create with stem-variant aliases scoped to the user. This may shadow a
     // global entry of the same name; resolution prefers the user's own entry.
     const entry = await prisma.ingredientCatalog.create({
-      data: { displayAlias: name, allergens, diets, isUserAdded: true, userId },
+      data: { displayAlias: name, allergens, diets, aisle: resolvedAisle, isUserAdded: true, userId },
     });
     const variants = [...new Set(stemVariants(name))];
     for (const alias of variants) {
@@ -97,14 +113,14 @@ router.patch(
   '/:id',
   validate(updateSchema),
   asyncHandler(async (req, res) => {
-    const { allergens, diets } = req.body as z.infer<typeof updateSchema>;
+    const { allergens, diets, aisle } = req.body as z.infer<typeof updateSchema>;
     const existing = await prisma.ingredientCatalog.findFirst({
       where: { id: req.params.id as string, userId: req.userId },
     });
     if (!existing) throw new AppError(404, 'Ingredient not found');
     const entry = await prisma.ingredientCatalog.update({
       where: { id: req.params.id as string },
-      data: { allergens, diets },
+      data: { allergens, diets, ...(aisle !== undefined && { aisle }) },
       include: aliasInclude,
     });
     res.json(entry);

@@ -24,6 +24,13 @@ vi.mock('../hooks/useDietaryTags', () => ({
   }),
 }));
 
+vi.mock('../hooks/useAisles', () => ({
+  useAisles: () => ({
+    aisles: ['produce', 'dairy-eggs', 'deli', 'household-other'],
+    aisleLabels: { produce: 'Produce', 'dairy-eggs': 'Dairy & Eggs', deli: 'Deli', 'household-other': 'Other' },
+  }),
+}));
+
 import {
   fetchIngredients,
   createIngredientEntry,
@@ -42,6 +49,7 @@ function entry(overrides: Partial<CatalogEntry>): CatalogEntry {
     displayAlias: 'butter',
     allergens: [],
     diets: [],
+    aisle: null,
     isUserAdded: false,
     userId: null,
     aliases: [],
@@ -166,5 +174,25 @@ describe('IngredientsPage', () => {
       diets: ['vegan'],
     });
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('customizing a global can reassign its grocery aisle', async () => {
+    mockFetch.mockResolvedValue([{ ...globalButter, aisle: 'dairy-eggs' }]);
+    mockCreate.mockResolvedValue(userButter);
+    const user = userEvent.setup();
+    renderWithProviders(<IngredientsPage />);
+
+    await user.click(await screen.findByRole('button', { name: /customize/i }));
+    const select = screen.getByLabelText(/grocery aisle/i);
+    expect(select).toHaveValue('dairy-eggs');
+    await user.selectOptions(select, 'deli');
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(mockCreate).toHaveBeenCalledWith({
+      name: 'butter',
+      allergens: ['dairy'],
+      diets: ['vegetarian'],
+      aisle: 'deli',
+    });
   });
 });

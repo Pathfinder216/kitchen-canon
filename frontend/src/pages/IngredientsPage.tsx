@@ -9,21 +9,27 @@ import {
   type CatalogEntry,
 } from '../api/ingredients';
 import { useDietaryTags } from '../hooks/useDietaryTags';
+import { useAisles } from '../hooks/useAisles';
 
 function EditRow({ entry, onDone }: { entry: CatalogEntry; onDone: () => void }) {
   const queryClient = useQueryClient();
   const { allergens: ALLERGENS, diets: DIETS, allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const [allergens, setAllergens] = useState<string[]>(entry.allergens);
   const [diets, setDiets] = useState<string[]>(entry.diets);
+  const { aisles: AISLES, aisleLabels: AISLE_LABELS } = useAisles();
+  const [aisle, setAisle] = useState<string>(entry.aisle ?? '');
   const isGlobal = entry.userId === null;
+  // Only send the aisle when the user changed it; omitting it keeps the current one (and a new
+  // shadow of a built-in inherits the built-in's aisle).
+  const aisleChange = aisle !== (entry.aisle ?? '') ? { aisle: aisle || null } : {};
 
   const mutation = useMutation({
     // Globals are read-only: "customizing" one POSTs a user-private shadow entry with the same
     // name, which wins resolution over the global. User entries are PATCHed in place.
     mutationFn: () =>
       isGlobal
-        ? createIngredientEntry({ name: entry.displayAlias, allergens, diets })
-        : updateIngredientEntry(entry.id, { allergens, diets }),
+        ? createIngredientEntry({ name: entry.displayAlias, allergens, diets, ...aisleChange })
+        : updateIngredientEntry(entry.id, { allergens, diets, ...aisleChange }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ingredients'] });
       onDone();
@@ -89,6 +95,24 @@ function EditRow({ entry, onDone }: { entry: CatalogEntry; onDone: () => void })
           })}
         </div>
       </div>
+      {AISLES.length > 0 && (
+        <div>
+          <label htmlFor={`aisle-${entry.id}`} className="block text-xs font-medium text-gray-500 mb-1.5">
+            Grocery aisle
+          </label>
+          <select
+            id={`aisle-${entry.id}`}
+            value={aisle}
+            onChange={(e) => setAisle(e.target.value)}
+            className="rounded-md border border-gray-300 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+          >
+            <option value="">Unassigned</option>
+            {AISLES.map((a) => (
+              <option key={a} value={a}>{AISLE_LABELS[a] ?? a}</option>
+            ))}
+          </select>
+        </div>
+      )}
       {mutation.isError && <p className="text-xs text-red-600">Failed to save.</p>}
       <div className="flex gap-2">
         <button

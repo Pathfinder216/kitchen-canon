@@ -1,5 +1,6 @@
 import { prisma } from '../db.js';
 import { DIETS } from '../constants/dietaryTags.js';
+import { DEFAULT_AISLE, isAisle, type Aisle } from '../constants/aisles.js';
 
 interface IngredientInput {
   name: string;
@@ -22,6 +23,34 @@ async function findCatalogEntry(name: string, userId: string) {
   if (matches.length === 0) return null;
   const own = matches.find((m) => m.userId === userId);
   return (own ?? matches[0]).catalog ?? null;
+}
+
+/**
+ * Resolve each name to its grocery aisle using the same name→catalog resolution as
+ * `findCatalogEntry` (exact lowercase alias match over globals + the user's own aliases, the
+ * user's own entry preferred), batched into one query. A user entry with no aisle set falls back
+ * to the global match's aisle; unresolved names get `household-other`. Keys are lowercased names.
+ */
+export async function resolveAisles(names: string[], userId: string): Promise<Map<string, Aisle>> {
+  const lowered = [...new Set(names.map((n) => n.toLowerCase().trim()))];
+  const result = new Map<string, Aisle>();
+  if (lowered.length === 0) return result;
+
+  const matches = await prisma.ingredientAlias.findMany({
+    where: { alias: { in: lowered }, OR: [{ userId: null }, { userId }] },
+    include: { catalog: { select: { aisle: true } } },
+  });
+  const own = new Map<string, string | null>();
+  const global = new Map<string, string | null>();
+  for (const m of matches) {
+    const target = m.userId === userId ? own : global;
+    if (!target.has(m.alias) || target.get(m.alias) == null) target.set(m.alias, m.catalog.aisle);
+  }
+  for (const name of lowered) {
+    const aisle = own.get(name) ?? global.get(name);
+    result.set(name, isAisle(aisle) ? aisle : DEFAULT_AISLE);
+  }
+  return result;
 }
 
 export async function computeDietaryInfo(

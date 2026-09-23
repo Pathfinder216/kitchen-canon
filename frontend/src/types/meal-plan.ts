@@ -5,6 +5,9 @@ export interface GroceryItem {
   amount: number | null;
   unit: string | null;
   purchased: boolean;
+  /** Grocery aisle resolved at read time from the catalog (user overrides first); absent/unknown
+   *  values are grouped under "Other". */
+  aisle?: string;
 }
 
 export type ActiveSwaps = Record<string, { toIngredient: string; ratio: number }>;

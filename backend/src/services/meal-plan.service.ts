@@ -1,7 +1,8 @@
 import { prisma } from '../db.js';
 import { AppError } from '../middleware/errorHandler.js';
+import { DEFAULT_AISLE } from '../constants/aisles.js';
 import { consolidateIngredients } from './grocery.service.js';
-import { computeDietaryInfo } from './dietary.service.js';
+import { computeDietaryInfo, resolveAisles } from './dietary.service.js';
 import type { CreateMealPlanInput, UpdateMealPlanInput } from '../schemas/meal-plan.schema.js';
 
 const mealPlanInclude = {
@@ -18,6 +19,21 @@ const mealPlanInclude = {
   },
   groceryList: true,
 };
+
+/**
+ * Attach a resolved `aisle` to each grocery item at read time. Not stored on `GroceryItem`, so the
+ * grouping always reflects the current catalog and the user's private overrides.
+ */
+async function withAisles<T extends { groceryList: { ingredient: string }[] }>(userId: string, mealPlan: T) {
+  const aisles = await resolveAisles(mealPlan.groceryList.map((i) => i.ingredient), userId);
+  return {
+    ...mealPlan,
+    groceryList: mealPlan.groceryList.map((item) => ({
+      ...item,
+      aisle: aisles.get(item.ingredient.toLowerCase().trim()) ?? DEFAULT_AISLE,
+    })),
+  };
+}
 
 export async function listMealPlans(userId: string) {
   return prisma.mealPlan.findMany({
@@ -51,11 +67,11 @@ export async function getMealPlan(userId: string, id: string) {
     const freshInfo = await computeDietaryInfo(effectiveIngredients(recipeInputs, recipes), userId);
     if (freshInfo.unknownIngredients.length !== stored.unknownIngredients.length) {
       await prisma.mealPlan.update({ where: { id }, data: { dietaryInfo: freshInfo as object } });
-      return { ...mealPlan, dietaryInfo: freshInfo };
+      return withAisles(userId, { ...mealPlan, dietaryInfo: freshInfo });
     }
   }
 
-  return mealPlan;
+  return withAisles(userId, mealPlan);
 }
 
 type RecipeWithIngredients = { id: string; version: number; servings: number; ingredients: { id: string; name: string; isOptional: boolean; amount: number | null; unit: string | null }[] };
@@ -142,7 +158,7 @@ export async function createMealPlan(userId: string, input: CreateMealPlanInput)
     include: mealPlanInclude,
   });
 
-  return mealPlan;
+  return withAisles(userId, mealPlan);
 }
 
 export async function updateMealPlan(userId: string, id: string, input: UpdateMealPlanInput) {
@@ -257,11 +273,12 @@ export async function recalculateDietaryInfo(userId: string, id: string) {
   const recipes = mealPlan.recipes.map((mr) => mr.recipe);
   const dietaryInfo = await computeDietaryInfo(effectiveIngredients(recipeInputs, recipes), userId);
 
-  return prisma.mealPlan.update({
+  const updated = await prisma.mealPlan.update({
     where: { id },
     data: { dietaryInfo: dietaryInfo as object },
     include: mealPlanInclude,
   });
+  return withAisles(userId, updated);
 }
 
 export async function remakeMealPlan(userId: string, id: string) {

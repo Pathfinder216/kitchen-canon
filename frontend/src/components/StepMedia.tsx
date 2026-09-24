@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchStepMedia, uploadStepMedia, deleteStepMedia } from '../api/media';
 import { useMediaVisibility } from '../hooks/useMediaVisibility';
+import { useImageCrop } from '../hooks/useImageCrop';
 
 interface StepMediaProps {
   stepId: string;
@@ -37,24 +38,37 @@ export function StepMedia({ stepId, readOnly = false }: StepMediaProps) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['step-media', stepId] }),
   });
 
+  // Images go through the optional crop dialog first; videos upload directly.
+  const crop = useImageCrop((file) => uploadMutation.mutate(file));
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) uploadMutation.mutate(file);
+    // Reset so re-picking the same file after cancelling the crop still fires onChange.
+    e.target.value = '';
+    if (file) crop.pick(file);
   }
 
   // ── Read-only (detail / cook mode) — respects the media visibility toggle ─
+  // Natural aspect ratio, capped in height — no forced ratio, so nothing is cropped or stretched.
   if (readOnly) {
     if (!showMedia || !media) return null;
     if (media.type === 'video') {
       return (
-        <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 aspect-video">
-          <video src={media.path} controls autoPlay muted playsInline className="w-full h-full object-cover" />
+        <div className="mt-3">
+          <video
+            src={media.path}
+            controls
+            autoPlay
+            muted
+            playsInline
+            className="block max-h-64 w-auto max-w-full rounded-lg border border-gray-200"
+          />
         </div>
       );
     }
     return (
-      <div className="mt-3 rounded-lg overflow-hidden border border-gray-200">
-        <img src={media.path} alt="" className="w-full object-cover max-h-64" />
+      <div className="mt-3">
+        <img src={media.path} alt="" className="block max-h-64 w-auto max-w-full rounded-lg border border-gray-200" />
       </div>
     );
   }
@@ -91,6 +105,7 @@ export function StepMedia({ stepId, readOnly = false }: StepMediaProps) {
           </div>
         </div>
         {uploadError && <p className="text-xs text-red-600 mt-1">{uploadError}</p>}
+        {crop.dialog}
       </div>
     );
   }
@@ -109,6 +124,7 @@ export function StepMedia({ stepId, readOnly = false }: StepMediaProps) {
         {uploadMutation.isPending ? 'Uploading…' : '+ Add photo / video'}
       </label>
       {uploadError && <p className="text-xs text-red-600 mt-1">{uploadError}</p>}
+      {crop.dialog}
     </div>
   );
 }

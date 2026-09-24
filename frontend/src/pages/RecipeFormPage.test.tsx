@@ -3,6 +3,9 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RecipeFormPage } from './RecipeFormPage';
 
+// Picked images open the crop dialog (plan 26); jsdom can't run the real cropper.
+vi.mock('react-easy-crop', () => ({ default: () => null }));
+
 const createdRecipe = {
   id: 'r1',
   title: 'Test Recipe',
@@ -61,9 +64,12 @@ describe('RecipeFormPage create flow', () => {
     fetchMock.mockReset();
   });
 
-  function attach(input: HTMLElement, name: string) {
+  /** Picks an image and dismisses the crop dialog with "Use full image". */
+  async function attach(input: HTMLElement, name: string) {
     const file = new File(['x'], name, { type: 'image/jpeg' });
     fireEvent.change(input, { target: { files: [file] } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Use full image' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     return file;
   }
 
@@ -73,14 +79,14 @@ describe('RecipeFormPage create flow', () => {
     fireEvent.change(screen.getByLabelText(/title/i), { target: { value: 'Test Recipe' } });
 
     // Cover photo (create mode keeps the file pending until the recipe exists)
-    attach(container.querySelector('input[accept="image/*"]')!, 'cover.jpg');
+    await attach(container.querySelector('input[accept="image/*"]')!, 'cover.jpg');
 
     // One step, with a photo of its own
     fireEvent.click(screen.getByRole('button', { name: /add step/i }));
     fireEvent.change(screen.getByPlaceholderText(/step instruction/i), {
       target: { value: 'Do the thing' },
     });
-    attach(container.querySelector('input[accept="image/*,video/*"]')!, 'step.jpg');
+    await attach(container.querySelector('input[accept="image/*,video/*"]')!, 'step.jpg');
 
     fireEvent.click(screen.getByRole('button', { name: /save|create/i }));
 
@@ -115,7 +121,7 @@ describe('RecipeFormPage create flow', () => {
 
     const { container } = renderPage();
     fireEvent.change(screen.getByLabelText(/title/i), { target: { value: 'Test Recipe' } });
-    attach(container.querySelector('input[accept="image/*"]')!, 'cover.jpg');
+    await attach(container.querySelector('input[accept="image/*"]')!, 'cover.jpg');
     fireEvent.click(screen.getByRole('button', { name: /save|create/i }));
 
     expect(await screen.findByText(/something went wrong finishing up/i)).toBeInTheDocument();

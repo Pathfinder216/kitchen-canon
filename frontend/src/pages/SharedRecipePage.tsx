@@ -30,8 +30,12 @@ function SharedRecipeView({ token, recipe }: { token: string; recipe: SharedReci
 
       {/* Cover photo */}
       {coverImage && (
-        <div className="w-full aspect-video rounded-xl overflow-hidden border border-gray-200 mb-6">
-          <img src={sharedMediaUrl(token, coverImage.id)} alt="" className="w-full h-full object-cover" />
+        <div className="mb-6">
+          <img
+            src={sharedMediaUrl(token, coverImage.id)}
+            alt=""
+            className="block max-h-80 w-auto max-w-full mx-auto rounded-xl border border-gray-200"
+          />
         </div>
       )}
 
@@ -105,12 +109,12 @@ function SharedRecipeView({ token, recipe }: { token: string; recipe: SharedReci
                   )}
                   {step.media && (
                     step.media.type === 'video' ? (
-                      <div className="mt-3 rounded-lg overflow-hidden border border-gray-200 aspect-video">
-                        <video src={sharedMediaUrl(token, step.media.id)} controls playsInline className="w-full h-full object-cover" />
+                      <div className="mt-3">
+                        <video src={sharedMediaUrl(token, step.media.id)} controls playsInline className="block max-h-64 w-auto max-w-full rounded-lg border border-gray-200" />
                       </div>
                     ) : (
-                      <div className="mt-3 rounded-lg overflow-hidden border border-gray-200">
-                        <img src={sharedMediaUrl(token, step.media.id)} alt="" className="w-full object-cover max-h-64" />
+                      <div className="mt-3">
+                        <img src={sharedMediaUrl(token, step.media.id)} alt="" className="block max-h-64 w-auto max-w-full rounded-lg border border-gray-200" />
                       </div>
                     )
                   )}

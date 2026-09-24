@@ -6,6 +6,8 @@ import { AppError } from '../middleware/errorHandler.js';
 import { ALLERGENS, DIETS } from '../constants/dietaryTags.js';
 import { AISLES } from '../constants/aisles.js';
 import { stemVariants } from '../utils/stemVariants.js';
+import { SUGGEST_THRESHOLD, TYPEAHEAD_THRESHOLD } from '../utils/fuzzy.js';
+import { fuzzyCatalogMatches } from '../services/catalog-fuzzy.service.js';
 
 const router = Router();
 
@@ -23,6 +25,11 @@ const createSchema = z.object({
   // inherit the built-in's aisle); null = unassigned.
   aisle: z.enum(AISLES).nullable().optional(),
 });
+
+/** Below this many substring hits, typeahead appends fuzzy (typo-tolerant) matches. */
+const TYPEAHEAD_FUZZY_BELOW = 5;
+/** Fuzzy-matching a 1–2 character query is noise; substring matching covers it. */
+const FUZZY_MIN_QUERY_LENGTH = 3;
 
 const updateSchema = z.object({
   allergens: z.array(z.enum(ALLERGENS)),
@@ -49,7 +56,34 @@ router.get(
       orderBy: { displayAlias: 'asc' },
       include: aliasInclude,
     });
+    // Few substring hits (e.g. a typo like "tomatos"): append fuzzy matches, best first.
+    if (q.length >= FUZZY_MIN_QUERY_LENGTH && entries.length < TYPEAHEAD_FUZZY_BELOW) {
+      const seen = new Set(entries.map((e) => e.id));
+      const fuzzy = await fuzzyCatalogMatches(req.userId!, q, TYPEAHEAD_THRESHOLD);
+      entries.push(...fuzzy.map((m) => m.item).filter((e) => !seen.has(e.id)));
+    }
     res.json(entries);
+  }),
+);
+
+// GET /api/ingredients/suggest?name= — top-3 "Did you mean …?" catalog matches for a name that
+// doesn't resolve. Suggestions only: nothing is linked or classified until the user confirms.
+router.get(
+  '/suggest',
+  asyncHandler(async (req, res) => {
+    const name = typeof req.query.name === 'string' ? req.query.name.trim() : '';
+    if (!name) throw new AppError(400, 'name is required');
+    const matches = await fuzzyCatalogMatches(req.userId!, name.slice(0, 100), SUGGEST_THRESHOLD);
+    res.json(
+      matches.slice(0, 3).map(({ item, score }) => ({
+        id: item.id,
+        displayAlias: item.displayAlias,
+        allergens: item.allergens,
+        diets: item.diets,
+        aisle: item.aisle,
+        score: Math.round(score * 1000) / 1000,
+      })),
+    );
   }),
 );
 

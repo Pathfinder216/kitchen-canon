@@ -198,7 +198,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - archiving
 - author + personal notes
 - import from URL (schema.org JSON-LD + text fallback), .docx, .pdf, .txt, and photos of printed recipe cards/cookbook pages (OCR runs in the browser via tesseract.js; the extracted text is editable before it is parsed — handwriting OCRs poorly)
-- ingredient catalog with aliases, typeahead, and user classification of unknown ingredients (built-in entries are read-only in the UI with an explicit customize/reset-to-default override flow)
+- ingredient catalog with aliases, typo-tolerant typeahead (misspelled recipe searches and ingredient filters like "tomatos" also find the obvious match), and user classification of unknown ingredients with "Did you mean …?" one-tap suggestions that prefill tags from the closest catalog entries (fuzzy guesses never feed allergen detection until the user confirms; built-in entries are read-only in the UI with an explicit customize/reset-to-default override flow)
 - auto dietary/allergen labels
 - substitutions (official + user-contributed, applied per meal-plan recipe with ratio conversion)
 - optional ingredients

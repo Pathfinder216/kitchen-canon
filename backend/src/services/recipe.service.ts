@@ -6,6 +6,8 @@ import { config } from '../config.js';
 import type { CreateRecipeInput, UpdateRecipeInput, RecipeQueryInput } from '../schemas/recipe.schema.js';
 import { updateRecipeDietaryLabels } from './dietary.service.js';
 import { stemVariants } from '../utils/stemVariants.js';
+import { FILTER_THRESHOLD, TITLE_THRESHOLD, fuzzyScore } from '../utils/fuzzy.js';
+import { fuzzyCatalogMatches } from './catalog-fuzzy.service.js';
 
 type WithSteps = { steps: { timeMinutes: number | null; isActiveTime: boolean }[] };
 
@@ -35,16 +37,33 @@ async function withCatalogIds<T extends { name: string }>(
   );
 }
 
-type IngredientFilter =
-  | { catalogId: string }
-  | { OR: { name: { equals: string } }[] };
+/**
+ * Resolves a recipe-list filter term to catalog entry IDs: exact/alias match first, then — only
+ * when that misses — the best fuzzy catalog match (so "tomatos" finds "tomatoes"). Fuzzy
+ * resolution is for filtering only; saved ingredients and dietary labels never use it.
+ */
+async function resolveFilterCatalogIds(term: string, userId: string): Promise<string[]> {
+  const exact = await resolveCatalogId(term, userId);
+  if (exact) return [exact];
+  const [best] = await fuzzyCatalogMatches(userId, term, FILTER_THRESHOLD);
+  return best ? [best.item.id] : [];
+}
 
-/** Builds a Prisma ingredient filter for a search term.
- *  Uses catalogId when the term maps to a catalog entry; falls back to name variants. */
-async function resolveIngredientFilter(name: string, userId: string): Promise<IngredientFilter> {
-  const catalogId = await resolveCatalogId(name, userId);
-  if (catalogId) return { catalogId };
-  return { OR: stemVariants(name.toLowerCase().trim()).map((v) => ({ name: { equals: v } })) };
+/** Builds a Prisma ingredient filter for a search term: ingredients linked to the term's
+ *  catalog entry (exact → alias → fuzzy), or whose raw name is a singular/plural variant of it.
+ *  Exclude filters also match any raw name *containing* the term — excluding "nuts" should stay
+ *  aggressive, since excluding too much is safer than too little. */
+async function resolveIngredientFilter(name: string, userId: string, mode: 'include' | 'exclude') {
+  const term = name.toLowerCase().trim();
+  const catalogIds = await resolveFilterCatalogIds(term, userId);
+  const variants = stemVariants(term);
+  return {
+    OR: [
+      ...(catalogIds.length > 0 ? [{ catalogId: { in: catalogIds } }] : []),
+      ...variants.map((v) => ({ name: { equals: v } })),
+      ...(mode === 'exclude' ? variants.map((v) => ({ name: { contains: v } })) : []),
+    ],
+  };
 }
 
 function withComputedTimes<T extends WithSteps>(recipe: T): T & { totalTime: number | null; activeTime: number | null } {
@@ -66,20 +85,16 @@ export async function listRecipes(userId: string, query: RecipeQueryInput) {
   const skip = (page - 1) * limit;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = {
+  let where: any = {
     userId,
     isLatest: true,
     archived: archived === 'true',
   };
 
-  if (search) {
-    where.title = { contains: search };
-  }
-
   // Filter: must contain these ingredients
   if (includeIngredients) {
-    const names = includeIngredients.split(',').map((s) => s.trim().toLowerCase());
-    const filters = await Promise.all(names.map((n) => resolveIngredientFilter(n, userId)));
+    const names = includeIngredients.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    const filters = await Promise.all(names.map((n) => resolveIngredientFilter(n, userId, 'include')));
     where.AND = [
       ...(where.AND || []),
       ...filters.map((f) => ({ ingredients: { some: f } })),
@@ -88,8 +103,8 @@ export async function listRecipes(userId: string, query: RecipeQueryInput) {
 
   // Filter: must NOT contain these ingredients
   if (excludeIngredients) {
-    const names = excludeIngredients.split(',').map((s) => s.trim().toLowerCase());
-    const filters = await Promise.all(names.map((n) => resolveIngredientFilter(n, userId)));
+    const names = excludeIngredients.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    const filters = await Promise.all(names.map((n) => resolveIngredientFilter(n, userId, 'exclude')));
     where.AND = [
       ...(where.AND || []),
       ...filters.map((f) => ({ ingredients: { none: f } })),
@@ -131,6 +146,19 @@ export async function listRecipes(userId: string, query: RecipeQueryInput) {
         courses: { some: { courseType } },
       })),
     ];
+  }
+
+  // Title search: substring first; if that finds nothing, fall back to fuzzy-matching the titles
+  // of the recipes that pass every other filter (so "chiken soup" finds "Chicken Soup").
+  if (search) {
+    const titleWhere = { ...where, title: { contains: search } };
+    if ((await prisma.recipe.count({ where: titleWhere })) > 0) {
+      where = titleWhere;
+    } else {
+      const candidates = await prisma.recipe.findMany({ where, select: { id: true, title: true } });
+      const ids = candidates.filter((r) => fuzzyScore(search, r.title) >= TITLE_THRESHOLD).map((r) => r.id);
+      where = { ...where, id: { in: ids } };
+    }
   }
 
   const [recipes, total] = await Promise.all([

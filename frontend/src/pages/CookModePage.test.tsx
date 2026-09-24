@@ -66,6 +66,21 @@ describe('CookModePage', () => {
     expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
   });
 
+  it('opens at the step passed in location state (timeline deep link)', async () => {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[{ pathname: '/recipes/r1/cook', state: { startStep: 2 } }]}>
+          <Routes>
+            <Route path="/recipes/:id/cook" element={<CookModePage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('Bake it')).toBeInTheDocument();
+    expect(screen.getByText(/step 3 of 3/i)).toBeInTheDocument();
+  });
+
   it('does not show timer for active time steps', async () => {
     renderPage();
     await screen.findByText('Mix the flour');

@@ -98,11 +98,25 @@ A recipe management application for collecting, consolidating, using, updating, 
 - View history of planned meals
 - Remake previous meals (regenerate grocery list, enter cook mode with same recipes)
 
-### Cooking Timeline (Long-term Goal)
+### Cooking Timeline (Long-term Goal — v1 shipped)
 - Automatically generate cooking schedule: start times, order of operations
 - Support concurrent cooking (e.g., start recipe B after putting recipe A in oven)
 - Identify make-ahead components (e.g., dessert made the night before)
 - Note: Design/architect with this in mind from the start
+- **v1 (shipped)**: pick a serve time for a meal plan and get a back-scheduled timeline
+  (`/meal-plans/:id/timeline`). Documented constraints:
+  - **single cook** — hands-on (active) steps never overlap; hands-off (passive) steps such as
+    roasting or simmering overlap anything, so one recipe's prep slots into another's oven time;
+  - each recipe's steps run in order and every recipe finishes by serve time (holding/reheating
+    is not modelled);
+  - untimed steps are estimated (active 5 min, passive 0 min) and flagged;
+  - make-ahead is duration-derived only: a passive step of 4 h or more, or a recipe that must
+    start more than 8 h before serving, gets a "consider making ahead" suggestion;
+  - the schedule is greedy (longest recipe first, as late as possible) — explainable, not optimal;
+  - read-only (no drag-to-adjust); a "Start cooking" live mode highlights the current step by
+    wall clock.
+- Future: equipment contention (one oven, limited burners) is not tracked; timer notifications
+  in live mode; manual adjustments.
 
 ---
 
@@ -188,7 +202,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - Recipe sharing between users / publishing (requires public or share-token routes — today every route, including media, is behind login)
 - Copyright and moderation considerations
 - Complementary recipe suggestions
-- Automated cooking timeline generation
+- ~~Automated cooking timeline generation~~ — v1 done (single-cook greedy schedule per meal plan, see section 4); equipment contention and live-mode notifications remain future
 
 ### Implementation Status (as of June 2026)
 
@@ -216,12 +230,12 @@ A recipe management application for collecting, consolidating, using, updating, 
 - multi-user accounts
 - media visibility toggle (device-local preference hiding recipe/step media on the detail page and in cook mode)
 - bulk export of all recipes as schema.org JSON or a proprietary full-backup JSON (versions, notes, private catalog/substitution/localization data, media manifest) from the recipe list's Export menu
+- cooking timeline for a meal plan: pick a serve time and get a back-scheduled, single-cook schedule (hands-on steps never overlap, hands-off steps like roasting run alongside other prep), make-ahead suggestions for long passive steps or early starts, untimed-step estimates flagged, a printable step list linking each step into cook mode, and a "Start cooking" live mode that highlights the current step
 
 **Specified but not yet implemented** (all fit the current architecture; notes on how):
 - **Offline writes / background sync** — the largest gap vs. section 7. Needs an IndexedDB layer and queued mutations on the frontend; no backend changes required, though replayed mutations must fetch a fresh CSRF token. The current React Query + service-worker setup is compatible with this.
 - **Equipment and make-ahead labels** — *not planned* (see `plans/25-equipment-makeahead-labels.md`): users can already create manual labels for these, and dedicated `Label.type` values were deliberately removed once before.
 - **Component recipes** — see section below; additive schema changes.
-- **Cooking timeline** — steps already carry `timeMinutes` + active/passive flags, which is the data the scheduler needs; this remains a pure algorithm + UI layer on top.
 
 ### Component Recipes
 A component recipe is a reusable sub-recipe consumed by other recipes (e.g. pie crust, stock, dough, whipped cream). This is distinct from a standalone recipe with a course of "Topping / Condiment" — a component has no course and is not served on its own.

@@ -1,7 +1,13 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { validate } from '../middleware/validate.js';
-import { createMealPlanSchema, updateGroceryItemSchema, updateMealPlanSchema } from '../schemas/meal-plan.schema.js';
+import {
+  createMealPlanSchema,
+  timelineQuerySchema,
+  updateGroceryItemSchema,
+  updateMealPlanSchema,
+} from '../schemas/meal-plan.schema.js';
 import * as mealPlanService from '../services/meal-plan.service.js';
+import * as timelineService from '../services/timeline.service.js';
 
 const router = Router();
 
@@ -36,6 +42,16 @@ router.get(
   asyncHandler(async (req, res) => {
     const mealPlan = await mealPlanService.getMealPlan(req.userId!, req.params.id as string);
     res.json(mealPlan);
+  }),
+);
+
+// GET /api/meal-plans/:id/timeline?serveAt=<ISO> — cooking schedule ending at serveAt
+router.get(
+  '/:id/timeline',
+  asyncHandler(async (req, res) => {
+    const { serveAt } = timelineQuerySchema.parse(req.query);
+    const timeline = await timelineService.getMealPlanTimeline(req.userId!, req.params.id as string, serveAt);
+    res.json(timeline);
   }),
 );
 

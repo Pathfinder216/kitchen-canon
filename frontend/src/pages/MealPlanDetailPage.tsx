@@ -223,6 +223,12 @@ export function MealPlanDetailPage() {
         </div>
         <div className="flex gap-2 shrink-0">
           <Link
+            to={`/meal-plans/${id}/timeline`}
+            className="border border-gray-300 text-gray-700 hover:bg-gray-100 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Timeline
+          </Link>
+          <Link
             to={`/meal-plans/${id}/edit`}
             className="border border-gray-300 text-gray-700 hover:bg-gray-100 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors"
           >

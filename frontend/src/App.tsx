@@ -12,6 +12,7 @@ import { RecipeFormPage } from './pages/RecipeFormPage';
 import { MealHistoryPage } from './pages/MealHistoryPage';
 import { MealPlanDetailPage } from './pages/MealPlanDetailPage';
 import { MealPlanFormPage } from './pages/MealPlanFormPage';
+import { MealPlanTimelinePage } from './pages/MealPlanTimelinePage';
 import { CookModePage } from './pages/CookModePage';
 import { ImportPage } from './pages/ImportPage';
 import { RecipeVersionHistoryPage } from './pages/RecipeVersionHistoryPage';
@@ -44,6 +45,7 @@ export default function App() {
               <Route path="/meal-plans/new" element={<MealPlanFormPage />} />
               <Route path="/meal-plans/:id/edit" element={<MealPlanFormPage />} />
               <Route path="/meal-plans/:id" element={<MealPlanDetailPage />} />
+              <Route path="/meal-plans/:id/timeline" element={<MealPlanTimelinePage />} />
               <Route path="/import" element={<ImportPage />} />
               <Route path="/substitutions" element={<SubstitutionsPage />} />
               <Route path="/ingredients" element={<IngredientsPage />} />

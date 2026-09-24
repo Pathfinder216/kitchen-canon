@@ -198,7 +198,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - archiving
 - author + personal notes
 - import from URL (schema.org JSON-LD + text fallback), .docx, .pdf, .txt, and photos of printed recipe cards/cookbook pages (OCR runs in the browser via tesseract.js; the extracted text is editable before it is parsed — handwriting OCRs poorly)
-- ingredient catalog with aliases, typeahead, and user classification of unknown ingredients (built-in entries are read-only in the UI with an explicit customize/reset-to-default override flow)
+- ingredient catalog with aliases, typo-tolerant typeahead, and user classification of unknown ingredients with "Did you mean …?" one-tap suggestions that prefill tags from the closest catalog entries (fuzzy guesses never feed allergen detection until the user confirms; built-in entries are read-only in the UI with an explicit customize/reset-to-default override flow)
 - auto dietary/allergen labels
 - substitutions (official + user-contributed, applied per meal-plan recipe with ratio conversion)
 - optional ingredients
@@ -206,7 +206,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - canonical ingredient units (free-text unit entry normalized to consistent abbreviations at write time — create/update/import — so displays are uniform and grocery consolidation merges spelling variants like `tbsp`/`tablespoon`)
 - serving scaling with percent-based ingredient references in steps (a bare reference takes the remaining percent after earlier steps)
 - per-recipe and per-step media
-- search + include/exclude-ingredient + label/course/diet filtering
+- search + include/exclude-ingredient + label/course/diet filtering, tolerant of typos (misspelled title searches and ingredient filter terms like "tomatos" still find the obvious match; excluding an ingredient also excludes anything whose name contains it)
 - meal planning with consolidated editable grocery list (copy to clipboard) and remake
 - grocery list grouped by store aisle with zero setup (default aisles seeded on the built-in catalog, unknown items under "Other" last; copied text keeps the aisle headers) and a per-item **Change aisle** action that reassigns the ingredient privately via the catalog customize/shadow flow
 - cook mode (step navigation via buttons or swipe, screen wake lock — requires a secure context, satisfied by the HTTPS deployment; on plain HTTP a one-line notice explains the screen may sleep — per-step timers with audio alert, ingredient checklist, multi-recipe plans)

@@ -126,6 +126,11 @@ routes/  (HTTP: parsing, status codes)  →  services/  (business logic, takes u
   full-backup JSON, `GET /api/export?format=schema-org|full`)
 - Routes stay thin; all ownership scoping lives in services (`userId` is always the first
   argument), backed by isolation tests.
+- Fuzzy matching: `src/utils/fuzzy.ts` (word-padded character-bigram Dice + token-set overlap,
+  no dependency) and `services/catalog-fuzzy.service.ts` (scores the user's visible catalog in
+  memory) power typo-tolerant typeahead, recipe-list ingredient filters, title search fallback,
+  and `/api/ingredients/suggest`. Dietary/allergen auto-resolution deliberately stays
+  exact → alias → stem; fuzzy results are only search hits or suggestions the user confirms.
 
 #### Middleware stack (in order, `src/app.ts`)
 1. `helmet` (strict CSP in production; disabled in dev/test where Vite serves the frontend)
@@ -160,7 +165,7 @@ requires a session.
 | Labels | `GET /api/labels`, `POST /api/labels` |
 | Meal plans | `GET /api/meal-plans`, `POST /api/meal-plans`, `GET /api/meal-plans/:id`, `PATCH /api/meal-plans/:id`, `PATCH /api/meal-plans/:id/grocery/:itemId` (toggle purchased), `POST /api/meal-plans/:id/recalculate` (recompute dietary info), `POST /api/meal-plans/:id/remake` (clone) |
 | Import | `POST /api/import/url`, `POST /api/import/file` (multipart: .docx/.pdf/.txt), `POST /api/import/text` (`{ text }` → text parser; used by photo/OCR import) |
-| Ingredients (catalog) | `GET /api/ingredients?q=` (typeahead), `POST /api/ingredients`, `PATCH /api/ingredients/:id`, `DELETE /api/ingredients/:id` |
+| Ingredients (catalog) | `GET /api/ingredients?q=` (typeahead; appends fuzzy matches when the substring prefilter finds < 5), `GET /api/ingredients/suggest?name=` (top-3 fuzzy "Did you mean …?" matches → `{ id, displayAlias, allergens, diets, aisle, score }`), `POST /api/ingredients`, `PATCH /api/ingredients/:id`, `DELETE /api/ingredients/:id` |
 | Substitutions | `GET /api/substitutions?from=`, `POST /api/substitutions`, `DELETE /api/substitutions/:id` |
 | Media | `POST/GET /api/recipes/:id/media`, `DELETE /api/recipes/:id/media/:mediaId`, `POST/GET /api/steps/:stepId/media`, `DELETE /api/steps/:stepId/media/:mediaId`; files served at `GET /media/:filename` (authed) |
 

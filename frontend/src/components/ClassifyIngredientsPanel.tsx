@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createIngredientEntry } from '../api/ingredients';
+import { createIngredientEntry, type IngredientSuggestion } from '../api/ingredients';
 import { useDietaryTags } from '../hooks/useDietaryTags';
+import { IngredientSuggestions } from './IngredientSuggestions';
 
 interface ClassifyFormState {
   allergens: string[];
   diets: string[];
+  /** The "Did you mean …?" entry the tags were prefilled from, if any (its aisle is saved too). */
+  picked?: IngredientSuggestion;
 }
 
 interface Props {
@@ -37,12 +40,17 @@ export function ClassifyIngredientsPanel({ unknownIngredients, onSaved, onDone }
     });
   }
 
+  function pickSuggestion(name: string, s: IngredientSuggestion) {
+    setForms((prev) => ({ ...prev, [name]: { allergens: s.allergens, diets: s.diets, picked: s } }));
+  }
+
   async function handleSave() {
     setSubmitting(true);
     setError(null);
     try {
       for (const name of unknownIngredients) {
-        await createIngredientEntry({ name, ...forms[name] });
+        const { allergens, diets, picked } = forms[name];
+        await createIngredientEntry({ name, allergens, diets, ...(picked?.aisle && { aisle: picked.aisle }) });
       }
       await queryClient.invalidateQueries({ queryKey: ['ingredients'] });
       await onSaved?.();
@@ -69,6 +77,16 @@ export function ClassifyIngredientsPanel({ unknownIngredients, onSaved, onDone }
       {unknownIngredients.map((name) => (
         <div key={name} className="bg-white border border-amber-100 rounded-lg p-3 space-y-2">
           <p className="text-sm font-medium text-gray-800 capitalize">{name}</p>
+          <IngredientSuggestions
+            name={name}
+            selectedId={forms[name].picked?.id}
+            onPick={(s) => pickSuggestion(name, s)}
+          />
+          {forms[name].picked && (
+            <p className="text-xs text-amber-700">
+              Tags copied from "{forms[name].picked.displayAlias}" — review, then save.
+            </p>
+          )}
           <div>
             <p className="text-xs text-gray-500 mb-1">Allergens</p>
             <div className="flex flex-wrap gap-1.5">

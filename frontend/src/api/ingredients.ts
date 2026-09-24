@@ -22,6 +22,22 @@ export function fetchIngredients(q?: string): Promise<CatalogEntry[]> {
   return apiGet<CatalogEntry[]>('/ingredients', q ? { q } : undefined);
 }
 
+/** A "Did you mean …?" catalog match for an unknown ingredient name (GET /api/ingredients/suggest). */
+export interface IngredientSuggestion {
+  id: string;
+  displayAlias: string;
+  allergens: string[];
+  diets: string[];
+  aisle: string | null;
+  /** Fuzzy similarity in [0, 1]; suggestions arrive best-first. */
+  score: number;
+}
+
+/** Top-3 fuzzy catalog matches for a name. Suggestions only — nothing is saved until the user confirms. */
+export function suggestIngredients(name: string): Promise<IngredientSuggestion[]> {
+  return apiGet<IngredientSuggestion[]>('/ingredients/suggest', { name });
+}
+
 export function createIngredientEntry(data: { name: string; allergens: string[]; diets: string[]; aisle?: string | null }): Promise<CatalogEntry> {
   return apiPost<CatalogEntry>('/ingredients', data);
 }

@@ -205,7 +205,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - per-ingredient notes (e.g. "use Cooper brand", "chopped into 1-inch cubes") shown in the recipe detail list and cook-mode checklist and preserved across version edits/restores, excluded from grocery consolidation
 - canonical ingredient units (free-text unit entry normalized to consistent abbreviations at write time — create/update/import — so displays are uniform and grocery consolidation merges spelling variants like `tbsp`/`tablespoon`)
 - serving scaling with percent-based ingredient references in steps (a bare reference takes the remaining percent after earlier steps)
-- per-recipe and per-step media
+- per-recipe and per-step media (optional crop at upload — pan/zoom with Original/1:1/4:3/16:9 ratios or "Use full image", done in the browser; videos upload as-is — and cover/step images shown at their natural aspect ratio instead of being cropped to a fixed frame)
 - search + include/exclude-ingredient + label/course/diet filtering
 - meal planning with consolidated editable grocery list (copy to clipboard) and remake
 - grocery list grouped by store aisle with zero setup (default aisles seeded on the built-in catalog, unknown items under "Other" last; copied text keeps the aisle headers) and a per-item **Change aisle** action that reassigns the ingredient privately via the catalog customize/shadow flow

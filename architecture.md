@@ -64,6 +64,8 @@ see real client IPs).
 - **Headless UI 2** — accessible overlay primitives only. `components/ui/Modal.tsx` (Dialog: focus
   trap, Escape/backdrop close, focus return) and `components/ui/Menu.tsx` (anchored dropdown menu)
   back every modal and dropdown; everything else is hand-rolled.
+- **react-easy-crop** — pan/zoom crop UI in `components/ui/ImageCropDialog.tsx` for the optional
+  crop step on image uploads (see File Storage & Media)
 - **TypeScript** throughout
 
 #### State management
@@ -99,7 +101,7 @@ see real client IPs).
 - `src/components/` — RecipeForm, IngredientList, StepList, FilterPanel, GroceryList,
   RecipeSelector, RecipeMedia, StepMedia, ComboInput, ClassifyIngredientsPanel, etc.
 - `src/components/ui/` — shared accessible primitives (`Modal`, `Menu`) wrapping Headless UI;
-  all overlays/dropdowns build on these
+  all overlays/dropdowns build on these; `ImageCropDialog` (upload crop step) builds on `Modal`
 - `src/api/` — one module per resource; `client.ts` is a fetch wrapper that prepends `/api`,
   sends credentials, and attaches the `x-csrf-token` header on mutations
 - `src/hooks/` — React Query hooks (`useRecipes`, `useMealPlans`, `useScaling`, `useIngredients`)
@@ -241,6 +243,15 @@ Two patterns scope data by user:
   `res.sendFile` only after confirming the media row belongs to the shared recipe's version chain
   (authorized by the share token, not a session); the authed `/media` static mount is not widened.
 - Deleting media removes both the DB row and the file.
+- **Crop on upload (client-side)**: every image pick — live uploads in `RecipeMedia`/`StepMedia`
+  and the create-mode pending files in `RecipeForm` — goes through `hooks/useImageCrop.tsx`,
+  which opens `ImageCropDialog` (react-easy-crop). "Crop" bakes the selection into a new JPEG on a
+  canvas (`utils/cropImage.ts`: quality 0.9, longest edge ≤4096px, original name with `.jpg`);
+  "Use full image" passes the original file through. Videos, GIFs and SVGs skip the dialog. The
+  upload request is unchanged — the server does no image processing and just stores what it gets.
+- **Display**: cover and step images/videos render at their natural aspect ratio capped by a
+  max-height (no forced ratio, no `object-cover` cropping); list/edit thumbnails stay fixed-size
+  `object-cover` squares for a consistent grid.
 - **(planned)** A `StorageProvider` abstraction (upload/download/delete/getUrl) to enable
   S3/GCS later. Today filesystem access is direct; a cloud move means introducing that
   interface in `routes/media.ts` first.
@@ -450,7 +461,7 @@ move to Postgres if the host's volume story is weak.
 |-------|-----------|-------|
 | Frontend framework | React 19 + TypeScript | SPA |
 | Build tool | Vite 7 | Dev proxy to backend on :3000 |
-| Styling | Tailwind CSS 4 | Custom components; Headless UI 2 for modal/menu primitives only |
+| Styling | Tailwind CSS 4 | Custom components; Headless UI 2 for modal/menu primitives only; react-easy-crop for the upload crop dialog |
 | Server state | TanStack Query 5 | All API data |
 | Client state | React Context (auth) + local state | No Zustand |
 | Routing | React Router 7 | `ProtectedRoute` guard |

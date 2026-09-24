@@ -6,6 +6,7 @@ import {
   deleteRecipeMedia,
 } from '../api/media';
 import { useMediaVisibility } from '../hooks/useMediaVisibility';
+import { useImageCrop } from '../hooks/useImageCrop';
 
 interface RecipeMediaProps {
   recipeId: string;
@@ -44,17 +45,27 @@ export function RecipeMedia({ recipeId, readOnly = false }: RecipeMediaProps) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['cover-photo', recipeId] }),
   });
 
+  // Images go through the optional crop dialog first; the upload itself is unchanged.
+  const crop = useImageCrop((file) => uploadMutation.mutate(file));
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) uploadMutation.mutate(file);
+    // Reset so re-picking the same file after cancelling the crop still fires onChange.
+    e.target.value = '';
+    if (file) crop.pick(file);
   }
 
   // ── Read-only (detail page) — respects the media visibility toggle ──────
   if (readOnly) {
     if (!showMedia || !cover) return null;
     return (
-      <div className="w-full aspect-video rounded-xl overflow-hidden border border-gray-200 mb-6">
-        <img src={cover.path} alt="" className="w-full h-full object-cover" />
+      // Natural aspect ratio, capped in height — no forced ratio, so nothing is cropped or stretched.
+      <div className="mb-6">
+        <img
+          src={cover.path}
+          alt=""
+          className="block max-h-80 w-auto max-w-full mx-auto rounded-xl border border-gray-200"
+        />
       </div>
     );
   }
@@ -103,6 +114,7 @@ export function RecipeMedia({ recipeId, readOnly = false }: RecipeMediaProps) {
         </label>
       )}
       {uploadError && <p className="text-xs text-red-600">{uploadError}</p>}
+      {crop.dialog}
     </div>
   );
 }

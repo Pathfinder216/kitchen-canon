@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { CreateRecipeInput, Recipe } from '../types/recipe';
 import type { ParsedRecipe } from '../api/import';
 import { useIngredientNames } from '../hooks/useIngredients';
+import { useImageCrop } from '../hooks/useImageCrop';
 import { useRecipeFormState } from './recipe-form/useRecipeFormState';
 import { IngredientsEditor } from './recipe-form/IngredientsEditor';
 import { StepsEditor } from './recipe-form/StepsEditor';
@@ -75,6 +76,12 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
       return next;
     });
   }
+  // Picked images go through the optional crop dialog before landing in pending state, so the
+  // cropped File is what gets uploaded on save. Target: a step's internalId, or null for the cover.
+  const mediaCrop = useImageCrop<string | null>((file, stepInternalId) => {
+    if (stepInternalId === null) handleCoverPhotoChange(file);
+    else handleStepMediaChange(stepInternalId, file);
+  });
   function handleStepMediaRemove(internalId: string) {
     setStepMediaFiles(prev => {
       const next = new Map(prev);
@@ -157,9 +164,10 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
       <CoverPhotoField
         recipeId={recipeId}
         coverPhotoPreview={coverPhotoPreview}
-        onChange={handleCoverPhotoChange}
+        onChange={(file) => mediaCrop.pick(file, null)}
         onRemove={handleCoverPhotoRemove}
       />
+      {mediaCrop.dialog}
 
       <IngredientsEditor
         ingredients={ingredients}
@@ -180,7 +188,7 @@ export function RecipeForm({ initialData, importData, onSubmit, isSubmitting, re
         removeStep={removeStep}
         updateStep={updateStep}
         stepMediaFiles={stepMediaFiles}
-        onStepMediaChange={handleStepMediaChange}
+        onStepMediaChange={(internalId, file) => mediaCrop.pick(file, internalId)}
         onStepMediaRemove={handleStepMediaRemove}
       />
 

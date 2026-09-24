@@ -66,19 +66,32 @@ describe('CookModePage', () => {
     expect(screen.getByText(/step 1 of 3/i)).toBeInTheDocument();
   });
 
-  it('opens at the step passed in location state (timeline deep link)', async () => {
+  function renderAtStep(startStep: number) {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
+    return render(
       <QueryClientProvider client={qc}>
-        <MemoryRouter initialEntries={[{ pathname: '/recipes/r1/cook', state: { startStep: 2 } }]}>
+        <MemoryRouter initialEntries={[{ pathname: '/recipes/r1/cook', state: { startStep } }]}>
           <Routes>
             <Route path="/recipes/:id/cook" element={<CookModePage />} />
           </Routes>
         </MemoryRouter>
       </QueryClientProvider>,
     );
+  }
+
+  it('opens at the step passed in location state (timeline deep link)', async () => {
+    renderAtStep(2);
     expect(await screen.findByText('Bake it')).toBeInTheDocument();
     expect(screen.getByText(/step 3 of 3/i)).toBeInTheDocument();
+  });
+
+  it('clamps an out-of-range startStep to the last step', async () => {
+    renderAtStep(7);
+    expect(await screen.findByText('Bake it')).toBeInTheDocument();
+    expect(screen.getByText(/step 3 of 3/i)).toBeInTheDocument();
+    // Navigating back moves relative to the clamped step, not the stale value.
+    fireEvent.click(screen.getByRole('button', { name: /prev/i }));
+    expect(screen.getByText(/step 2 of 3/i)).toBeInTheDocument();
   });
 
   it('does not show timer for active time steps', async () => {

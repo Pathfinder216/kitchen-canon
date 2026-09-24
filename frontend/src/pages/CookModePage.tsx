@@ -15,11 +15,19 @@ import type { CustomTime } from '../components/cook-mode/StepTimerControls';
 export function CookModePage() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
-  const locationState = location.state as { from?: { label: string; href: string }; targetServings?: number; activeSwaps?: Record<string, { toIngredient: string; ratio: number }> } | null;
+  const locationState = location.state as { from?: { label: string; href: string }; targetServings?: number; activeSwaps?: Record<string, { toIngredient: string; ratio: number }>; startStep?: number } | null;
   const backLink = locationState?.from ?? { label: 'Back', href: `/recipes/${id}` };
   const { data: recipe, isLoading, error } = useRecipe(id!);
   const initialServings = locationState?.targetServings;
-  const [currentStep, setCurrentStep] = useState(0);
+  // The meal-plan timeline deep-links to a specific step via `startStep`.
+  const [stepState, setStepState] = useState(() => Math.max(0, Math.floor(locationState?.startStep ?? 0)));
+  // A stale/bad `startStep` may point past the last step; clamp wherever the step is read (and
+  // before every relative update) rather than correcting state in an effect.
+  const stepCount = recipe?.steps.length ?? 0;
+  const clampStep = (s: number) => Math.min(s, Math.max(stepCount - 1, 0));
+  const currentStep = clampStep(stepState);
+  const setCurrentStep = (update: number | ((s: number) => number)) =>
+    setStepState((s) => (typeof update === 'function' ? update(clampStep(s)) : update));
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const [customTimes, setCustomTimes] = useState<Record<number, CustomTime>>({});
 
@@ -33,7 +41,6 @@ export function CookModePage() {
 
   // Whole-screen swipe navigation; the app navbar and the cook-mode header
   // row are opted out so gestures there never change the step.
-  const stepCount = recipe?.steps.length ?? 0;
   useSwipe({
     onSwipeLeft: () => setCurrentStep((s) => (s < stepCount - 1 ? s + 1 : s)),
     onSwipeRight: () => setCurrentStep((s) => (s > 0 ? s - 1 : s)),

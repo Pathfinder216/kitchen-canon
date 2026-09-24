@@ -1,5 +1,5 @@
 import { apiGet, apiPatch, apiPost } from './client';
-import type { CreateMealPlanInput, GroceryItem, MealPlanDetail, MealPlanSummary, UpdateMealPlanInput } from '../types/meal-plan';
+import type { CookingTimeline, CreateMealPlanInput, GroceryItem, MealPlanDetail, MealPlanSummary, UpdateMealPlanInput } from '../types/meal-plan';
 
 export async function fetchMealPlans(): Promise<MealPlanSummary[]> {
   return apiGet<MealPlanSummary[]>('/meal-plans');
@@ -27,6 +27,11 @@ export async function toggleGroceryItem(
 
 export async function remakeMealPlan(id: string): Promise<MealPlanDetail> {
   return apiPost<MealPlanDetail>(`/meal-plans/${id}/remake`, {});
+}
+
+/** Cooking schedule that ends at `serveAt` (an ISO date-time). */
+export async function fetchMealPlanTimeline(id: string, serveAt: string): Promise<CookingTimeline> {
+  return apiGet<CookingTimeline>(`/meal-plans/${id}/timeline?serveAt=${encodeURIComponent(serveAt)}`);
 }
 
 export async function recalculateMealPlanDietaryInfo(id: string): Promise<MealPlanDetail> {

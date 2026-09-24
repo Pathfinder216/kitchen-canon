@@ -95,6 +95,56 @@ export interface CreateMealPlanInput {
   }[];
 }
 
+// ── Cooking timeline (GET /meal-plans/:id/timeline) ─────────────────────────
+// Dates are ISO strings. `itemId` is the MealRecipe id (a plan may include a recipe twice).
+
+export interface TimelineEntry {
+  itemId: string;
+  recipeId: string;
+  stepId: string;
+  stepIndex: number;
+  start: string;
+  end: string;
+  isActive: boolean;
+  untimed: boolean;
+  label: string;
+}
+
+export interface TimelineRecipeSummary {
+  itemId: string;
+  recipeId: string;
+  title: string;
+  start: string | null;
+  end: string | null;
+}
+
+export interface TimelineWarning {
+  type: 'untimed-steps' | 'no-steps';
+  itemId: string;
+  recipeId: string;
+  stepIds: string[];
+  message: string;
+}
+
+export interface MakeAheadSuggestion {
+  itemId: string;
+  recipeId: string;
+  stepId: string | null;
+  reason: 'long-passive-step' | 'early-start';
+  leadMinutes: number;
+  startBy: string;
+  message: string;
+}
+
+export interface CookingTimeline {
+  serveAt: string;
+  start: string;
+  entries: TimelineEntry[];
+  recipes: TimelineRecipeSummary[];
+  warnings: TimelineWarning[];
+  makeAhead: MakeAheadSuggestion[];
+}
+
 export interface UpdateMealPlanInput {
   name?: string;
   date?: string | null;

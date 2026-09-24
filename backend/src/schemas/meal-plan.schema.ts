@@ -35,5 +35,14 @@ export const updateGroceryItemSchema = z.object({
   purchased: z.boolean(),
 });
 
+export const timelineQuerySchema = z.object({
+  // Any parseable date-time; past values are allowed so a plan can be previewed after the fact.
+  serveAt: z
+    .string()
+    .min(1)
+    .refine((s) => !Number.isNaN(Date.parse(s)), { message: 'serveAt must be a valid date-time' })
+    .transform((s) => new Date(s)),
+});
+
 export type CreateMealPlanInput = z.infer<typeof createMealPlanSchema>;
 export type UpdateMealPlanInput = z.infer<typeof updateMealPlanSchema>;

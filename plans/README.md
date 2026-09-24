@@ -68,7 +68,7 @@ Pi; 44 is defense-in-depth after the first three.
 - [ ] [35 — Nutrition aggregation & display](35-nutrition-display.md) (M; needs 34, 18)
 - [ ] [36 — Offline writes](36-offline-writes.md) (L; needs 01, 04) — blocks 37
 - [ ] [37 — Multi-device sync](37-device-sync.md) (XL, staged milestones; needs 36)
-- [ ] [38 — Cooking timeline](38-cooking-timeline.md) (L)
+- [x] [38 — Cooking timeline](38-cooking-timeline.md) (L) — pure `computeTimeline` engine in `services/timeline.service.ts` (backward greedy, longest recipe first; active steps slide earlier into free gaps so a single pass is stable; untimed defaults 5/0 min + warning; make-ahead for passive ≥ 4 h or start > 8 h out) behind `GET /api/meal-plans/:id/timeline?serveAt=` (pinned recipe rows, 404 isolation). `/meal-plans/:id/timeline` page (linked from plan detail): serve-time picker, make-ahead box, proportional per-recipe lane chart (active solid / passive hatched, "now" line), printable step list deep-linking into cook mode at that step, "Start cooking" live mode highlighting the current step. Engine suite incl. the 3-recipe acceptance case and a 300-seed property check (no `fast-check` dep — seeded PRNG); supertest + RTL tests
 - [ ] [39 — Publishing to other users](39-publishing.md) (L; needs 30)
 - [ ] [40 — Complementary recipe suggestions](40-complementary-suggestions.md) (M)
 

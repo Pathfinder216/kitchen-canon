@@ -165,11 +165,38 @@ requires a session.
 | Courses | `GET /api/courses` (static enum list) |
 | Meta | `GET /api/meta` → `{ allergens, diets, allergenLabels, dietLabels, aisles, aisleLabels }` (dietary + grocery-aisle vocabulary; single source of truth for the frontend, served from `constants/dietaryTags.ts` and `constants/aisles.ts`) |
 | Labels | `GET /api/labels`, `POST /api/labels` |
-| Meal plans | `GET /api/meal-plans`, `POST /api/meal-plans`, `GET /api/meal-plans/:id`, `PATCH /api/meal-plans/:id`, `PATCH /api/meal-plans/:id/grocery/:itemId` (toggle purchased), `POST /api/meal-plans/:id/recalculate` (recompute dietary info), `POST /api/meal-plans/:id/remake` (clone) |
+| Meal plans | `GET /api/meal-plans`, `POST /api/meal-plans`, `GET /api/meal-plans/:id`, `PATCH /api/meal-plans/:id`, `PATCH /api/meal-plans/:id/grocery/:itemId` (toggle purchased), `POST /api/meal-plans/:id/recalculate` (recompute dietary info), `POST /api/meal-plans/:id/remake` (clone), `GET /api/meal-plans/:id/timeline?serveAt=<ISO>` (cooking schedule ending at `serveAt`; see *Cooking timeline* below) |
 | Import | `POST /api/import/url`, `POST /api/import/file` (multipart: .docx/.pdf/.txt), `POST /api/import/text` (`{ text }` → text parser; used by photo/OCR import) |
 | Ingredients (catalog) | `GET /api/ingredients?q=` (typeahead; appends fuzzy matches when the substring prefilter finds < 5), `GET /api/ingredients/suggest?name=` (top-3 fuzzy "Did you mean …?" matches → `{ id, displayAlias, allergens, diets, aisle, score }`), `POST /api/ingredients`, `PATCH /api/ingredients/:id`, `DELETE /api/ingredients/:id` |
 | Substitutions | `GET /api/substitutions?from=`, `POST /api/substitutions`, `DELETE /api/substitutions/:id` |
 | Media | `POST/GET /api/recipes/:id/media`, `DELETE /api/recipes/:id/media/:mediaId`, `POST/GET /api/steps/:stepId/media`, `DELETE /api/steps/:stepId/media/:mediaId`; files served at `GET /media/:filename` (authed) |
+
+#### Cooking timeline (`services/timeline.service.ts`)
+
+`computeTimeline(recipes, serveAt, options?)` is a pure function (plain data in/out, no Prisma)
+so it can be unit-tested exhaustively; `getMealPlanTimeline(userId, id, serveAt)` is the thin
+loader behind the route. It reads the plan's `MealRecipe → recipe` rows exactly as the plan
+detail does (those rows *are* the pinned versions, since edits create new rows), in plan order.
+
+- **Model**: one cook — active steps never overlap; a recipe's steps run in order; passive steps
+  overlap anything; every recipe ends by `serveAt`. Untimed steps default to 5 min (active) /
+  0 min (passive) and produce an `untimed-steps` warning; step-less recipes a `no-steps` warning.
+- **Algorithm**: backward greedy list scheduling. Recipes are placed longest-first; each step is
+  placed as late as possible (ending when its successor starts); an active step that collides
+  with an already-placed active step slides earlier into the nearest free gap, and its
+  predecessors follow. Single pass, no fix-up iterations (steps only ever move earlier).
+- **Make-ahead**: duration-derived only — a passive step ≥ 4 h, or a recipe starting > 8 h before
+  serving, yields a suggestion (label names are deliberately not used).
+- **Response**: `{ serveAt, start, entries[{ itemId, recipeId, stepId, stepIndex, start, end,
+  isActive, untimed, label }], recipes[], warnings[], makeAhead[] }`. `itemId` is the
+  `MealRecipe` id (a plan may hold the same recipe twice); `label` is the instruction with
+  `{butter:50%}` refs reduced to the ingredient name.
+- **Frontend**: `pages/MealPlanTimelinePage.tsx` (`/meal-plans/:id/timeline`, query key
+  `['meal-plans', id, 'timeline', serveAt]` so plan mutations invalidate it) renders a
+  proportional lane chart (`components/timeline/TimelineChart.tsx`) and a printable
+  step list (`ScheduleList.tsx`) whose entries deep-link into cook mode at that step
+  (`startStep` in location state). Not modelled yet: equipment contention (one oven), holding
+  time, notifications.
 
 **(planned)** `GET /api/export` bulk export (schema.org + proprietary format). Today export is
 client-side per-recipe (.txt/.json) in `frontend/src/utils/exportRecipe.ts`.

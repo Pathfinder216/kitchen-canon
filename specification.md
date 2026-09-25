@@ -201,7 +201,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - ~~User accounts~~ — done (sessions, signup, isolation); permissions/privacy controls beyond per-user privacy remain future
 - Recipe sharing between users / publishing (requires public or share-token routes — today every route, including media, is behind login)
 - Copyright and moderation considerations
-- Complementary recipe suggestions
+- ~~Complementary recipe suggestions~~ — done (transparent rule-based scoring while building a meal plan, see Implementation Status); learned/collaborative ranking remains future
 - ~~Automated cooking timeline generation~~ — v1 done (single-cook greedy schedule per meal plan, see section 4); equipment contention and live-mode notifications remain future
 
 ### Implementation Status (as of June 2026)
@@ -223,6 +223,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - per-recipe and per-step media (optional crop at upload — pan/zoom with Original/1:1/4:3/16:9 ratios or "Use full image", done in the browser; videos upload as-is — and cover/step images shown at their natural aspect ratio instead of being cropped to a fixed frame)
 - search + include/exclude-ingredient + label/course/diet filtering
 - meal planning with consolidated editable grocery list (copy to clipboard) and remake
+- complementary recipe suggestions while building a meal plan: a "Goes well with this meal" panel offers up to 3 recipes with one-tap Add and the reasons they were picked (fills a missing course — a main first, then side/salad/bread/dessert — keeps the meal's shared diet, shares ingredients, not cooked in the last 30 days; redundant courses, broken diets and newly introduced allergens count against a recipe), respects the browser's active diet/allergen filter, and stays hidden until the user has at least 5 recipes
 - grocery list grouped by store aisle with zero setup (default aisles seeded on the built-in catalog, unknown items under "Other" last; copied text keeps the aisle headers) and a per-item **Change aisle** action that reassigns the ingredient privately via the catalog customize/shadow flow
 - cook mode (step navigation via buttons or swipe, screen wake lock — requires a secure context, satisfied by the HTTPS deployment; on plain HTTP a one-line notice explains the screen may sleep — per-step timers with audio alert, ingredient checklist, multi-recipe plans)
 - per-recipe export to .txt/.json and a print layout (title, times, source, courses, ingredients with their per-ingredient notes, steps, and author + personal notes — note sections are omitted when empty)

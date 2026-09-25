@@ -157,3 +157,25 @@ export interface UpdateMealPlanInput {
     substitutions?: ActiveSwaps;
   }[];
 }
+
+/** One rule's contribution to a suggestion's score (GET /meal-plans/suggestions). */
+export interface SuggestionScoreComponent {
+  rule: 'course-complement' | 'course-redundancy' | 'diet' | 'allergen' | 'overlap' | 'novelty';
+  points: number;
+  reason: string;
+}
+
+/** A recipe that complements the current meal-plan selection, with the reasons it was picked. */
+export interface MealPlanSuggestion {
+  recipe: { id: string; title: string; servings: number; courses: string[] };
+  score: number;
+  /** Human-readable reasons for the positive contributions ("fills side course", …). */
+  reasons: string[];
+  breakdown: SuggestionScoreComponent[];
+}
+
+/** Dietary filter applied to suggestion candidates (comma-separated, same shape as the recipe list). */
+export interface SuggestionFilters {
+  diets?: string;
+  freeFrom?: string;
+}

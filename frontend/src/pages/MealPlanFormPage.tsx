@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useCreateMealPlan, useMealPlan, useUpdateMealPlan } from '../hooks/useMealPlans';
 import type { Recipe } from '../types/recipe';
-import type { ActiveSwaps, MealPlanDetail } from '../types/meal-plan';
+import type { ActiveSwaps, MealPlanDetail, SuggestionFilters } from '../types/meal-plan';
 import { PlanDetailsFields } from '../components/meal-plan-form/PlanDetailsFields';
 import { RecipeBrowser } from '../components/meal-plan-form/RecipeBrowser';
 import { SelectedRecipesList } from '../components/meal-plan-form/SelectedRecipesList';
 import { RecipePreviewModal } from '../components/meal-plan-form/RecipePreviewModal';
+import { SuggestionsPanel } from '../components/meal-plan-form/SuggestionsPanel';
 import { parseServings, type SelectedRecipe } from '../components/meal-plan-form/types';
 
 // ── Main form component ───────────────────────────────────────────────────────
@@ -43,6 +44,7 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
   );
 
   const [previewId, setPreviewId] = useState<string | null>(null);
+  const [dietaryFilter, setDietaryFilter] = useState<SuggestionFilters>({});
   const [error, setError] = useState<string | null>(null);
 
   const createMealPlan = useCreateMealPlan();
@@ -145,13 +147,22 @@ function MealPlanFormContent({ initialPlan, isEdit, isRemake, planId }: MealPlan
           onAdd={(recipe: Recipe) => addRecipe(recipe.id, recipe.title, recipe.servings, recipe.servings)}
           onRemove={removeRecipe}
           onView={setPreviewId}
+          onDietaryFilterChange={setDietaryFilter}
         />
 
-        <SelectedRecipesList
-          selected={selected}
-          onRemove={removeRecipe}
-          onUpdateServings={updateServings}
-        />
+        <div className="lg:w-80 shrink-0 w-full space-y-6">
+          <SelectedRecipesList
+            selected={selected}
+            onRemove={removeRecipe}
+            onUpdateServings={updateServings}
+          />
+
+          <SuggestionsPanel
+            selectedIds={selected.map((s) => s.recipeId)}
+            filters={dietaryFilter}
+            onAdd={(recipe) => addRecipe(recipe.id, recipe.title, recipe.servings, recipe.servings)}
+          />
+        </div>
       </div>
 
       {/* Recipe preview modal */}

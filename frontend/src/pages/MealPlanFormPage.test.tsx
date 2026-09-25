@@ -5,7 +5,7 @@ import { Routes, Route } from 'react-router-dom';
 import { renderWithProviders } from '../test/utils';
 import { MealPlanFormPage } from './MealPlanFormPage';
 import type { Recipe } from '../types/recipe';
-import type { MealPlanDetail } from '../types/meal-plan';
+import type { MealPlanDetail, MealPlanSuggestion } from '../types/meal-plan';
 
 // ── Mock the API modules the page (and its hooks) reach through ────────────────
 vi.mock('../api/recipes', () => ({
@@ -16,19 +16,21 @@ vi.mock('../api/meal-plans', () => ({
   fetchMealPlan: vi.fn(),
   createMealPlan: vi.fn(),
   updateMealPlan: vi.fn(),
+  fetchMealPlanSuggestions: vi.fn(),
 }));
 vi.mock('../api/substitutions', () => ({
   fetchSubstitutionsForRecipe: vi.fn(),
 }));
 
 import { fetchRecipes } from '../api/recipes';
-import { fetchMealPlan, createMealPlan, updateMealPlan } from '../api/meal-plans';
+import { fetchMealPlan, createMealPlan, updateMealPlan, fetchMealPlanSuggestions } from '../api/meal-plans';
 import { fetchSubstitutionsForRecipe } from '../api/substitutions';
 
 const mockFetchRecipes = fetchRecipes as ReturnType<typeof vi.fn>;
 const mockFetchMealPlan = fetchMealPlan as ReturnType<typeof vi.fn>;
 const mockCreateMealPlan = createMealPlan as ReturnType<typeof vi.fn>;
 const mockUpdateMealPlan = updateMealPlan as ReturnType<typeof vi.fn>;
+const mockFetchSuggestions = fetchMealPlanSuggestions as ReturnType<typeof vi.fn>;
 const mockFetchSubs = fetchSubstitutionsForRecipe as ReturnType<typeof vi.fn>;
 
 // ── Helpers to build fixtures ─────────────────────────────────────────────────
@@ -111,6 +113,7 @@ beforeEach(() => {
     return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }));
   mockFetchSubs.mockResolvedValue([]);
+  mockFetchSuggestions.mockResolvedValue([]);
   mockFetchRecipes.mockResolvedValue(paginated([makeRecipe()]));
 });
 
@@ -300,5 +303,98 @@ describe('MealPlanFormPage (characterization)', () => {
       recipes: [{ recipeId: 'r1', servings: 6, orderIndex: 0 }],
     });
     expect(await screen.findByText('Plan Detail Page')).toBeInTheDocument();
+  });
+});
+
+function suggestion(id: string, title: string, reasons: string[]): MealPlanSuggestion {
+  return {
+    recipe: { id, title, servings: 2, courses: ['SIDE'] },
+    score: 5,
+    reasons,
+    breakdown: reasons.map((reason) => ({ rule: 'course-complement' as const, points: 1, reason })),
+  };
+}
+
+describe('MealPlanFormPage — complementary suggestions', () => {
+  it('shows suggestions with their reason chips for the current selection', async () => {
+    mockFetchMealPlan.mockResolvedValue(undefined);
+    mockFetchSuggestions.mockImplementation(async (ids: string[]) =>
+      ids.includes('r1') ? [suggestion('s1', 'Garlic bread', ['fills bread course', 'keeps meal vegetarian'])] : [],
+    );
+    renderNew();
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Add Pasta' }));
+
+    const panel = (await screen.findByRole('heading', { name: 'Goes well with this meal' })).closest('section')!;
+    expect(within(panel).getByText('Garlic bread')).toBeInTheDocument();
+    const chips = within(panel).getByRole('list', { name: 'Why Garlic bread' });
+    expect(within(chips).getByText('fills bread course')).toBeInTheDocument();
+    expect(within(chips).getByText('keeps meal vegetarian')).toBeInTheDocument();
+    expect(mockFetchSuggestions).toHaveBeenLastCalledWith(['r1'], { diets: undefined, freeFrom: undefined });
+  });
+
+  it('shows at most 3 suggestions', async () => {
+    mockFetchMealPlan.mockResolvedValue(makePlan());
+    mockFetchSuggestions.mockResolvedValue([
+      suggestion('s1', 'One', []),
+      suggestion('s2', 'Two', []),
+      suggestion('s3', 'Three', []),
+      suggestion('s4', 'Four', []),
+    ]);
+    renderEdit();
+
+    expect(await screen.findByText('Three')).toBeInTheDocument();
+    expect(screen.queryByText('Four')).not.toBeInTheDocument();
+  });
+
+  it('one-tap Add inserts the suggestion into the meal and refreshes the list', async () => {
+    mockFetchMealPlan.mockResolvedValue(makePlan());
+    mockFetchSuggestions.mockImplementation(async (ids: string[]) =>
+      ids.includes('s1')
+        ? [suggestion('s2', 'Lemon tart', ['fills dessert course'])]
+        : [suggestion('s1', 'Garlic bread', ['fills bread course'])],
+    );
+    renderEdit();
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Add Garlic bread to meal' }));
+
+    // Added to the meal panel (with the suggestion's default servings) …
+    expect(await screen.findByText('Meal (2)')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Garlic bread' })).toBeInTheDocument();
+    // … and the suggestions refetch for the new selection.
+    expect(await screen.findByText('Lemon tart')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add Garlic bread to meal' })).not.toBeInTheDocument();
+    expect(mockFetchSuggestions).toHaveBeenLastCalledWith(['r1', 's1'], { diets: undefined, freeFrom: undefined });
+  });
+
+  it('renders nothing when there are no suggestions', async () => {
+    mockFetchMealPlan.mockResolvedValue(makePlan());
+    renderEdit();
+
+    await screen.findByText('Edit Meal Plan');
+    await waitFor(() => expect(mockFetchSuggestions).toHaveBeenCalled());
+    expect(screen.queryByRole('heading', { name: 'Goes well with this meal' })).not.toBeInTheDocument();
+  });
+
+  it('passes the active dietary filter to the suggestions endpoint', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const body = String(input).includes('/api/meta')
+        ? { allergens: ['dairy'], diets: ['vegetarian'], allergenLabels: { dairy: 'Dairy' }, dietLabels: { vegetarian: 'Vegetarian' } }
+        : [];
+      return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }));
+    mockFetchMealPlan.mockResolvedValue(makePlan());
+    renderEdit();
+
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Filters/ }));
+    await user.click(await screen.findByRole('button', { name: 'Vegetarian' }));
+    await user.click(screen.getByRole('button', { name: 'Dairy' }));
+
+    await waitFor(() =>
+      expect(mockFetchSuggestions).toHaveBeenLastCalledWith(['r1'], { diets: 'vegetarian', freeFrom: 'dairy' }),
+    );
   });
 });

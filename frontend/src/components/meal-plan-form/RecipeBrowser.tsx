@@ -5,6 +5,7 @@ import { FilterPanel } from '../FilterPanel';
 import { fetchCoverPhoto } from './types';
 import { formatDuration } from '../../utils/formatDuration';
 import type { Recipe } from '../../types/recipe';
+import type { SuggestionFilters } from '../../types/meal-plan';
 
 const base = 'rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500';
 
@@ -82,12 +83,14 @@ interface RecipeBrowserProps {
   onAdd: (recipe: Recipe) => void;
   onRemove: (recipeId: string) => void;
   onView: (recipeId: string) => void;
+  /** Reports the active diet/allergen filter so suggestions can respect it. */
+  onDietaryFilterChange?: (filters: SuggestionFilters) => void;
 }
 
 /** The left-hand "Browse Recipes" panel: search box, FilterPanel (dietary/allergen/label/course
  *  filters served from useDietaryTags via FilterPanel), the candidate-recipe grid, and pagination.
  *  All filtering is server-side through the recipe query. */
-export function RecipeBrowser({ selectedIds, onAdd, onRemove, onView }: RecipeBrowserProps) {
+export function RecipeBrowser({ selectedIds, onAdd, onRemove, onView, onDietaryFilterChange }: RecipeBrowserProps) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState<RecipeFilters>({});
@@ -113,7 +116,11 @@ export function RecipeBrowser({ selectedIds, onAdd, onRemove, onView }: RecipeBr
       </div>
 
       <FilterPanel
-        onFilterChange={(f) => { setFilters(f); setPage(1); }}
+        onFilterChange={(f) => {
+          setFilters(f);
+          setPage(1);
+          onDietaryFilterChange?.({ diets: f.diets, freeFrom: f.freeFrom });
+        }}
       />
 
       {recipesLoading && <p className="text-gray-500 text-sm mt-2">Loading recipes…</p>}

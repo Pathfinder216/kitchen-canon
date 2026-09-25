@@ -1,5 +1,6 @@
 import type { Ingredient } from '../../types/recipe';
-import { formatScaledAmount } from '../../hooks/useScaling';
+import { formatQuantity } from '../../utils/convertUnit';
+import { useUnitSystem } from '../../hooks/usePreferences';
 
 interface IngredientChecklistProps {
   ingredients: Ingredient[];
@@ -20,6 +21,7 @@ export function IngredientChecklist({
   swapDisplayNames,
   onToggle,
 }: IngredientChecklistProps) {
+  const unitSystem = useUnitSystem();
   return (
     <details className="mt-6 bg-white border border-gray-200 rounded-xl overflow-hidden">
       <summary className="px-5 py-3 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-50 select-none">
@@ -44,8 +46,7 @@ export function IngredientChecklist({
             >
               {ing.amount !== null && (
                 <span className="font-medium">
-                  {formatScaledAmount(ing.amount)}{' '}
-                  {ing.unit}{' '}
+                  {formatQuantity(ing.amount, ing.unit, unitSystem)}{' '}
                 </span>
               )}
               {swapDisplayNames.get(ing.id) ?? ing.name}

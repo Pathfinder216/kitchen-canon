@@ -1,5 +1,6 @@
 import type { Recipe, Ingredient } from '../../types/recipe';
-import { formatScaledAmount } from '../../hooks/useScaling';
+import { formatQuantity } from '../../utils/convertUnit';
+import type { UnitSystemPreference } from '../../api/preferences';
 import { COURSE_DISPLAY_NAMES } from '../../api/courses';
 import { priorInstructions, resolveIngredientRefsText } from '../../utils/resolveIngredientRefs';
 import { formatDuration } from '../../utils/formatDuration';
@@ -11,10 +12,18 @@ interface PrintLayoutProps {
   /** Ingredient ID → substituted display name. */
   swapDisplayNames: Map<string, string>;
   targetServings: number;
+  /** Display unit system (plan 27) — the printout matches what's on screen. Default: as authored. */
+  unitSystem?: UnitSystemPreference;
 }
 
 /** Print-only layout (hidden on screen, shown via `print:block`). */
-export function PrintLayout({ recipe, finalIngredients, swapDisplayNames, targetServings }: PrintLayoutProps) {
+export function PrintLayout({
+  recipe,
+  finalIngredients,
+  swapDisplayNames,
+  targetServings,
+  unitSystem = 'original',
+}: PrintLayoutProps) {
   return (
     <div className="hidden print:block text-black">
       <h1 className="text-2xl font-bold mb-1">{recipe.title}</h1>
@@ -38,8 +47,7 @@ export function PrintLayout({ recipe, finalIngredients, swapDisplayNames, target
           <li key={ing.id}>
             {ing.amount !== null && (
               <span className="font-medium">
-                {formatScaledAmount(ing.amount)}{' '}
-                {ing.unit}{' '}
+                {formatQuantity(ing.amount, ing.unit, unitSystem)}{' '}
               </span>
             )}
             {swapDisplayNames.get(ing.id) ?? ing.name}
@@ -55,7 +63,7 @@ export function PrintLayout({ recipe, finalIngredients, swapDisplayNames, target
           <li key={step.id} className="flex gap-2">
             <span className="font-semibold shrink-0">{index + 1}.</span>
             <span>
-              {resolveIngredientRefsText(step.instruction, finalIngredients, 1, swapDisplayNames, priorInstructions(recipe.steps, index))}
+              {resolveIngredientRefsText(step.instruction, finalIngredients, 1, swapDisplayNames, priorInstructions(recipe.steps, index), unitSystem)}
               {!!step.timeMinutes && (
                 <span className="text-gray-500"> ({formatDuration(step.timeMinutes)}{step.isActiveTime ? ', active' : ''})</span>
               )}

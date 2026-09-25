@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Ingredient, Step } from '../../types/recipe';
 import { StepMedia } from '../StepMedia';
 import { resolveIngredientRefs } from '../../utils/resolveIngredientRefs';
+import { useUnitSystem } from '../../hooks/usePreferences';
 import { formatDuration } from '../../utils/formatDuration';
 import { StepTimerControls, type CustomTime } from './StepTimerControls';
 import type { TimerState } from '../../hooks/useStepTimers';
@@ -34,6 +35,7 @@ export function StepCard({
   onPause,
   onReset,
 }: StepCardProps): ReactNode {
+  const unitSystem = useUnitSystem();
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
       <div className="flex items-center gap-2 mb-4">
@@ -47,7 +49,7 @@ export function StepCard({
         )}
       </div>
       <p className="text-gray-800 text-lg leading-relaxed">
-        {resolveIngredientRefs(step.instruction, scaledIngredients, 1, swapDisplayNames, priorInstructions)}
+        {resolveIngredientRefs(step.instruction, scaledIngredients, 1, swapDisplayNames, priorInstructions, unitSystem)}
       </p>
       <StepMedia stepId={step.id} readOnly />
       {!step.isActiveTime && (

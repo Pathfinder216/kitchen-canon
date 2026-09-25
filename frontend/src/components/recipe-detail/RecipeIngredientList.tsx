@@ -1,4 +1,5 @@
-import { formatScaledAmount } from '../../hooks/useScaling';
+import { formatQuantity } from '../../utils/convertUnit';
+import { useUnitSystem } from '../../hooks/usePreferences';
 import { SubstitutionsMenu } from './SubstitutionsMenu';
 import type { Ingredient } from '../../types/recipe';
 import type { Substitution } from '../../api/substitutions';
@@ -25,6 +26,7 @@ export function RecipeIngredientList({
   onRemoveSwap,
   onClearSwaps,
 }: RecipeIngredientListProps) {
+  const unitSystem = useUnitSystem();
   return (
     <>
       {/* Active swap chips */}
@@ -73,7 +75,7 @@ export function RecipeIngredientList({
                 <span className="text-gray-400 mt-0.5">-</span>
                 <span className={`flex-1 ${ing.isOptional ? 'text-gray-500' : 'text-gray-900'}`}>
                   {displayAmount !== null
-                    ? `${formatScaledAmount(displayAmount)}${ing.unit ? ' ' + ing.unit : ''} `
+                    ? `${formatQuantity(displayAmount, ing.unit, unitSystem)} `
                     : ''}
                   <span className="font-medium">{displayName}</span>
                   {swap && (

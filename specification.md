@@ -218,6 +218,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - optional ingredients
 - per-ingredient notes (e.g. "use Cooper brand", "chopped into 1-inch cubes") shown in the recipe detail list and cook-mode checklist and preserved across version edits/restores, excluded from grocery consolidation
 - canonical ingredient units (free-text unit entry normalized to consistent abbreviations at write time — create/update/import — so displays are uniform and grocery consolidation merges spelling variants like `tbsp`/`tablespoon`)
+- display-time unit conversion: a per-user **Settings** choice of As written / Metric / US-imperial converts ingredient quantities (recipe detail, print, cook-mode checklist and step references, grocery list) to sensible units with kitchen-friendly rounding (`830 ml`, `1 ½ lb`, `⅓ cup`), and appends the converted temperature to oven temperatures in step text ("400°F (200°C)"); count units like cloves or cans are never converted, and stored recipes, exports and API responses always keep the authored units
 - serving scaling with percent-based ingredient references in steps (a bare reference takes the remaining percent after earlier steps)
 - per-recipe and per-step media (optional crop at upload — pan/zoom with Original/1:1/4:3/16:9 ratios or "Use full image", done in the browser; videos upload as-is — and cover/step images shown at their natural aspect ratio instead of being cropped to a fixed frame)
 - search + include/exclude-ingredient + label/course/diet filtering

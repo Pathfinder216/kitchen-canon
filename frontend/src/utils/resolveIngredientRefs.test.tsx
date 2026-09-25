@@ -147,3 +147,42 @@ describe('resolveIngredientRefs', () => {
     expect(container.textContent).toBe(textAt(steps, 1, ingredients, 2));
   });
 });
+
+describe('unit conversion (plan 27)', () => {
+  const cupFlour = ing('i1', 'flour', 1, 'cup');
+  const step = 'Heat oven to 400°F. Whisk {flour:50%} with milk.';
+
+  it("'original' is a zero transformation", () => {
+    expect(resolveIngredientRefsText(step, [cupFlour], 1, undefined, [], 'original')).toBe(
+      'Heat oven to 400°F. Whisk ½ cup flour with milk.',
+    );
+    // …and matches the default (no unitSystem argument).
+    expect(resolveIngredientRefsText(step, [cupFlour])).toBe(
+      resolveIngredientRefsText(step, [cupFlour], 1, undefined, [], 'original'),
+    );
+  });
+
+  it('converts ref quantities and annotates temperatures on the literal text', () => {
+    expect(resolveIngredientRefsText(step, [cupFlour], 1, undefined, [], 'metric')).toBe(
+      'Heat oven to 400°F (200°C). Whisk 120 ml flour with milk.',
+    );
+  });
+
+  it('converts the scaled amount, not the stored one', () => {
+    expect(resolveIngredientRefsText('Add {flour}.', [cupFlour], 2, undefined, [], 'metric')).toBe(
+      'Add 475 ml flour.',
+    );
+  });
+
+  it('renders the same text as the plain-text resolver', () => {
+    const { container } = render(<p>{resolveIngredientRefs(step, [cupFlour], 1, undefined, [], 'metric')}</p>);
+    expect(container.textContent).toBe('Heat oven to 400°F (200°C). Whisk 120 ml flour with milk.');
+    expect(container.querySelector('[data-converted-temperature]')).not.toBeNull();
+  });
+
+  it('leaves count refs alone while annotating a temperature after them', () => {
+    const cans = ing('i3', 'Cans', 180, null);
+    const text = resolveIngredientRefsText('Open {Cans} at 180°C.', [cans], 1, undefined, [], 'imperial');
+    expect(text).toBe('Open 180 Cans at 180°C (350°F).');
+  });
+});

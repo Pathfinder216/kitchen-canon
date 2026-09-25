@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { useRecipe } from '../hooks/useRecipes';
 import { priorInstructions, resolveIngredientRefsText } from '../utils/resolveIngredientRefs';
+import { useUnitSystem } from '../hooks/usePreferences';
 import { formatDuration } from '../utils/formatDuration';
 import { playTimerSound, useStepTimers } from '../hooks/useStepTimers';
 import { useWakeLock } from '../hooks/useWakeLock';
@@ -38,6 +39,7 @@ export function CookModePage() {
   });
 
   const { supported: wakeLockSupported } = useWakeLock();
+  const unitSystem = useUnitSystem();
 
   // Whole-screen swipe navigation; the app navbar and the cook-mode header
   // row are opted out so gestures there never change the step.
@@ -154,7 +156,7 @@ export function CookModePage() {
           <div className="mt-4 border border-gray-200 rounded-xl px-4 py-3 bg-gray-50">
             <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Next step</p>
             <p className="text-sm text-gray-500 line-clamp-2 leading-snug">
-              {resolveIngredientRefsText(steps[currentStep + 1].instruction, scaledIngredients, 1, swapDisplayNames, priorInstructions(steps, currentStep + 1))}
+              {resolveIngredientRefsText(steps[currentStep + 1].instruction, scaledIngredients, 1, swapDisplayNames, priorInstructions(steps, currentStep + 1), unitSystem)}
             </p>
             {!!steps[currentStep + 1].timeMinutes && (
               <p className="text-xs text-gray-400 mt-1">{formatDuration(steps[currentStep + 1].timeMinutes)}</p>

@@ -2,11 +2,13 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { validate } from '../middleware/validate.js';
 import {
   createMealPlanSchema,
+  suggestionsQuerySchema,
   timelineQuerySchema,
   updateGroceryItemSchema,
   updateMealPlanSchema,
 } from '../schemas/meal-plan.schema.js';
 import * as mealPlanService from '../services/meal-plan.service.js';
+import * as suggestionsService from '../services/suggestions.service.js';
 import * as timelineService from '../services/timeline.service.js';
 
 const router = Router();
@@ -33,6 +35,17 @@ router.post(
   asyncHandler(async (req, res) => {
     const mealPlan = await mealPlanService.createMealPlan(req.userId!, req.body);
     res.status(201).json(mealPlan);
+  }),
+);
+
+// GET /api/meal-plans/suggestions?recipeIds=a,b&diets=vegetarian&freeFrom=dairy — recipes that
+// complement the current selection. Registered before `/:id` so "suggestions" isn't read as an id.
+router.get(
+  '/suggestions',
+  asyncHandler(async (req, res) => {
+    const query = suggestionsQuerySchema.parse(req.query);
+    const suggestions = await suggestionsService.getSuggestions(req.userId!, query);
+    res.json(suggestions);
   }),
 );
 

@@ -31,7 +31,7 @@ interface SelectedRecipesListProps {
 /** The right-hand "Meal" panel: chosen recipes with servings inputs + active-substitution chips. */
 export function SelectedRecipesList({ selected, onRemove, onUpdateServings }: SelectedRecipesListProps) {
   return (
-    <div className="lg:w-80 shrink-0 w-full">
+    <div>
       <h2 className="text-sm font-semibold text-gray-700 mb-2">
         Meal{selected.length > 0 ? ` (${selected.length})` : ''}
       </h2>

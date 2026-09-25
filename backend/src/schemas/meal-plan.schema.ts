@@ -44,5 +44,17 @@ export const timelineQuerySchema = z.object({
     .transform((s) => new Date(s)),
 });
 
+/** Comma-separated list → trimmed, non-empty strings (missing/empty → []). */
+const csvList = z
+  .string()
+  .optional()
+  .transform((s) => (s ? s.split(',').map((v) => v.trim()).filter(Boolean) : []));
+
+export const suggestionsQuerySchema = z.object({
+  recipeIds: csvList.refine((ids) => ids.length <= 50, { message: 'Too many recipeIds (max 50)' }),
+  diets: csvList,
+  freeFrom: csvList,
+});
+
 export type CreateMealPlanInput = z.infer<typeof createMealPlanSchema>;
 export type UpdateMealPlanInput = z.infer<typeof updateMealPlanSchema>;

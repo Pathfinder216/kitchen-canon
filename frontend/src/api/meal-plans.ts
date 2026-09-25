@@ -1,5 +1,14 @@
 import { apiGet, apiPatch, apiPost } from './client';
-import type { CookingTimeline, CreateMealPlanInput, GroceryItem, MealPlanDetail, MealPlanSummary, UpdateMealPlanInput } from '../types/meal-plan';
+import type {
+  CookingTimeline,
+  CreateMealPlanInput,
+  GroceryItem,
+  MealPlanDetail,
+  MealPlanSuggestion,
+  MealPlanSummary,
+  SuggestionFilters,
+  UpdateMealPlanInput,
+} from '../types/meal-plan';
 
 export async function fetchMealPlans(): Promise<MealPlanSummary[]> {
   return apiGet<MealPlanSummary[]>('/meal-plans');
@@ -36,4 +45,17 @@ export async function fetchMealPlanTimeline(id: string, serveAt: string): Promis
 
 export async function recalculateMealPlanDietaryInfo(id: string): Promise<MealPlanDetail> {
   return apiPost<MealPlanDetail>(`/meal-plans/${id}/recalculate`, {});
+}
+
+/** Recipes that complement the given selection (empty when the user has fewer than 5 recipes). */
+export async function fetchMealPlanSuggestions(
+  recipeIds: string[],
+  filters: SuggestionFilters = {},
+): Promise<MealPlanSuggestion[]> {
+  const params = new URLSearchParams();
+  if (recipeIds.length > 0) params.set('recipeIds', recipeIds.join(','));
+  if (filters.diets) params.set('diets', filters.diets);
+  if (filters.freeFrom) params.set('freeFrom', filters.freeFrom);
+  const qs = params.toString();
+  return apiGet<MealPlanSuggestion[]>(`/meal-plans/suggestions${qs ? `?${qs}` : ''}`);
 }

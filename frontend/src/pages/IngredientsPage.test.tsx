@@ -12,8 +12,16 @@ vi.mock('../api/ingredients', async () => {
     createIngredientEntry: vi.fn(),
     updateIngredientEntry: vi.fn(),
     deleteIngredientEntry: vi.fn(),
+    suggestIngredients: vi.fn().mockResolvedValue([]),
   };
 });
+
+vi.mock('../api/nutrition', async () => ({
+  ...(await vi.importActual<typeof import('../api/nutrition')>('../api/nutrition')),
+  fetchNutritionStatus: vi.fn().mockResolvedValue({ lookupConfigured: true }),
+  searchNutrition: vi.fn(),
+  fetchFdcFood: vi.fn(),
+}));
 
 vi.mock('../hooks/useDietaryTags', () => ({
   useDietaryTags: () => ({
@@ -38,6 +46,8 @@ import {
   deleteIngredientEntry,
 } from '../api/ingredients';
 
+import { fetchFdcFood, searchNutrition, type FdcMatch } from '../api/nutrition';
+
 const mockFetch = fetchIngredients as ReturnType<typeof vi.fn>;
 const mockCreate = createIngredientEntry as ReturnType<typeof vi.fn>;
 const mockUpdate = updateIngredientEntry as ReturnType<typeof vi.fn>;
@@ -50,6 +60,7 @@ function entry(overrides: Partial<CatalogEntry>): CatalogEntry {
     allergens: [],
     diets: [],
     aisle: null,
+    nutrition: null,
     isUserAdded: false,
     userId: null,
     aliases: [],
@@ -193,6 +204,51 @@ describe('IngredientsPage', () => {
       allergens: ['dairy'],
       diets: ['vegetarian'],
       aisle: 'deli',
+    });
+  });
+
+  it('shows recorded nutrition and saves a USDA lookup onto a user entry', async () => {
+    const milk: FdcMatch = {
+      fdcId: 171265,
+      description: 'Milk, whole, 3.25% milkfat, with added vitamin D',
+      dataType: 'SR Legacy',
+      foodCategory: 'Dairy and Egg Products',
+      nutrition: {
+        per100g: { calories: 61, protein: 3.15 },
+        source: 'fdc',
+        fdcId: 171265,
+        fdcDescription: 'Milk, whole, 3.25% milkfat, with added vitamin D',
+      },
+    };
+    const detail = { ...milk, nutrition: { ...milk.nutrition, gramsPerUnit: { cup: 244, tbsp: 15 } } };
+    vi.mocked(searchNutrition).mockResolvedValue([milk]);
+    vi.mocked(fetchFdcFood).mockResolvedValue(detail);
+    const oatMilk = entry({
+      id: 'u3', displayAlias: 'oat milk', diets: ['vegan'], isUserAdded: true, userId: 'user-1',
+      nutrition: { per100g: { calories: 46, protein: 1 }, source: 'manual' },
+    });
+    mockFetch.mockResolvedValue([oatMilk]);
+    mockUpdate.mockResolvedValue(oatMilk);
+    const user = userEvent.setup();
+    renderWithProviders(<IngredientsPage />);
+
+    expect(await screen.findByText('46 kcal · 1 g protein / 100 g')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /edit ingredient/i }));
+    // Existing nutrition opens the section pre-filled.
+    expect(screen.getByLabelText('Calories (kcal)')).toHaveValue(46);
+    const term = screen.getByLabelText('USDA search term');
+    await user.clear(term);
+    await user.type(term, 'whole milk');
+    await user.click(await screen.findByRole('button', { name: 'Look up nutrition' }));
+    expect(searchNutrition).toHaveBeenCalledWith('whole milk');
+    await user.click(await screen.findByRole('button', { name: /Milk, whole/ }));
+    await screen.findByText(/1 cup = 244 g/);
+    await user.click(screen.getByRole('button', { name: /^save$/i }));
+
+    expect(mockUpdate).toHaveBeenCalledWith('u3', {
+      allergens: [],
+      diets: ['vegan'],
+      nutrition: detail.nutrition,
     });
   });
 });

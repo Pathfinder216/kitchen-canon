@@ -1,4 +1,5 @@
 import { apiGet, apiPost, apiPatch, apiDelete } from './client';
+import type { Nutrition } from './nutrition';
 
 export interface CatalogAlias {
   id: string;
@@ -12,6 +13,8 @@ export interface CatalogEntry {
   diets: string[];
   /** Grocery aisle key (see GET /api/meta `aisles`); null = unassigned. */
   aisle: string | null;
+  /** Per-100 g nutrition captured at classification time; null = none recorded. */
+  nutrition: Nutrition | null;
   isUserAdded: boolean;
   /** null = built-in global entry; otherwise the owning user's id. */
   userId: string | null;
@@ -29,6 +32,7 @@ export interface IngredientSuggestion {
   allergens: string[];
   diets: string[];
   aisle: string | null;
+  nutrition: Nutrition | null;
   /** Fuzzy similarity in [0, 1]; suggestions arrive best-first. */
   score: number;
 }
@@ -38,11 +42,19 @@ export function suggestIngredients(name: string): Promise<IngredientSuggestion[]
   return apiGet<IngredientSuggestion[]>('/ingredients/suggest', { name });
 }
 
-export function createIngredientEntry(data: { name: string; allergens: string[]; diets: string[]; aisle?: string | null }): Promise<CatalogEntry> {
+/** Omitted `aisle`/`nutrition` keep the current value (a new shadow inherits the built-in's); null clears. */
+export interface CatalogWriteFields {
+  allergens: string[];
+  diets: string[];
+  aisle?: string | null;
+  nutrition?: Nutrition | null;
+}
+
+export function createIngredientEntry(data: CatalogWriteFields & { name: string }): Promise<CatalogEntry> {
   return apiPost<CatalogEntry>('/ingredients', data);
 }
 
-export function updateIngredientEntry(id: string, data: { allergens: string[]; diets: string[]; aisle?: string | null }): Promise<CatalogEntry> {
+export function updateIngredientEntry(id: string, data: CatalogWriteFields): Promise<CatalogEntry> {
   return apiPatch<CatalogEntry>(`/ingredients/${id}`, data);
 }
 

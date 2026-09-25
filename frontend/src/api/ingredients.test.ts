@@ -18,6 +18,7 @@ function entry(overrides: Partial<CatalogEntry>): CatalogEntry {
     allergens: [],
     diets: [],
     aisle: null,
+    nutrition: null,
     isUserAdded: false,
     userId: null,
     aliases: [],

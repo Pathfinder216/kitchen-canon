@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createIngredientEntry, type IngredientSuggestion } from '../../api/ingredients';
+import { createIngredientEntry } from '../../api/ingredients';
 import { useDietaryTags } from '../../hooks/useDietaryTags';
-import { IngredientSuggestions } from '../IngredientSuggestions';
+import { CopyFromSimilar, type CopySource } from '../nutrition/CopyFromSimilar';
+import { NutritionEditor } from '../nutrition/NutritionEditor';
+import { draftToNutrition, emptyNutritionDraft, nutritionToDraft } from '../../utils/nutrition';
 
 export function InlineClassifyPanel({ ingredientName, recipeId, onSaved, onClose }: {
   ingredientName: string;
@@ -15,8 +17,9 @@ export function InlineClassifyPanel({ ingredientName, recipeId, onSaved, onClose
   const { allergens: ALLERGENS, diets: DIETS, allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const [allergens, setAllergens] = useState<string[]>([]);
   const [diets, setDiets] = useState<string[]>([]);
-  // The "Did you mean …?" entry the tags were prefilled from, if any (its aisle is saved too).
-  const [picked, setPicked] = useState<IngredientSuggestion | null>(null);
+  // The similar entry the form was prefilled from, if any (its aisle is saved too).
+  const [picked, setPicked] = useState<CopySource | null>(null);
+  const [nutrition, setNutrition] = useState(emptyNutritionDraft);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,9 +31,10 @@ export function InlineClassifyPanel({ ingredientName, recipeId, onSaved, onClose
     }
   }
 
-  function pickSuggestion(s: IngredientSuggestion) {
+  function pickSuggestion(s: CopySource) {
     setAllergens(s.allergens);
     setDiets(s.diets);
+    if (s.nutrition) setNutrition(nutritionToDraft(s.nutrition, 'copied'));
     setPicked(s);
   }
 
@@ -38,11 +42,13 @@ export function InlineClassifyPanel({ ingredientName, recipeId, onSaved, onClose
     setSaving(true);
     setError(null);
     try {
+      const parsedNutrition = draftToNutrition(nutrition);
       await createIngredientEntry({
         name: ingredientName.toLowerCase().trim(),
         allergens,
         diets,
         ...(picked?.aisle && { aisle: picked.aisle }),
+        ...(parsedNutrition && { nutrition: parsedNutrition }),
       });
       await queryClient.invalidateQueries({ queryKey: ['ingredients'] });
       if (recipeId) await queryClient.invalidateQueries({ queryKey: ['recipe-dietary', recipeId] });
@@ -60,9 +66,11 @@ export function InlineClassifyPanel({ ingredientName, recipeId, onSaved, onClose
         <p className="text-xs font-semibold text-amber-800">Classify "{ingredientName}"</p>
         <button type="button" onClick={onClose} className="text-amber-500 hover:text-amber-700 text-base leading-none">×</button>
       </div>
-      <IngredientSuggestions name={ingredientName} selectedId={picked?.id} onPick={pickSuggestion} />
+      <CopyFromSimilar name={ingredientName} selectedId={picked?.id} onPick={pickSuggestion} />
       {picked && (
-        <p className="text-xs text-amber-700">Tags copied from "{picked.displayAlias}" — review, then save.</p>
+        <p className="text-xs text-amber-700">
+          {picked.nutrition ? 'Tags and nutrition' : 'Tags'} copied from "{picked.displayAlias}" — review, then save.
+        </p>
       )}
       <div>
         <p className="text-xs text-gray-500 mb-1">Allergens</p>
@@ -92,6 +100,11 @@ export function InlineClassifyPanel({ ingredientName, recipeId, onSaved, onClose
           })}
         </div>
       </div>
+      <NutritionEditor
+        ingredientName={ingredientName.toLowerCase().trim()}
+        value={nutrition}
+        onChange={setNutrition}
+      />
       {error && <p className="text-xs text-red-600">{error}</p>}
       <div className="flex gap-2">
         <button type="button" onClick={handleSave} disabled={saving}

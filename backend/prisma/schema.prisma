@@ -199,6 +199,9 @@ model IngredientCatalog {
   allergens    Json              @default("[]") // string[]
   diets        Json              @default("[]") // string[] — diets this ingredient is compatible with
   aisle        String?           // grocery aisle key (see constants/aisles.ts); null = unassigned
+  // Nutrition (see schemas/nutrition.schema.ts): { per100g, gramsPerUnit?, source, fdcId?, fdcDescription? }.
+  // Captured at classification time (USDA FDC lookup, manual, or copied); null = none recorded.
+  nutrition    Json?
   isUserAdded  Boolean           @default(false)
   createdAt    DateTime          @default(now())
   userId       String?           // null = global/seeded, non-null = user's private ingredient

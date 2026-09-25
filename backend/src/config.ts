@@ -24,6 +24,13 @@ const envSchema = z.object({
   // value (constant-time). The default empty string means an empty code is valid → open signup;
   // set it to a secret to gate registration.
   SIGNUP_INVITE_CODE: z.string().default(''),
+  // USDA FoodData Central API key for the nutrition lookup (plan 34). Optional: when unset the
+  // lookup reports "not configured" and manual nutrition entry still works. Free key:
+  // https://fdc.nal.usda.gov/api-key-signup
+  FDC_API_KEY: z
+    .string()
+    .optional()
+    .transform((v) => (v?.trim() ? v.trim() : undefined)),
 });
 
 const parsed = envSchema.safeParse(process.env);

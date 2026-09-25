@@ -7,6 +7,13 @@ import { ClassifyIngredientsPanel } from './ClassifyIngredientsPanel';
 vi.mock('../api/ingredients', () => ({
   createIngredientEntry: vi.fn().mockResolvedValue({}),
   suggestIngredients: vi.fn(),
+  fetchIngredients: vi.fn().mockResolvedValue([]),
+}));
+vi.mock('../api/nutrition', async () => ({
+  ...(await vi.importActual<typeof import('../api/nutrition')>('../api/nutrition')),
+  fetchNutritionStatus: vi.fn().mockResolvedValue({ lookupConfigured: false }),
+  searchNutrition: vi.fn(),
+  fetchFdcFood: vi.fn(),
 }));
 vi.mock('../hooks/useDietaryTags', () => ({
   useDietaryTags: () => ({ allergens: [], diets: [], allergenLabels: {}, dietLabels: {} }),
@@ -19,7 +26,7 @@ describe('ClassifyIngredientsPanel suggestions', () => {
     vi.clearAllMocks();
     vi.mocked(suggestIngredients).mockImplementation(async (name: string) =>
       name === 'tomatos'
-        ? [{ id: 't1', displayAlias: 'tomatoes', allergens: [], diets: ['vegan'], aisle: 'produce', score: 0.82 }]
+        ? [{ id: 't1', displayAlias: 'tomatoes', allergens: [], diets: ['vegan'], aisle: 'produce', nutrition: null, score: 0.82 }]
         : [],
     );
   });

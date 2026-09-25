@@ -213,6 +213,7 @@ A recipe management application for collecting, consolidating, using, updating, 
 - author + personal notes
 - import from URL (schema.org JSON-LD + text fallback), .docx, .pdf, .txt, and photos of printed recipe cards/cookbook pages (OCR runs in the browser via tesseract.js; the extracted text is editable before it is parsed — handwriting OCRs poorly)
 - ingredient catalog with aliases, typo-tolerant typeahead (misspelled recipe searches and ingredient filters like "tomatos" also find the obvious match), and user classification of unknown ingredients with "Did you mean …?" one-tap suggestions that prefill tags from the closest catalog entries (fuzzy guesses never feed allergen detection until the user confirms; built-in entries are read-only in the UI with an explicit customize/reset-to-default override flow)
+- per-ingredient nutrition on the catalog (per 100 g: calories, protein, fat, saturated fat, carbs, fiber, sugar, sodium, plus grams-per-unit portions like 1 cup = 244 g), filled while classifying via a live USDA FoodData Central lookup the user confirms (server-side proxy; needs a free `FDC_API_KEY`, otherwise the lookup is hidden and values can be entered by hand) or copied in two taps from a similar catalog ingredient together with its tags — stored on the entry so nothing depends on USDA afterwards
 - auto dietary/allergen labels
 - substitutions (official + user-contributed, applied per meal-plan recipe with ratio conversion)
 - optional ingredients

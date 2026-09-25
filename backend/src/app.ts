@@ -17,6 +17,7 @@ import importRouter from './routes/import.js';
 import substitutionsRouter from './routes/substitutions.js';
 import mediaRouter from './routes/media.js';
 import ingredientsRouter from './routes/ingredients.js';
+import nutritionRouter from './routes/nutrition.js';
 import metaRouter from './routes/meta.js';
 import sharedRouter from './routes/shared.js';
 import exportRouter from './routes/export.js';
@@ -106,6 +107,7 @@ export function createApp() {
   app.use('/api/import', importRouter);
   app.use('/api/substitutions', substitutionsRouter);
   app.use('/api/ingredients', ingredientsRouter);
+  app.use('/api/nutrition', nutritionRouter);
   app.use('/api/meta', metaRouter);
   app.use('/api/export', exportRouter);
   app.use('/api', mediaRouter);

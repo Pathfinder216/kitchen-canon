@@ -88,6 +88,7 @@ describe('GET /api/ingredients/suggest', () => {
       allergens: [],
       diets: ['gluten_free', 'dairy_free', 'nut_free'],
       aisle: null,
+      nutrition: null,
       score: expect.any(Number),
     });
     const scores = res.body.map((s: { score: number }) => s.score);

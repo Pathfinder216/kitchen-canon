@@ -170,6 +170,7 @@ requires a session.
 | Ingredients (catalog) | `GET /api/ingredients?q=` (typeahead; appends fuzzy matches when the substring prefilter finds < 5), `GET /api/ingredients/suggest?name=` (top-3 fuzzy "Did you mean …?" matches → `{ id, displayAlias, allergens, diets, aisle, score }`), `POST /api/ingredients`, `PATCH /api/ingredients/:id`, `DELETE /api/ingredients/:id` |
 | Substitutions | `GET /api/substitutions?from=`, `POST /api/substitutions`, `DELETE /api/substitutions/:id` |
 | Media | `POST/GET /api/recipes/:id/media`, `DELETE /api/recipes/:id/media/:mediaId`, `POST/GET /api/steps/:stepId/media`, `DELETE /api/steps/:stepId/media/:mediaId`; files served at `GET /media/:filename` (authed) |
+| Preferences | `GET /api/preferences` (get-or-create the user's row → `{ unitSystem, locale, theme }`), `PATCH /api/preferences` (partial; `unitSystem` ∈ `original`/`imperial`/`metric`, `theme` ∈ `light`/`dark`, unknown keys → 400) |
 
 #### Cooking timeline (`services/timeline.service.ts`)
 
@@ -222,7 +223,7 @@ Source of truth: `backend/prisma/schema.prisma`. Summary of models and intent:
 | `MealPlan` | Owned by `userId`. `name`, `date`/`time` strings, `notes`, `cookedAt`, `dietaryInfo` JSON (`allergens`, `diets`, `unknownIngredients` — computed across recipes after substitutions; optional ingredients excluded from allergen detection). |
 | `MealRecipe` | Recipe-in-plan: pins `recipeVersion` used, per-plan `servings`, `substitutions` JSON (`Record<ingredientId, { toIngredient, ratio }>`). |
 | `GroceryItem` | Consolidated list rows (`ingredient`, `amount`, `unit`, `purchased`), regenerated from the plan's recipes. Meal-plan responses attach a read-time `aisle` per item (resolved name → catalog, user's entry first; not stored). |
-| `UserPreferences` | One per user (`locale`, `theme`). |
+| `UserPreferences` | One per user (`locale`, `theme`, `unitSystem` — `original` \| `imperial` \| `metric`, default `original`). Created on first `GET /api/preferences`. `unitSystem` drives display-time conversion only: the frontend (`utils/convertUnit.ts`, `utils/convertTemperature.tsx`) converts quantities and annotates step temperatures at render, using a hand-kept mirror of the `conversion` factors in `constants/units.ts`; stored data and API responses stay in authored units. |
 | `RecipeShare` | Public share link. `id` (uuid) doubles as the unguessable URL token; `recipeId` (any version row, resolved to the chain's latest at read), `userId` owner (cascade delete), `createdAt`, nullable `revokedAt` (set = dead link). Read via the public `/api/shared/:token` routes; never carries `personalNotes` or user ids to the viewer. |
 
 Notable design points:

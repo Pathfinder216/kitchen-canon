@@ -249,6 +249,9 @@ model UserPreferences {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   locale String @default("en-US")
   theme  String @default("light")
+  // Display-time unit conversion (plan 27): 'original' (as authored) | 'imperial' | 'metric'.
+  // Storage never changes — recipes keep their authored units.
+  unitSystem String @default("original")
 }
 
 model RecipeShare {

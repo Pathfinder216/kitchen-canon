@@ -51,3 +51,40 @@ describe('normalizeUnit', () => {
     }
   });
 });
+
+describe('unit conversion table (plan 27)', () => {
+  const byName = (name: string) => CANONICAL_UNITS.find((u) => u.canonical === name)!;
+  const toBase = (name: string, amount: number) => amount * byName(name).conversion!.toBase;
+  const fromBase = (name: string, base: number) => base / byName(name).conversion!.toBase;
+
+  it('gives every volume/weight unit a conversion and no count unit one', () => {
+    for (const unit of CANONICAL_UNITS) {
+      if (unit.kind === 'volume') expect(unit.conversion?.base).toBe('ml');
+      else if (unit.kind === 'weight') expect(unit.conversion?.base).toBe('g');
+      else expect(unit.conversion).toBeUndefined();
+    }
+  });
+
+  it('has metric identity units', () => {
+    expect(byName('ml').conversion).toEqual({ toBase: 1, base: 'ml' });
+    expect(byName('g').conversion).toEqual({ toBase: 1, base: 'g' });
+    expect(byName('l').conversion!.toBase).toBe(1000);
+    expect(byName('kg').conversion!.toBase).toBe(1000);
+  });
+
+  it('matches known kitchen equivalences', () => {
+    expect(toBase('cup', 1)).toBeCloseTo(236.6, 1);
+    expect(toBase('tbsp', 3)).toBeCloseTo(toBase('tsp', 9), 1);
+    expect(toBase('cup', 1)).toBeCloseTo(toBase('tbsp', 16), 0);
+    expect(toBase('qt', 1)).toBeCloseTo(toBase('pt', 2), 1);
+    expect(toBase('gal', 1)).toBeCloseTo(toBase('qt', 4), 0);
+    expect(toBase('lb', 1)).toBeCloseTo(toBase('oz', 16), 1);
+  });
+
+  it('round-trips through the base unit', () => {
+    for (const unit of CANONICAL_UNITS) {
+      if (!unit.conversion) continue;
+      expect(fromBase(unit.canonical, toBase(unit.canonical, 2.5))).toBeCloseTo(2.5, 10);
+    }
+  });
+});

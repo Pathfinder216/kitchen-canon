@@ -1,5 +1,7 @@
 import type { Ingredient } from '../types/recipe';
-import { formatScaledAmount } from '../hooks/useScaling';
+import type { UnitSystemPreference } from '../api/preferences';
+import { formatQuantity } from './convertUnit';
+import { annotateTemperatures, annotateTemperaturesText } from './convertTemperature';
 
 const REF_PATTERN = /\{([^}:]+)(?::(\d+(?:\.\d+)?)%)?\}/g;
 
@@ -74,11 +76,18 @@ function formatPct(pct: number): string {
   return String(Math.round(pct * 100) / 100);
 }
 
-function refLabel(ing: Ingredient, pct: number, multiplier: number, nameOverrides?: Map<string, string>): string {
+function refLabel(
+  ing: Ingredient,
+  pct: number,
+  multiplier: number,
+  nameOverrides: Map<string, string> | undefined,
+  unitSystem: UnitSystemPreference,
+): string {
   const scaledAmount = ing.amount !== null ? ing.amount * (pct / 100) * multiplier : null;
-  const amountStr = scaledAmount !== null ? formatScaledAmount(scaledAmount) : null;
+  // Unit conversion (plan 27) happens here, at label-build time, on the already-scaled amount.
+  const quantity = scaledAmount !== null ? formatQuantity(scaledAmount, ing.unit, unitSystem) : ing.unit;
   const displayName = nameOverrides?.get(ing.id) ?? ing.name;
-  return [amountStr, ing.unit, displayName].filter(Boolean).join(' ');
+  return [quantity, displayName].filter(Boolean).join(' ');
 }
 
 /**
@@ -89,6 +98,10 @@ function refLabel(ing: Ingredient, pct: number, multiplier: number, nameOverride
  * `prior` (the instructions of the earlier steps, in order) and earlier tokens in
  * this instruction — see `computeRemainingPercents`. Use `priorInstructions(steps, i)`.
  *
+ * `unitSystem` (plan 27) converts ref quantities for display and, on the plain-text
+ * segments between refs only, appends conversions to oven temperatures ("400°F (200°C)").
+ * `'original'` (the default) leaves everything exactly as authored.
+ *
  * Returns an array of React nodes (strings and <span> elements) that can be
  * spread inside a <p> or similar container.
  */
@@ -98,6 +111,7 @@ export function resolveIngredientRefs(
   multiplier = 1,
   nameOverrides?: Map<string, string>,
   prior: string[] = [],
+  unitSystem: UnitSystemPreference = 'original',
 ): React.ReactNode[] {
   const ingByInternalId = buildIngredientMap(ingredients);
   const percents = percentsFor(instruction, prior);
@@ -110,9 +124,9 @@ export function resolveIngredientRefs(
     const start = match.index;
     const { pct, bare } = percents[tokenIndex++];
 
-    // Push the literal text before this token
+    // Push the literal text before this token (temperature-annotated)
     if (start > lastIndex) {
-      parts.push(instruction.slice(lastIndex, start));
+      parts.push(...annotateTemperatures(instruction.slice(lastIndex, start), unitSystem, `temp-${lastIndex}`));
     }
 
     const ing = ingByInternalId.get(internalId);
@@ -131,7 +145,7 @@ export function resolveIngredientRefs(
           title={title}
           data-exhausted={exhausted || undefined}
         >
-          {refLabel(ing, pct, multiplier, nameOverrides)}
+          {refLabel(ing, pct, multiplier, nameOverrides, unitSystem)}
         </span>,
       );
     } else {
@@ -144,7 +158,7 @@ export function resolveIngredientRefs(
 
   // Remaining text after the last token
   if (lastIndex < instruction.length) {
-    parts.push(instruction.slice(lastIndex));
+    parts.push(...annotateTemperatures(instruction.slice(lastIndex), unitSystem, `temp-${lastIndex}`));
   }
 
   // If no tokens were found, return the plain string (avoids wrapping in array)
@@ -154,7 +168,7 @@ export function resolveIngredientRefs(
 /**
  * Returns a plain-text version of the instruction with {ref} tokens stripped
  * to just the resolved label (for use in aria labels, timer labels, etc).
- * `prior` has the same meaning as in `resolveIngredientRefs`.
+ * `prior` and `unitSystem` have the same meaning as in `resolveIngredientRefs`.
  */
 export function resolveIngredientRefsText(
   instruction: string,
@@ -162,14 +176,21 @@ export function resolveIngredientRefsText(
   multiplier = 1,
   nameOverrides?: Map<string, string>,
   prior: string[] = [],
+  unitSystem: UnitSystemPreference = 'original',
 ): string {
   const ingByInternalId = buildIngredientMap(ingredients);
   const percents = percentsFor(instruction, prior);
+  let out = '';
+  let lastIndex = 0;
   let tokenIndex = 0;
-  return instruction.replace(REF_PATTERN, (full, internalId: string) => {
+  for (const match of instruction.matchAll(REF_PATTERN)) {
+    const [full, internalId] = match;
     const { pct } = percents[tokenIndex++];
     const ing = ingByInternalId.get(internalId);
-    if (!ing) return full;
-    return refLabel(ing, pct, multiplier, nameOverrides);
-  });
+    // Refs first, then temperatures on the literal segments only (never inside a ref label).
+    out += annotateTemperaturesText(instruction.slice(lastIndex, match.index), unitSystem);
+    out += ing ? refLabel(ing, pct, multiplier, nameOverrides, unitSystem) : full;
+    lastIndex = match.index + full.length;
+  }
+  return out + annotateTemperaturesText(instruction.slice(lastIndex), unitSystem);
 }

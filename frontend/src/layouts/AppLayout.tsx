@@ -8,6 +8,7 @@ const navItems = [
   { path: '/substitutions', label: 'Substitutions' },
   { path: '/ingredients', label: 'Ingredients' },
   { path: '/import', label: 'Import' },
+  { path: '/settings', label: 'Settings' },
 ];
 
 function isActive(pathname: string, itemPath: string) {

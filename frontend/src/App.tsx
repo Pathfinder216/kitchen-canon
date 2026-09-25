@@ -19,6 +19,7 @@ import { RecipeVersionHistoryPage } from './pages/RecipeVersionHistoryPage';
 import { SubstitutionsPage } from './pages/SubstitutionsPage';
 import { IngredientsPage } from './pages/IngredientsPage';
 import { SharedRecipePage } from './pages/SharedRecipePage';
+import { SettingsPage } from './pages/SettingsPage';
 
 export default function App() {
   return (
@@ -49,6 +50,7 @@ export default function App() {
               <Route path="/import" element={<ImportPage />} />
               <Route path="/substitutions" element={<SubstitutionsPage />} />
               <Route path="/ingredients" element={<IngredientsPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
           </Route>
         </Routes>

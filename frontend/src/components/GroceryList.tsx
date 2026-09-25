@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { GroceryItem } from '../types/meal-plan';
-import { formatScaledAmount } from '../hooks/useScaling';
+import { formatQuantity } from '../utils/convertUnit';
+import { useUnitSystem } from '../hooks/usePreferences';
+import type { UnitSystemPreference } from '../api/preferences';
 import { useAisles, OTHER_AISLE, type AisleVocabulary } from '../hooks/useAisles';
 import { setIngredientAisle } from '../api/ingredients';
 import { Menu, MenuItemButton } from './ui/Menu';
@@ -12,14 +14,10 @@ interface GroceryListProps {
   onToggle?: (itemId: string, purchased: boolean) => void;
 }
 
-function formatAmount(amount: number | null, unit: string | null): string {
-  if (amount === null) return '';
-  const num = formatScaledAmount(amount);
-  return unit ? `${num} ${unit}` : num;
-}
-
-function itemText(item: GroceryItem): string {
-  return item.ingredient + (item.amount !== null ? ` — ${formatAmount(item.amount, item.unit)}` : '');
+// Unit conversion (plan 27) is applied at render only: consolidation already happened server-side
+// in canonical units, so converting each consolidated line is exact.
+function itemText(item: GroceryItem, unitSystem: UnitSystemPreference): string {
+  return item.ingredient + (item.amount !== null ? ` — ${formatQuantity(item.amount, item.unit, unitSystem)}` : '');
 }
 
 /** Normalize an item's aisle: missing or unknown to the vocabulary → "Other". */
@@ -122,6 +120,7 @@ function ChangeAisleDialog({
 
 export function GroceryList({ items, onToggle }: GroceryListProps) {
   const vocab = useAisles();
+  const unitSystem = useUnitSystem();
   const [copied, setCopied] = useState(false);
   const [changing, setChanging] = useState<GroceryItem | null>(null);
   const purchased = items.filter((i) => i.purchased);
@@ -130,7 +129,7 @@ export function GroceryList({ items, onToggle }: GroceryListProps) {
 
   function copyToClipboard() {
     const text = sections
-      .map((s) => [`${s.label}:`, ...s.items.map(itemText)].join('\n'))
+      .map((s) => [`${s.label}:`, ...s.items.map((item) => itemText(item, unitSystem))].join('\n'))
       .join('\n\n');
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -154,7 +153,7 @@ export function GroceryList({ items, onToggle }: GroceryListProps) {
         >
           {item.ingredient}
           {item.amount !== null && (
-            <span className="ml-2 text-sm text-gray-500">— {formatAmount(item.amount, item.unit)}</span>
+            <span className="ml-2 text-sm text-gray-500">— {formatQuantity(item.amount, item.unit, unitSystem)}</span>
           )}
         </label>
         {!item.purchased && vocab.aisles.length > 0 && (

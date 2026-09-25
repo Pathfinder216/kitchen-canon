@@ -26,8 +26,19 @@ vi.mock('../api/ingredients', async () => {
   return { ...actual, setIngredientAisle: vi.fn() };
 });
 
+// Default to the "original" preference so the existing assertions see authored units.
+vi.mock('../api/preferences', async () => {
+  const actual = await vi.importActual<typeof import('../api/preferences')>('../api/preferences');
+  return {
+    ...actual,
+    fetchPreferences: vi.fn(async () => ({ unitSystem: 'original', locale: 'en-US', theme: 'light' })),
+  };
+});
+
 import { setIngredientAisle } from '../api/ingredients';
+import { fetchPreferences } from '../api/preferences';
 const mockSetAisle = setIngredientAisle as ReturnType<typeof vi.fn>;
+const mockFetchPreferences = fetchPreferences as ReturnType<typeof vi.fn>;
 
 const render = renderWithProviders;
 
@@ -158,5 +169,21 @@ describe('GroceryList', () => {
 
     expect(mockSetAisle).toHaveBeenCalledWith('cheddar cheese', 'deli');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+});
+
+describe('GroceryList unit conversion (plan 27)', () => {
+  it('converts amounts at render for a metric user', async () => {
+    mockFetchPreferences.mockResolvedValue({ unitSystem: 'metric', locale: 'en-US', theme: 'light' });
+    render(<GroceryList items={[makeItem({ amount: 2, unit: 'cup' })]} />);
+    expect(await screen.findByText(/475 ml/)).toBeInTheDocument();
+    expect(screen.queryByText(/2 cup/)).not.toBeInTheDocument();
+  });
+
+  it('shows the stored units for the original preference', async () => {
+    mockFetchPreferences.mockResolvedValue({ unitSystem: 'original', locale: 'en-US', theme: 'light' });
+    render(<GroceryList items={[makeItem({ amount: 2, unit: 'cup' })]} />);
+    await waitFor(() => expect(mockFetchPreferences).toHaveBeenCalled());
+    expect(screen.getByText(/2 cup/)).toBeInTheDocument();
   });
 });

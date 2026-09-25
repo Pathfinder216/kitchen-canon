@@ -8,6 +8,7 @@ import { StepMedia } from '../components/StepMedia';
 import type { Recipe } from '../types/recipe';
 import { COURSE_DISPLAY_NAMES } from '../api/courses';
 import { priorInstructions, resolveIngredientRefs } from '../utils/resolveIngredientRefs';
+import { useUnitSystem } from '../hooks/usePreferences';
 import { formatDuration } from '../utils/formatDuration';
 import { fetchSubstitutionsForRecipe, type Substitution } from '../api/substitutions';
 import { apiGet } from '../api/client';
@@ -27,6 +28,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   const locationState = location.state as { from?: { label: string; href: string }; targetServings?: number } | null;
   const backLink = locationState?.from ?? { label: 'Back to recipes', href: '/' };
   const { allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
+  const unitSystem = useUnitSystem();
   const { targetServings, setTargetServings, scaleIngredient } = useScaling(locationState?.targetServings ?? recipe.servings);
   const scaledIngredients = recipe.ingredients.map(scaleIngredient);
 
@@ -71,7 +73,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
   return (
     <div>
       {/* Print layout — only visible when printing */}
-      <PrintLayout recipe={recipe} finalIngredients={finalIngredients} swapDisplayNames={swapDisplayNames} targetServings={targetServings} />
+      <PrintLayout recipe={recipe} finalIngredients={finalIngredients} swapDisplayNames={swapDisplayNames} targetServings={targetServings} unitSystem={unitSystem} />
 
       {/* Screen layout — hidden when printing */}
       <div className="print:hidden">
@@ -164,7 +166,7 @@ function RecipeDetail({ recipe }: { recipe: Recipe }) {
                   </span>
                   <div className="flex-1 pt-0.5">
                     <p className="text-gray-900 text-sm">
-                      {resolveIngredientRefs(step.instruction, finalIngredients, 1, swapDisplayNames, priorInstructions(recipe.steps, index))}
+                      {resolveIngredientRefs(step.instruction, finalIngredients, 1, swapDisplayNames, priorInstructions(recipe.steps, index), unitSystem)}
                     </p>
                     {!!step.timeMinutes && (
                       <p className="text-xs text-gray-500 mt-1">

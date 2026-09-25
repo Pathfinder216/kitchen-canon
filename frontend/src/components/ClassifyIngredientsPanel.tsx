@@ -1,14 +1,22 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createIngredientEntry, type IngredientSuggestion } from '../api/ingredients';
+import { createIngredientEntry } from '../api/ingredients';
 import { useDietaryTags } from '../hooks/useDietaryTags';
-import { IngredientSuggestions } from './IngredientSuggestions';
+import { CopyFromSimilar, type CopySource } from './nutrition/CopyFromSimilar';
+import { NutritionEditor } from './nutrition/NutritionEditor';
+import {
+  draftToNutrition,
+  emptyNutritionDraft,
+  nutritionToDraft,
+  type NutritionDraft,
+} from '../utils/nutrition';
 
 interface ClassifyFormState {
   allergens: string[];
   diets: string[];
-  /** The "Did you mean …?" entry the tags were prefilled from, if any (its aisle is saved too). */
-  picked?: IngredientSuggestion;
+  nutrition: NutritionDraft;
+  /** The similar entry the form was prefilled from, if any (its aisle is saved too). */
+  picked?: CopySource;
 }
 
 interface Props {
@@ -22,7 +30,9 @@ export function ClassifyIngredientsPanel({ unknownIngredients, onSaved, onDone }
   const queryClient = useQueryClient();
   const { allergens: ALLERGENS, diets: DIETS, allergenLabels: ALLERGEN_LABELS, dietLabels: DIET_LABELS } = useDietaryTags();
   const [forms, setForms] = useState<Record<string, ClassifyFormState>>(() =>
-    Object.fromEntries(unknownIngredients.map((n) => [n, { allergens: [], diets: [] }]))
+    Object.fromEntries(
+      unknownIngredients.map((n) => [n, { allergens: [], diets: [], nutrition: emptyNutritionDraft() }]),
+    )
   );
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,8 +50,20 @@ export function ClassifyIngredientsPanel({ unknownIngredients, onSaved, onDone }
     });
   }
 
-  function pickSuggestion(name: string, s: IngredientSuggestion) {
-    setForms((prev) => ({ ...prev, [name]: { allergens: s.allergens, diets: s.diets, picked: s } }));
+  function pickSuggestion(name: string, s: CopySource) {
+    setForms((prev) => ({
+      ...prev,
+      [name]: {
+        allergens: s.allergens,
+        diets: s.diets,
+        nutrition: s.nutrition ? nutritionToDraft(s.nutrition, 'copied') : prev[name].nutrition,
+        picked: s,
+      },
+    }));
+  }
+
+  function setNutrition(name: string, nutrition: NutritionDraft) {
+    setForms((prev) => ({ ...prev, [name]: { ...prev[name], nutrition } }));
   }
 
   async function handleSave() {
@@ -50,7 +72,14 @@ export function ClassifyIngredientsPanel({ unknownIngredients, onSaved, onDone }
     try {
       for (const name of unknownIngredients) {
         const { allergens, diets, picked } = forms[name];
-        await createIngredientEntry({ name, allergens, diets, ...(picked?.aisle && { aisle: picked.aisle }) });
+        const nutrition = draftToNutrition(forms[name].nutrition);
+        await createIngredientEntry({
+          name,
+          allergens,
+          diets,
+          ...(picked?.aisle && { aisle: picked.aisle }),
+          ...(nutrition && { nutrition }),
+        });
       }
       await queryClient.invalidateQueries({ queryKey: ['ingredients'] });
       await onSaved?.();
@@ -77,14 +106,15 @@ export function ClassifyIngredientsPanel({ unknownIngredients, onSaved, onDone }
       {unknownIngredients.map((name) => (
         <div key={name} className="bg-white border border-amber-100 rounded-lg p-3 space-y-2">
           <p className="text-sm font-medium text-gray-800 capitalize">{name}</p>
-          <IngredientSuggestions
+          <CopyFromSimilar
             name={name}
             selectedId={forms[name].picked?.id}
             onPick={(s) => pickSuggestion(name, s)}
           />
           {forms[name].picked && (
             <p className="text-xs text-amber-700">
-              Tags copied from "{forms[name].picked.displayAlias}" — review, then save.
+              {forms[name].picked.nutrition ? 'Tags and nutrition' : 'Tags'} copied from
+              "{forms[name].picked.displayAlias}" — review, then save.
             </p>
           )}
           <div>
@@ -131,6 +161,11 @@ export function ClassifyIngredientsPanel({ unknownIngredients, onSaved, onDone }
               })}
             </div>
           </div>
+          <NutritionEditor
+            ingredientName={name}
+            value={forms[name].nutrition}
+            onChange={(d) => setNutrition(name, d)}
+          />
         </div>
       ))}
 

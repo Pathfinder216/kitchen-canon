@@ -64,7 +64,7 @@ Pi; 44 is defense-in-depth after the first three.
 
 ## Big systems
 
-- [ ] [34 — Nutrition data (USDA lookup + copy-from-similar)](34-nutrition-data.md) (L; needs 20)
+- [x] [34 — Nutrition data (USDA lookup + copy-from-similar)](34-nutrition-data.md) (L; needs 20) — `IngredientCatalog.nutrition Json?` (`{ per100g, gramsPerUnit?, source, fdcId?, fdcDescription? }`, Zod in `schemas/nutrition.schema.ts`) accepted by `POST`/`PATCH /api/ingredients` (omitted = keep, null = clear; a new shadow of a built-in inherits its nutrition) and returned by `/suggest`. `services/nutrition.service.ts` + `/api/nutrition` proxy USDA FDC (`/status`, `/search?q=` Foundation+SR Legacy top 5, `/food/:fdcId`) with the key in an `X-Api-Key` header, 10 s timeout, 500 ms throttle, 503 without `FDC_API_KEY`, 502 on upstream failure; Foundation fallbacks (Atwater kcal, sugar 1063). Deviation: FDC search results carry no portions, so picking a match fetches `/food/:fdcId` for `gramsPerUnit` (keys run through plan 18's `normalizeUnit`, RACC skipped). Frontend: shared `NutritionEditor` (collapsible, lookup + manual string-state fields) and `CopyFromSimilar` ("Did you mean" chips + ComboInput over the catalog, prefills tags/aisle/nutrition as `copied`) in both classify panels and the IngredientsPage editor. Tests replay recorded FDC responses (`__tests__/fixtures/fdc-search.json`, `fixtures/fdc/`) via mocked fetch
 - [ ] [35 — Nutrition aggregation & display](35-nutrition-display.md) (M; needs 34, 18)
 - [ ] [36 — Offline writes](36-offline-writes.md) (L; needs 01, 04) — blocks 37
 - [ ] [37 — Multi-device sync](37-device-sync.md) (XL, staged milestones; needs 36)

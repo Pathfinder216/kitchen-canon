@@ -10,6 +10,9 @@ import {
 } from '../api/ingredients';
 import { useDietaryTags } from '../hooks/useDietaryTags';
 import { useAisles } from '../hooks/useAisles';
+import { CopyFromSimilar, type CopySource } from '../components/nutrition/CopyFromSimilar';
+import { NutritionEditor } from '../components/nutrition/NutritionEditor';
+import { draftToNutrition, nutritionSummary, nutritionToDraft } from '../utils/nutrition';
 
 function EditRow({ entry, onDone }: { entry: CatalogEntry; onDone: () => void }) {
   const queryClient = useQueryClient();
@@ -22,14 +25,22 @@ function EditRow({ entry, onDone }: { entry: CatalogEntry; onDone: () => void })
   // Only send the aisle when the user changed it; omitting it keeps the current one (and a new
   // shadow of a built-in inherits the built-in's aisle).
   const aisleChange = aisle !== (entry.aisle ?? '') ? { aisle: aisle || null } : {};
+  // Nutrition follows the same rule: sent only when it differs from what the entry holds.
+  const [nutrition, setNutrition] = useState(() => nutritionToDraft(entry.nutrition));
+  const [copiedFrom, setCopiedFrom] = useState<CopySource | null>(null);
+  const parsedNutrition = draftToNutrition(nutrition);
+  const nutritionChange =
+    JSON.stringify(parsedNutrition) !== JSON.stringify(draftToNutrition(nutritionToDraft(entry.nutrition)))
+      ? { nutrition: parsedNutrition }
+      : {};
 
   const mutation = useMutation({
     // Globals are read-only: "customizing" one POSTs a user-private shadow entry with the same
     // name, which wins resolution over the global. User entries are PATCHed in place.
     mutationFn: () =>
       isGlobal
-        ? createIngredientEntry({ name: entry.displayAlias, allergens, diets, ...aisleChange })
-        : updateIngredientEntry(entry.id, { allergens, diets, ...aisleChange }),
+        ? createIngredientEntry({ name: entry.displayAlias, allergens, diets, ...aisleChange, ...nutritionChange })
+        : updateIngredientEntry(entry.id, { allergens, diets, ...aisleChange, ...nutritionChange }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ingredients'] });
       onDone();
@@ -44,11 +55,30 @@ function EditRow({ entry, onDone }: { entry: CatalogEntry; onDone: () => void })
     }
   }
 
+  function copyFrom(source: CopySource) {
+    setAllergens(source.allergens);
+    setDiets(source.diets);
+    if (source.aisle) setAisle(source.aisle);
+    if (source.nutrition) setNutrition(nutritionToDraft(source.nutrition, 'copied'));
+    setCopiedFrom(source);
+  }
+
   return (
     <div className="px-4 py-3 bg-orange-50 border-t border-orange-100 space-y-3">
       {isGlobal && (
         <p className="text-xs text-gray-500">
           Saving creates your own copy of this built-in ingredient; your copy takes priority.
+        </p>
+      )}
+      <CopyFromSimilar
+        name={entry.displayAlias}
+        selectedId={copiedFrom?.id}
+        excludeIds={[entry.id]}
+        onPick={copyFrom}
+      />
+      {copiedFrom && (
+        <p className="text-xs text-orange-700">
+          Copied from "{copiedFrom.displayAlias}" — review, then save.
         </p>
       )}
       <div>
@@ -113,6 +143,7 @@ function EditRow({ entry, onDone }: { entry: CatalogEntry; onDone: () => void })
           </select>
         </div>
       )}
+      <NutritionEditor ingredientName={entry.displayAlias} value={nutrition} onChange={setNutrition} />
       {mutation.isError && <p className="text-xs text-red-600">Failed to save.</p>}
       <div className="flex gap-2">
         <button
@@ -190,6 +221,9 @@ function IngredientRow({ entry, isCustomized, isEditing, onEdit, onDone }: {
           </p>
           {synonyms.length > 0 && (
             <p className="text-xs text-gray-400 mt-0.5">{synonyms.join(' · ')}</p>
+          )}
+          {entry.nutrition && (
+            <p className="text-xs text-gray-500 mt-0.5">{nutritionSummary(entry.nutrition)}</p>
           )}
           <div className="flex flex-wrap gap-1 mt-1">
             {entry.allergens.map((a) => (

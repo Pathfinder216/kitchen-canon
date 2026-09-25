@@ -21,6 +21,8 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       # Optional signup gate. Empty = open registration; set to require an invite code on register.
       SIGNUP_INVITE_CODE: ${SIGNUP_INVITE_CODE:-}
+      # Optional USDA FoodData Central key for the nutrition lookup. Empty = lookup disabled.
+      FDC_API_KEY: ${FDC_API_KEY:-}
     restart: unless-stopped
 
 volumes:
